@@ -1,0 +1,51 @@
+index,id,domain,input,target,prediction,strict_match,norm_match,bleu_4,cer_pct,ter_pct,latency_ms
+1,0,mathematics,ax plus by plus cz equals d,ax + by + cz = d,ax + by + cz = d,True,True,100.0,0.0,0.0,508.0
+2,1,mathematics,x plus 5y plus 10z equals zero,x + 5y + 10z = 0,x + 5y + 10z = 0,True,True,100.0,0.0,0.0,584.5
+3,2,mathematics,"x minus two y minus one and z plus one dot product with one, five, ten","[x-2,y-1,z+1]\cdot[1,5,10]","x - 2y + z \cdot (1, 5, 10)",False,False,24.27,57.69,47.62,667.9
+4,3,mathematics,x minus two plus five times y minus one plus ten times z plus one equals zero,(x - 2) + 5(y - 1) + 10(z + 1) = 0,x - 2 + 5y - 1 + 10z + 1 = 0,False,False,12.63,17.65,28.57,803.2
+5,4,mathematics,Ax plus By plus Cz equals D,Ax + By + Cz = D,ax + by + cz = d,False,False,7.73,25.0,40.0,339.3
+6,5,mathematics,x plus y plus three z equals five,x + y + 3z = 5,x + y + 3z = 5,True,True,100.0,0.0,0.0,411.9
+7,6,mathematics,x plus z equals one,x + z = 1,x + z = 1,True,True,100.0,0.0,0.0,281.6
+8,7,mathematics,x plus y equals two,x + y = 2,x + y = 2,True,True,100.0,0.0,0.0,276.2
+9,8,mathematics,A inverse is one over determinant of A times the adjoint matrix,A^{-1} = \frac{1}{\text{det}(A)} \cdot \text{adj}(A),A^{-1} = \frac{1}{\det(A)} \cdot \text{adj}(A),False,False,74.7,11.54,18.75,863.7
+10,9,mathematics,X equals A inverse B,X = A^{-1}B,X = \frac{1}{B},False,False,7.96,72.73,55.56,371.3
+11,10,mathematics,log two minus log one,\log2-\log1,\log 2 - \log 1,False,True,100.0,36.36,0.0,383.4
+12,11,mathematics,b minus a over n,\frac{b - a}{n},\frac{b - a}{n},True,True,100.0,0.0,0.0,348.9
+13,12,mathematics,a half times one plus two thirds plus a half times a half,1/2\cdot1+2/3+1/2\cdot1/2,a \frac{1}{2} \times 1 + \frac{2}{3} + \frac{1}{2} \times \frac{1}{2},False,False,1.81,100.0,100.0,1250.2
+14,13,mathematics,y0 plus 4y1 plus y2,\displaystyle y_0 + 4y_1 + y_2,y_0 + 4y_1 + y_2,False,True,92.0,46.67,7.69,531.9
+15,14,mathematics,a half plus n minus 1 plus a half,\frac{1}{2}+n-1+\frac{1}{2},a \frac{1}{2} + n - 1 + \frac{1}{2},False,False,94.6,29.63,5.26,732.4
+16,15,mathematics,two pi r e to the minus r squared dr,2\pi r e^{-r^2} dr,2\pi re^{-r^2}dr,False,True,100.0,11.11,0.0,438.4
+17,16,mathematics,pi minus pi e to the minus r squared,\pi - \pi e^{-r^2},\pi - \pi e^{-r^2},True,True,100.0,0.0,0.0,406.2
+18,17,mathematics,square root of pi over 2,\frac{\sqrt{\pi}}{2},\sqrt{\frac{\pi}{2}},False,False,47.93,50.0,40.0,382.6
+19,18,mathematics,e to the minus b squared plus x squared,e^{-(b^2 + x^2)},e^{-b^2 + x^2},False,False,63.81,12.5,14.29,401.0
+20,19,mathematics,e to the minus b squared times e to the minus x squared,e^{-b^2} e^{-x^2},e^{-b^2} \times e^{-x^2},False,False,82.94,41.18,6.25,528.9
+21,20,mathematics,minus b squared times the integral from minus infinity to infinity of e to the minus x squared dx,"\displaystyle -b^2 \int_{-\infty}^{\infty} e^{-x^2} \, dx","-b^2 \times \int_{-\infty}^\infty e^{-x^2} \, dx",False,False,71.19,31.58,15.38,922.9
+22,21,mathematics,integral from minus infinity to infinity e to the minus y squared dy,\displaystyle \int_{-\infty}^{\infty} e^{-y^2} dy,"\int_{-\infty}^{\infty} e^{-y^2} \, dy",False,True,88.13,34.69,9.52,804.7
+23,22,mathematics,pi x2 squared minus x1 squared,\pi ({x_2}^{2} - {x_1}^{2}),\pi x^2 - x_1^2,False,False,4.37,44.44,54.55,437.2
+24,23,mathematics,h of x equal to sine of x plus square root of 3 times cosine of x,h(x) = \sin(x) + \sqrt{3} \cos(x),h(x) = \sin(x) + \sqrt{3} \cos(x),True,True,100.0,0.0,0.0,646.4
+25,24,mathematics,cosine x minus square root of 3 times sine x,\cos(x) - \sqrt{3} \sin(x),\cos{x} - \sqrt{3}\sin{x},False,False,42.68,19.23,30.77,478.6
+26,25,mathematics,square root of 3 times tan x,\sqrt{3} \tan(x),\sqrt{3} \tan{x},False,False,54.92,12.5,25.0,342.8
+27,26,mathematics,tan of x is equal to one divided by square root of three,\tan(x) = \frac{1}{\sqrt{3}},\tan(x) = \frac{1}{\sqrt{3}},True,True,100.0,0.0,0.0,581.7
+28,27,mathematics,pi over 6,\frac{\pi}{6},\frac{\pi}{6},True,True,100.0,0.0,0.0,278.7
+29,28,mathematics,pi over 6 plus pi,\frac{\pi}{6} + \pi,\frac{\pi}{6} + \pi,True,True,100.0,0.0,0.0,400.4
+30,29,mathematics,minus five pi over six,-\frac{5\pi}{6},-\frac{5\pi}{6},True,True,100.0,0.0,0.0,376.6
+31,30,mathematics,pi over 6 minus pi,\frac{\pi}{6} - \pi,\frac{\pi}{6} - \pi,True,True,100.0,0.0,0.0,415.9
+32,31,mathematics,sine of x plus square root of 3 times cosine x,\sin(x) + \sqrt{3} \cos(x),\sin(x) + \sqrt{3}\cos(x),False,True,100.0,3.85,0.0,483.2
+33,32,mathematics,h of x equals two times one-half sine x plus square root of three over two,h(x) = 2 \frac{1}{2} \sin(x) + \frac{\sqrt{3}}{2},h(x) = 2 \times \frac{1}{2} \sin(x) + \sqrt{\frac{3}{2}},False,False,71.56,34.69,17.86,1023.9
+34,33,mathematics,pi over 3 sine x plus sine pi over 3 cosine x,\displaystyle \frac{\pi}{3} \sin(x) + \sin\frac{\pi}{3} \cos(x),\frac{\pi}{3} \sin{x} + \sin\left(\frac{\pi}{3}\right) \cos{x},False,False,50.12,49.21,36.0,1001.0
+35,34,mathematics,two times sine of x plus pi over three,2\sin(x) + \frac{\pi}{3},2 \sin(x + \frac{\pi}{3}),False,False,77.88,12.5,15.38,509.9
+36,35,mathematics,x equals minus pi over three,x = -\frac{\pi}{3},x = -\frac{\pi}{3},True,True,100.0,0.0,0.0,374.7
+37,36,mathematics,x equals 7 pi over 6,x = 7\pi/6,x = \frac{7\pi}{6},False,False,6.71,90.0,83.33,413.4
+38,37,mathematics,pi over 2 minus pi over 3 is pi over 6,\pi/2 - \pi/3 = \pi/6,\frac{\pi}{2} - \frac{\pi}{3} = \frac{\pi}{6},False,False,1.39,100.0,100.0,806.1
+39,38,mathematics,negative sine x times x squared times the sine x,- \sin x \cdot x^{2} \cdot \sin x,-\sin{x} \cdot x^2 \cdot \sin{x},False,True,12.86,21.21,50.0,576.8
+40,39,mathematics,cosine x cosine x is cosine squared x,\cos x \cos x = \cos^{2}x,\cos{x}\cos{x} = \cos^2{x},False,True,9.34,28.0,63.64,502.8
+41,40,mathematics,minus x squared sine squared x,-x^2 \sin^{2}x,-x^2 \sin^2{x},False,True,59.32,21.43,30.0,411.5
+42,41,mathematics,dy dx times dx dw times dw d theta,\frac{dy}{dx} \times \frac{dx}{dw} \times \frac{dw}{d\theta},\frac{d}{dx} \left( dy \right) \times \frac{d}{dw} \left( dw \right),False,False,39.99,63.33,55.17,998.6
+43,42,mathematics,dw d theta is four theta to the third,\frac{dw}{d\theta} = 4\theta^{3},w = 4\theta^3,False,False,10.89,59.38,62.5,377.6
+44,43,mathematics,cosine of theta to the fourth,\cos(\theta^{4}),\cos(\theta)^4,False,False,17.51,25.0,50.0,287.7
+45,44,mathematics,two cosine of theta to the fourth times negative sine,2\cos(\theta^{4}) (-\sin),2 \cos^4{\theta} \cdot (-\sin{\theta}),False,False,11.04,76.0,61.54,629.6
+46,45,mathematics,cosine of pi over two is equal to zero,\cos(\pi/2) = 0,\cos\left(\frac{\pi}{2}\right) = 0,False,False,9.02,100.0,87.5,602.5
+47,46,mathematics,theta to the fourth equals pi over two,\theta^{4} = \frac{\pi}{2},\theta^4 = \frac{\pi}{2},False,True,63.59,7.69,15.38,447.2
+48,47,mathematics,theta is equal to pi over 2 to the 1 4th,\theta = (\frac{\pi}{2}) ^ \frac{1}{4},\theta = \frac{\pi}{2}^{\frac{1}{4}},False,False,66.24,13.16,21.05,676.5
+49,48,mathematics,y cubed plus x cubed equals three xy,y^{3} + x^{3} = 3xy,y^3 + x^3 = 3xy,False,True,28.42,21.05,26.67,476.5
+50,49,mathematics,four thirds cubed plus two thirds cubed is equal to three times two thirds times four thirds,(4/3)^{3}+(2/3)^{3}=3\times(2/3)\times(4/3),\frac{4}{3}^3 + \left(\frac{2}{3}\right)^3 = 3 \times \frac{2}{3} \times \frac{4}{3},False,False,6.75,100.0,78.79,1512.4

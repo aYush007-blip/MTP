@@ -1,0 +1,54 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.backup
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Large Neural Models & Checkpoints (>100MB)
+models/
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# Datasets & Big Data
+datasets/
+*.csv.gz
+*.tar.gz
+*.zip
+
+# Caches & Temporary Files
+huggingface_cache/
+.cache/
+corrupted_trash_*/
+lost+found/
+*.whl
+sys_torch.txt
+torch_test.txt
+
+# External Repositories / Submodules / Builds
+llama.cpp/
+main/whisper.cpp/
+main/MathSpeech/
+build/
+bin/
+
+# Audio Recordings & Scratch
+recordings/
+gui_tests/
+transcripts/
+logs/
+.Trash-*/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store

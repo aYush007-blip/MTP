@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech Transcription System</title>
+  <meta name="description" content="Speech Transcription System.">
+
+  <!-- Offline KaTeX -->
+  <link rel="stylesheet" href="/static/katex/katex.min.css">
+  <script src="/static/katex/katex.min.js"></script>
+  <script src="/static/katex/auto-render.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <div class="container">
+    <!-- Minimal Header -->
+    <header class="header-bar">
+      <div class="brand-wrapper">
+        <div class="brand-icon">∑</div>
+        <div class="brand-text">
+          <h1>Speech Transcription System</h1>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <main class="workspace-grid">
+      <!-- Left Column: Audio Input -->
+      <section class="glass-card" aria-label="Audio Input Section">
+        <div class="card-header">
+          <div class="card-title">
+            <span>🎙️</span>
+            <h2>Audio Input</h2>
+          </div>
+          <!-- Live Recording Duration Indicator -->
+          <div id="recordingTimerBadge" class="recording-timer-badge" style="display: none;">
+            <span class="timer-dot"></span>
+            <span id="recordingTimerText">REC 00:00</span>
+          </div>
+        </div>
+
+        <!-- Real-time Visualizer -->
+        <div class="visualizer-container">
+          <canvas id="audioCanvas"></canvas>
+          <div class="audio-status-overlay">
+            <span id="visualizerDot" style="width: 8px; height: 8px; border-radius: 50%; background: #64748b;"></span>
+            <span id="visualizerLabel">Microphone Idle</span>
+          </div>
+        </div>
+
+        <!-- Audio Player & Instant Download -->
+        <div class="audio-player-wrapper" id="audioPlayerWrapper">
+          <div class="player-row">
+            <audio id="audioPlayback" controls></audio>
+            <button id="btnDownloadAudioPlayer" class="btn-tool" type="button" title="Download recorded WAV file">
+              <span>⬇</span>
+              <span>WAV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Model Engine Selector -->
+        <div class="engine-selector-container">
+          <div class="engine-selector-header">
+            <span class="engine-selector-label">TRANSLATION ENGINE</span>
+            <span class="engine-status-tag" id="engineStatusTag">100% Offline Edge</span>
+          </div>
+          <div class="engine-toggle-group" id="engineToggleGroup">
+            <button type="button" class="btn-engine-toggle active" id="btnEngineSlm" data-engine="slm" title="Unified Qwen2.5-1.5B edge language model (Recommended)">
+              <span class="engine-icon">🧠</span>
+              <span class="engine-text">Qwen2.5-1.5B <span class="engine-badge-tag active-tag">SLM</span></span>
+            </button>
+            <button type="button" class="btn-engine-toggle" id="btnEngineT5" data-engine="t5-v2" title="Phase 1 Heuristic Regex Router + T5-Small">
+              <span class="engine-icon">⚡</span>
+              <span class="engine-text">T5-Small <span class="engine-badge-tag">Phase 1</span></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Primary Controls -->
+        <div class="controls-stack">
+          <!-- Hardware Mic Row -->
+          <div class="controls-row">
+            <button id="btnRecordHw" class="btn-hw-record" type="button" title="Start recording from hardware microphone">
+              <span id="hwRecordIcon">⚡</span>
+              <span id="hwRecordLabel">Hardware Mic</span>
+            </button>
+            <button id="btnStopHw" class="btn-stop-record" type="button" disabled title="Stop recording and transcribe">
+              <span>⏹</span>
+              <span>Stop</span>
+            </button>
+          </div>
+
+          <!-- Browser Mic & Upload Row -->
+          <div class="controls-row">
+            <button id="btnRecord" class="btn-primary" type="button" title="Record via browser microphone">
+              <span id="recordIcon">🎙️</span>
+              <span id="recordLabel">Browser Mic</span>
+            </button>
+            <button id="btnStopBrowser" class="btn-stop-record" type="button" disabled title="Stop browser recording and transcribe">
+              <span>⏹</span>
+              <span>Stop</span>
+            </button>
+            <button id="btnUpload" class="btn-secondary" type="button" title="Upload WAV audio file">
+              <span>📁</span>
+              <span>Upload</span>
+            </button>
+            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+          </div>
+        </div>
+
+        <!-- Pre-recorded Utterances -->
+        <div class="sub-input-section">
+          <div class="sub-input-row">
+            <select id="savedRecordingsSelect" class="compact-select" title="Benchmark audio files">
+              <option value="">Select benchmark audio...</option>
+            </select>
+            <button id="btnRunSaved" class="btn-secondary compact-btn" type="button">Run</button>
+          </div>
+        </div>
+
+        <!-- Direct Text Simulation -->
+        <div class="text-input-group">
+          <input type="text" id="directTextInput" placeholder="Type spoken math or English (e.g. 'v equals i times r')...">
+          <button id="btnSendText" class="btn-icon" type="button">Analyze</button>
+        </div>
+      </section>
+
+      <!-- Right Column: Output & LaTeX -->
+      <section class="glass-card" aria-label="Transcription Output Section">
+        <div class="card-header">
+          <div class="card-title">
+            <span>📐</span>
+            <h2>Output</h2>
+          </div>
+          <div class="output-header-actions">
+            <div id="routeBadgeWrapper">
+              <span class="route-badge PURE_ENGLISH" id="routeBadge">IDLE</span>
+            </div>
+            <div class="action-buttons-group">
+              <button class="btn-tool" id="btnCopyLatex" type="button" title="Copy LaTeX formula to clipboard">
+                <span>📋</span>
+                <span>Copy</span>
+              </button>
+              <button class="btn-tool" id="btnDownloadOutputAudio" type="button" disabled title="Download audio WAV file">
+                <span>⬇</span>
+                <span>WAV</span>
+              </button>
+              <button class="btn-tool" id="btnDownloadOutputJson" type="button" disabled title="Download model output JSON for learning/dataset">
+                <span>💾</span>
+                <span>JSON</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="output-section">
+          <!-- Whisper ASR Transcript -->
+          <div>
+            <div class="field-label">Whisper Transcript</div>
+            <div class="text-box" id="rawTranscriptBox">
+              <em>Transcription will appear here...</em>
+            </div>
+          </div>
+
+          <!-- LaTeX Typography Container -->
+          <div>
+            <div class="field-label">Rendered LaTeX</div>
+            <div class="latex-render-container" id="latexRenderContainer">
+              <span style="color: var(--text-dim);">Formula or typography will render here</span>
+            </div>
+          </div>
+
+          <!-- LaTeX Code Snippet -->
+          <div id="latexCodeCard" style="display: none;">
+            <div class="field-label">LaTeX Code</div>
+            <div class="text-box mono-box" id="latexCodeBox"></div>
+          </div>
+
+          <!-- Detected Math Spans -->
+          <div id="spansCard" style="display: none;">
+            <div class="field-label">Detected Math Spans</div>
+            <div class="text-box spans-box" id="spansBox"></div>
+          </div>
+
+          <!-- Latency Metrics Grid -->
+          <div class="latency-grid">
+            <div class="metric-card">
+              <div class="metric-label">ASR</div>
+              <div class="metric-value" id="valAsrTime">-- ms</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Router</div>
+              <div class="metric-value" id="valRouterTime">-- ms</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label" id="lblTranslationEngine">SLM (Qwen)</div>
+              <div class="metric-value" id="valT5Time">-- ms</div>
+            </div>
+            <div class="metric-card total">
+              <div class="metric-label">Total</div>
+              <div class="metric-value" id="valTotalTime">-- ms</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Session History Section -->
+    <section class="history-section">
+      <div class="section-header">
+        <div class="history-header-left">
+          <h2>Session History</h2>
+        </div>
+        <div class="history-actions">
+          <button id="btnExportSessionJson" class="btn-secondary compact-btn" title="Export entire session history as JSON dataset">
+            <span>💾 Export All (JSON)</span>
+          </button>
+          <button id="btnClearHistory" class="btn-secondary compact-btn" title="Clear session history list">
+            <span>Clear</span>
+          </button>
+        </div>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">No session history yet. Speak or type to begin.</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Custom App JavaScript -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1102 @@
+index,id,domain,input,target,prediction,strict_match,norm_match,bleu_4,cer_pct,ter_pct,latency_ms
+1,0,mathematics,ax plus by plus cz equals d,ax + by + cz = d,+ {} -cz = d,False,False,29.44,43.75,50.0,1114.6
+2,1,mathematics,x plus 5y plus 10z equals zero,x + 5y + 10z = 0,x + 5y + 10z = 0,True,True,100.0,0.0,0.0,984.8
+3,2,mathematics,"x minus two y minus one and z plus one dot product with one, five, ten","[x-2,y-1,z+1]\cdot[1,5,10]",x-2y-1 + z + 1,False,False,7.95,69.23,57.14,1059.7
+4,3,mathematics,x minus two plus five times y minus one plus ten times z plus one equals zero,(x - 2) + 5(y - 1) + 10(z + 1) = 0,x- 2 + 5y-1 + 10z + 1 = 0,False,False,12.63,26.47,28.57,1529.3
+5,4,mathematics,Ax plus By plus Cz equals D,Ax + By + Cz = D,+ By + Cz = D,False,False,77.88,18.75,20.0,862.0
+6,5,mathematics,x plus y plus three z equals five,x + y + 3z = 5,x + y + 3z = 5,True,True,100.0,0.0,0.0,939.1
+7,6,mathematics,x plus z equals one,x + z = 1,x + z = 1,True,True,100.0,0.0,0.0,2.4
+8,7,mathematics,x plus y equals two,x + y = 2,x + y = 2,True,True,100.0,0.0,0.0,0.9
+9,8,mathematics,A inverse is one over determinant of A times the adjoint matrix,A^{-1} = \frac{1}{\text{det}(A)} \cdot \text{adj}(A),\frac{Ainverseis1}{determinantofAtimestheadjointmatrix},False,False,9.61,88.46,100.0,2.3
+10,9,mathematics,X equals A inverse B,X = A^{-1}B,X = }{,False,False,5.67,54.55,66.67,581.4
+11,10,mathematics,log two minus log one,\log2-\log1,\frac 2} - { 1,False,False,5.29,100.0,60.0,842.2
+12,11,mathematics,b minus a over n,\frac{b - a}{n},\frac{bminusa}{n},False,False,39.34,33.33,55.56,1.2
+13,12,mathematics,a half times one plus two thirds plus a half times a half,1/2\cdot1+2/3+1/2\cdot1/2,( (1 + 2) ^{3} + \frac \ 1 \sqrt \sum 2 \pi,False,False,7.27,100.0,82.35,1380.6
+14,13,mathematics,y0 plus 4y1 plus y2,\displaystyle y_0 + 4y_1 + y_2,+ 4y1,False,False,4.47,83.33,69.23,454.1
+15,14,mathematics,a half plus n minus 1 plus a half,\frac{1}{2}+n-1+\frac{1}{2},+ n - 1,False,False,2.35,92.59,78.95,714.0
+16,15,mathematics,two pi r e to the minus r squared dr,2\pi r e^{-r^2} dr,-r ^{2} \frac dr,False,False,12.45,77.78,53.85,1114.6
+17,16,mathematics,pi minus pi e to the minus r squared,\pi - \pi e^{-r^2},\frac - e -r ^{2},False,False,14.73,61.11,45.45,1368.2
+18,17,mathematics,square root of pi over 2,\frac{\sqrt{\pi}}{2},\frac{squarerootofpi}{2},False,False,14.85,50.0,100.0,1.8
+19,18,mathematics,e to the minus b squared plus x squared,e^{-(b^2 + x^2)},-b ^{2} + x \frac \ 2 \sqrt \sum,False,False,5.85,100.0,64.29,1395.0
+20,19,mathematics,e to the minus b squared times e to the minus x squared,e^{-b^2} e^{-x^2},-b ^{2} e -x ^{2},False,False,16.95,52.94,43.75,1688.3
+21,20,mathematics,minus b squared times the integral from minus infinity to infinity of e to the minus x squared dx,"\displaystyle -b^2 \int_{-\infty}^{\infty} e^{-x^2} \, dx",-b ^{2} \frac -x ^{2} dx,False,False,7.84,75.44,57.69,2073.8
+22,21,mathematics,integral from minus infinity to infinity e to the minus y squared dy,\displaystyle \int_{-\infty}^{\infty} e^{-y^2} dy,"\frac _{} -y ^{2},dy",False,False,7.73,71.43,61.9,1461.5
+23,22,mathematics,pi x2 squared minus x1 squared,\pi ({x_2}^{2} - {x_1}^{2}),\frac{2} -x _ 1 ^ \ 2 \sqrt,False,False,13.69,85.19,59.09,1171.8
+24,23,mathematics,h of x equal to sine of x plus square root of 3 times cosine of x,h(x) = \sin(x) + \sqrt{3} \cos(x),h(x) = to \cos(x + square root of 3 cosine of x),False,False,16.01,81.82,100.0,6.7
+25,24,mathematics,cosine x minus square root of 3 times sine x,\cos(x) - \sqrt{3} \sin(x),x- ^{3},False,False,7.28,76.92,61.54,694.0
+26,25,mathematics,square root of 3 times tan x,\sqrt{3} \tan(x),\frac{3},False,False,14.54,75.0,62.5,437.1
+27,26,mathematics,tan of x is equal to one divided by square root of three,\tan(x) = \frac{1}{\sqrt{3}},\frac{tanofxisequalto1}{squarerootof3},False,False,4.24,96.43,100.0,2.8
+28,27,mathematics,pi over 6,\frac{\pi}{6},\frac{pi}{6},False,False,42.39,7.69,28.57,0.6
+29,28,mathematics,pi over 6 plus pi,\frac{\pi}{6} + \pi,\frac{pi}{6pluspi},False,False,9.57,36.84,100.0,0.9
+30,29,mathematics,minus five pi over six,-\frac{5\pi}{6},\frac{minus5pi}{6},False,False,22.82,46.67,88.89,1.0
+31,30,mathematics,pi over 6 minus pi,\frac{\pi}{6} - \pi,\frac{pi}{6minuspi},False,False,8.86,36.84,100.0,1.0
+32,31,mathematics,sine of x plus square root of 3 times cosine x,\sin(x) + \sqrt{3} \cos(x),\frac (x) + ^{3},False,False,28.43,69.23,46.15,1315.8
+33,32,mathematics,h of x equals two times one-half sine x plus square root of three over two,h(x) = 2 \frac{1}{2} \sin(x) + \frac{\sqrt{3}}{2},h(x) = 2 \frac{xplussquarerootof3}{2},False,False,32.81,55.1,64.29,757.0
+34,33,mathematics,pi over 3 sine x plus sine pi over 3 cosine x,\displaystyle \frac{\pi}{3} \sin(x) + \sin\frac{\pi}{3} \cos(x),\frac{pi}{3sinexplussinepiover3},False,False,5.2,68.25,92.0,2.3
+35,34,mathematics,two times sine of x plus pi over three,2\sin(x) + \frac{\pi}{3},\frac{2timessineofxpluspi}{3},False,False,12.55,87.5,100.0,1.6
+36,35,mathematics,x equals minus pi over three,x = -\frac{\pi}{3},\frac{xequalsminuspi}{3},False,False,15.42,94.44,100.0,1.1
+37,36,mathematics,x equals 7 pi over 6,x = 7\pi/6,\frac{xequals7pi}{6},False,False,1.62,100.0,100.0,1.1
+38,37,mathematics,pi over 2 minus pi over 3 is pi over 6,\pi/2 - \pi/3 = \pi/6,\frac{pi}{2minuspiover3} \frac{pi}{6},False,False,0.89,100.0,100.0,2.0
+39,38,mathematics,negative sine x times x squared times the sine x,- \sin x \cdot x^{2} \cdot \sin x,x(x ^{2} ),False,False,33.31,78.79,50.0,980.0
+40,39,mathematics,cosine x cosine x is cosine squared x,\cos x \cos x = \cos^{2}x,\frac{2} x,False,False,20.53,80.0,63.64,641.6
+41,40,mathematics,minus x squared sine squared x,-x^2 \sin^{2}x,-x ^{2} \frac \ 2 \sqrt x,False,False,40.4,100.0,50.0,1522.0
+42,41,mathematics,dy dx times dx dw times dw d theta,\frac{dy}{dx} \times \frac{dx}{dw} \times \frac{dw}{d\theta},\frac{dy} ^ dx \ dz \sqrt,False,False,8.27,68.33,72.41,1629.4
+43,42,mathematics,dw d theta is four theta to the third,\frac{dw}{d\theta} = 4\theta^{3},dw ^{d} = 4 \frac \cos \ 3 \sqrt,False,False,10.49,90.62,50.0,1712.2
+44,43,mathematics,cosine of theta to the fourth,\cos(\theta^{4}),\frac \left(\right),False,False,3.44,93.75,87.5,897.2
+45,44,mathematics,two cosine of theta to the fourth times negative sine,2\cos(\theta^{4}) (-\sin),2 ^ \left(\frac\right),False,False,1.96,84.0,69.23,986.9
+46,45,mathematics,cosine of pi over two is equal to zero,\cos(\pi/2) = 0,\frac{cosineofpi}{2isequalto0},False,False,0.87,100.0,100.0,2.0
+47,46,mathematics,theta to the fourth equals pi over two,\theta^{4} = \frac{\pi}{2},\frac{equalspi}{2},False,False,21.97,61.54,76.92,1.5
+48,47,mathematics,theta is equal to pi over 2 to the 1 4th,\theta = (\frac{\pi}{2}) ^ \frac{1}{4},\frac{thetaisequaltopi}{2},False,False,13.4,76.32,100.0,1.9
+49,48,mathematics,y cubed plus x cubed equals three xy,y^{3} + x^{3} = 3xy,y ^{3} + x \frac \ 3 \sqrt = 3,False,False,45.98,94.74,33.33,1485.4
+50,49,mathematics,four thirds cubed plus two thirds cubed is equal to three times two thirds times four thirds,(4/3)^{3}+(2/3)^{3}=3\times(2/3)\times(4/3),\frac{3} + 2 ^ \ 3 \sqrt = 3 + \sum \sin 2 \pi \omega 3 \delta,False,False,8.73,100.0,69.7,2219.3
+51,50,mathematics,y minus x squared over y squared minus x,\frac{y - x^{2}} {y^{2} - x},\frac{yminusxsquared}{ysquaredminusx},False,False,5.59,89.29,100.0,1.9
+52,51,mathematics,6 minus 16 over 4 minus 12,\frac{6 - 16}{4 - 12},\frac{6minus16}{4minus12},False,False,21.12,47.62,90.91,1.3
+53,52,mathematics,d over dx of tan x is equal to secant squared of x,\frac{\mathrm{d}}{\mathrm{dx}}(\tan x) = \mathrm{\sec^2(x)},\frac{d}{dxoftanxisequaltosecantsquaredofx},False,False,5.24,74.58,100.0,2.3
+54,53,mathematics,pi over two,\frac{\pi}{2},\frac{pi}{2},False,False,42.39,7.69,28.57,0.7
+55,54,mathematics,y equals arctan x,y = \arctan x,y =,False,False,3.68,76.92,50.0,623.0
+56,55,mathematics,dy dx is equal to minus 1 divided by sine y,\frac{dy}{dx} = -\frac{1}{\sin y},dy ^{dx} = -1,False,False,24.57,69.7,52.63,1313.0
+57,56,mathematics,square root of 1 minus x squared,\sqrt{1 - x^{2}},\frac{1 - x ^} 2 \ \sqrt,False,False,45.65,93.75,40.0,1446.5
+58,57,mathematics,f of x is equal to x to the pi plus pi to the x,f(x) = x^{\pi} + \pi^{x},f(x) = x \frac +,False,False,26.2,58.33,56.25,1348.5
+59,58,mathematics,g of x is equal to natural log of cosine of x,g(x) = \ln(\cos(x)),g(x) = \frac \left(x\right),False,False,38.78,78.95,33.33,1642.8
+60,59,mathematics,pi times x to the pi minus 1,\pi x^{\pi - 1},\frac \left(x\right) \frac - 1,False,False,5.72,100.0,87.5,1777.0
+61,60,mathematics,x times pi to the x minus 1,x \cdot \pi^{x-1},x \left(\right) x - 1,False,False,13.39,76.47,55.56,1777.4
+62,61,mathematics,1 over cosine x,\frac{1}{\cos x},\frac{1}{cosinex},False,False,33.94,25.0,75.0,1.1
+63,62,mathematics,e to the x squared,\mathrm{e}^{x^{2}},x ^{2},False,False,24.66,77.78,58.33,636.6
+64,63,mathematics,natural log of e to the x squared,\ln(e^{x^{2}}),x ^{2},False,False,24.66,71.43,58.33,633.4
+65,64,mathematics,x squared times natural log of e,x^{2}\cdot\ln e,x ^{2},False,False,54.88,73.33,37.5,647.5
+66,65,mathematics,natural log of e is equal to 1,\ln(e)=1,e = 1,False,False,5.43,75.0,50.0,472.9
+67,66,mathematics,natural log of m times n is equal to the natural log of m plus natural log of n,\ln(mn) = \ln(m) + \ln(n),m \left(n\right) =,False,False,3.33,88.0,86.67,943.9
+68,67,mathematics,e to the a equals m,e^\mathrm{a} = m,a = m,False,False,2.79,68.75,62.5,588.9
+69,68,mathematics,a is equal to natural log of m,a=\ln m,a =,False,False,3.68,71.43,50.0,432.3
+70,69,mathematics,natural log of e to the a plus b,\ln(e^{a+b}),a + b,False,False,3.07,91.67,70.0,585.8
+71,70,mathematics,natural log of e to the x is x,\ln(e^{x}) = x,\frac (e ^{x} ) = x,False,False,88.16,50.0,10.0,1332.0
+72,71,mathematics,1 half natural log x plus 1 half,\frac{1}{2}\ln x + \frac{1}{2},x + 1,False,False,0.14,83.33,82.35,492.1
+73,72,mathematics,1 over 2x plus 1 over 2 times x plus 4,\frac{1}{2x} + \frac{1}{2(x + 4)},\frac{1}{2xplus1over2timesxplus4},False,False,22.73,60.61,85.71,2.2
+74,73,mathematics,e to the x plus e to the minus x,e^{x} + e^{-x},x + e -x,False,False,4.13,50.0,58.33,867.9
+75,74,mathematics,1 plus x squared,1 + x^2,1 + x ^{2},False,True,44.81,42.86,40.0,740.1
+76,75,mathematics,1 plus 1 over 2,1 + \frac{1}{2},\frac{1plus1}{2},False,False,43.09,60.0,66.67,1.2
+77,76,mathematics,e to the x minus e to the minus x over 2,e^{x} - e^{-x} \over 2,x-e \frac{minusx}{2},False,False,4.88,95.45,85.71,472.6
+78,77,mathematics,x squared plus y squared equals 1,x^{2} + y^{2} = 1,x ^{2} + y \frac \ 2 \sqrt = 1,False,False,54.32,94.12,23.08,1326.1
+79,78,mathematics,x squared minus y squared,x^{2} - y^{2},x ^{2} -y \frac \ 2 \sqrt,False,False,60.16,100.0,27.27,1286.1
+80,79,mathematics,cosh squared u,\cosh^{2}u,\frac{2} u,False,False,55.8,60.0,33.33,629.3
+81,80,mathematics,e to the u plus e to the minus u over 2 quantity squared,(\frac{e^{u} + e^{-u}}{2})^2,u + e \frac{minusu}{2quantitysquared},False,False,5.53,100.0,100.0,774.4
+82,81,mathematics,e to the u minus e to the minus u over 2 quantity squared,( \frac {e^{u} - e^{-u}} {2} )^2,u - e \frac{minusu}{2quantitysquared},False,False,5.53,90.62,100.0,818.9
+83,82,mathematics,2 times e to the u times e to the minus u,2 e^{u}e^{-u},2e u(e) -u,False,False,5.58,53.85,50.0,1497.3
+84,83,mathematics,2 plus e to the minus 2u minus e to the 2u minus 2,2 + e^{-2u} - e^{2u} - 2,2 + e -2u-e -2,False,False,9.99,45.83,44.44,1394.3
+85,84,mathematics,w of x plus one,\displaystyle w(x) + 1,w(x) + 1,False,True,84.65,63.64,14.29,736.4
+86,85,mathematics,w of x plus 2 times e to the w of x,w(x) + 2e^{w(x)},w(x) + 2e,False,False,36.79,43.75,50.0,830.7
+87,86,mathematics,1 over w of x plus 2 times e to the w of x,\frac{1}{w(x)} + 2e^{w(x)},\frac{1}{wofxplus2timese},False,False,25.85,53.85,65.0,2.7
+88,87,mathematics,w of one plus two times e to the w of one,w(1) + 2 e^{w(1)},w(1 + 2e),False,False,10.54,47.06,50.0,770.1
+89,88,mathematics,1 half times x minus 1,\frac{1}{2}(x - 1),\left(x-1),False,False,28.18,66.67,58.33,536.0
+90,89,mathematics,1 over x0 plus delta x,\frac{1}{x_{0} +\Delta x},\frac{1}{x0plusdeltax},False,False,31.12,32.0,71.43,1.5
+91,90,mathematics,minus 1 over x0 plus delta x times x0,\displaystyle-\frac{1}{x_{0} + \Delta x x_{0}},\frac{minus1}{x0plusdeltax},False,False,14.13,71.74,90.48,1.8
+92,91,mathematics,minus 1 over 3 plus delta x times 3,-\frac{1}{3} + \Delta x \times 3,\frac{minus1}{3plusdeltaxtimes3},False,False,12.11,53.12,100.0,1.6
+93,92,mathematics,minus 1 over x0 squared x minus x0,-\frac{1}{x_{0}^{2}}(x-x_{0}),\frac{minus1}{x0squaredx},False,False,12.87,68.97,80.0,2.0
+94,93,mathematics,delta f is x plus delta x to the n minus x to the n divided by delta x,\displaystyle \Delta f = \frac{(x + \Delta x)^{n} - x^{n}}{\Delta x},x + ^ \delta x n - x \frac{n}{deltax},False,False,6.91,66.18,70.37,1551.3
+95,94,mathematics,x to the n plus n x to the n minus 1 delta x,x^{n}+nx^{n-1}\Delta x,n + nx n - 1 \delta x,False,False,9.93,50.0,50.0,1534.9
+96,95,mathematics,n x to the n minus one,nx^{n-1},n - 1,False,False,5.97,75.0,62.5,555.0
+97,96,mathematics,minus 1 over x squared,-\frac{1}{x^{2}},\frac{minus1}{xsquared},False,False,16.3,81.25,100.0,1.3
+98,97,mathematics,x plus 3 over x squared plus 1,\frac{x + 3}{x^{2} + 1},\frac{xplus3}{xsquaredplus1},False,False,16.43,65.22,100.0,1.5
+99,98,mathematics,4 plus 3 divided by 4 squared plus 1,\frac{4+3}{4^{2}+1},\frac{4plus3}{4squaredplus1},False,False,16.43,78.95,100.0,1.8
+100,99,mathematics,1 minus cosine x over x,\frac{1 - \cos x}{x},\frac{1minuscosinex}{x},False,False,25.86,40.0,100.0,1.1
+101,100,mathematics,the limit of 1 minus cosine x divided by x x goes to 0 is 0,\lim_{x \to 0} \frac{1 - \cos x}{x} = 0,\frac{1minuscosinex}{xx},False,False,19.98,71.79,89.47,2.8
+102,101,mathematics,limit as x goes to x0 of f of x is equal to f of x0,\lim_{x\to x_{0}}f(x)=f(x_{0}),Enter \left(x\right) f(x) = f(X _{0},False,False,36.93,80.0,54.17,2150.2
+103,102,mathematics,sine a cos b plus cos a sin b,\sin(a)\cos(b)+\cos(a)\sin(b),\frac a ^ (b) + { a sin (b\right)},False,False,19.58,89.66,64.71,1644.2
+104,103,mathematics,cosine delta x minus 1 divided by delta x,\cos\Delta x - 1 \over \Delta x,\frac{deltaxminus1}{deltax},False,False,1.09,70.97,100.0,1.9
+105,104,mathematics,minus cosine x divided by delta x,-\frac{\cos x}{\Delta x},\frac{minuscosinex}{deltax},False,False,6.2,50.0,100.0,1.3
+106,105,mathematics,sine delta x divided by delta x,\frac{\sin\Delta x}{\Delta x},\frac{deltax}{deltax},False,False,8.6,34.48,100.0,1.3
+107,106,mathematics,cosine delta x minus 1 divided by delta x,\frac{\cos\Delta x - 1}{\Delta x},\frac{deltaxminus1}{deltax},False,False,6.41,45.45,100.0,1.6
+108,107,mathematics,the limit as delta x goes to 0 of sine delta x over delta x,\lim_{\Delta x\to 0} \frac{\sin \Delta x}{\Delta x},limite ( { x)} \frac{deltax}{deltax},False,False,6.82,49.02,100.0,658.1
+109,108,mathematics,delta y over delta theta,\frac{\Delta y}{\Delta \theta},\frac{deltay}{deltatheta},False,False,6.14,23.33,100.0,1.1
+110,109,mathematics,u prime v minus u v prime,u^{\prime}v-uv^{\prime},v-uv,False,False,10.54,82.61,69.23,567.5
+111,110,mathematics,n x to the n minus 1,nx^{n-1},n - 1,False,False,5.97,75.0,62.5,725.3
+112,111,mathematics,x to the n times sine of x,x^{n}\sin(x),n \left(x\right),False,False,6.27,100.0,66.67,797.9
+113,112,mathematics,u times v of x plus delta x,uv(x + \Delta x),u(v(x) + ^ \delta x),False,False,13.08,31.25,50.0,1224.6
+114,113,mathematics,delta of uv divided by delta x,\frac{\Delta (uv)}{\Delta x},\frac{} ^ x \,False,False,3.33,71.43,66.67,755.7
+115,114,mathematics,delta u divided by delta x times v of x plus delta x,\frac{\Delta u}{\Delta x}\cdot v(x+\Delta x),\frac{deltau}{deltaxtimesvofxplusdeltax},False,False,4.22,50.0,100.0,2.6
+116,115,mathematics,u of x plus delta x times v of x plus delta x,u(x+\Delta x)v(x+\Delta x),u(x + ^ \delta x)v(x + \delta x?),False,False,53.45,34.62,21.43,1758.4
+117,116,mathematics,u prime v minus uv prime divided by v squared,u^{\prime}v - uv^{\prime} \over v^{2},\frac{vminusuvprime}{vsquared},False,False,2.29,67.57,100.0,2.0
+118,117,mathematics,v plus delta v,v+\Delta v,v + ^ \delta v,False,False,12.58,50.0,50.0,707.7
+119,118,mathematics,v to the minus 2 v prime minus v prime divided by v squared,v^{-2}v^{\prime} - \frac{v^{\prime}}{v^2},-2v \frac{minusvprime}{vsquared},False,False,5.71,70.73,88.0,397.4
+120,119,mathematics,10 times sine of t raised to the 9th power,10 \sin^{9}(t),10 mal ^ \left(t\right) erhoben,False,False,3.13,100.0,100.0,1058.9
+121,120,mathematics,sine to the 9th of t cosine of t,\sin^{9}(t)\cos(t),t ^ [3] (t),False,False,9.72,77.78,66.67,1149.3
+122,121,mathematics,D cubed x to the n,D^{3}x^{n},D ^{3} x,False,False,51.34,60.0,40.0,721.2
+123,122,mathematics,n times n minus 1,n\times (n-1),n \left(n-1),False,True,65.12,46.15,14.29,843.6
+124,123,mathematics,D to the n plus 1 applied to x to the n,\mathcal{D}^{n+1}(x^{n}),n + 1,False,False,0.3,95.83,82.35,590.0
+125,124,mathematics,length A squared equals length B squared plus one,{a}^{2}={b}^{2} + 1,A ^{2} = \frac B \cos \ 2 \sqrt + 1,False,False,25.78,100.0,52.94,1599.0
+126,125,mathematics,length of A is square root of length B squared plus one,\mathrm{|A|} = \sqrt{\mathrm{|B|^{2} + 1}},\frac{b} ^ B \ \sqrt 2 \pi + 1,False,False,3.03,71.43,66.67,1479.9
+127,126,mathematics,square root of 13 plus one is square root of 14,\sqrt{{13}+1}=\sqrt{14},\frac{13} + 1 = ^ \ 14 \sqrt,False,False,33.32,82.61,46.15,1305.4
+128,127,mathematics,the length of a is the square root of a one squared plus a two squared plus a three squared,|a|=\sqrt{a_{1}^{2}+a_{2}^{2}+a_{3}^{2}},\frac{a ^} 1 \ \sqrt 2 \pi + a \cos \sum 2 \delta \sin + d3/ \int,False,False,1.95,100.0,73.53,2589.9
+129,128,mathematics,a dot b minus b dot a plus b dot b,a\cdot b-b\cdot a+b\cdot b,b - b a + b,False,False,14.75,76.92,45.45,1424.9
+130,129,mathematics,a dot a is length a squared,a\cdot a = |a|^2,a ^{2},False,False,8.43,87.5,85.71,784.1
+131,130,mathematics,cosine theta is PQ dot PR over length PQ length PR,\cos(\theta) = \frac{{\mathsf{PQ} \cdot \mathsf{PR}}}{{|\mathsf{PQ}| \cdot |\mathsf{PR}|}},\frac{cosinethetaisPQdotPR}{lengthPQlengthPR},False,False,5.49,75.56,94.44,2.3
+132,131,mathematics,minus one squared plus one squared plus zero squared square root,\sqrt{(-1)^{2} + 1^{2} + 0^{2}},-1 ^{2} + 1 \frac \ 2 \sqrt + 0 \cos \sum 2 \pi,False,False,30.99,100.0,47.83,2230.1
+133,132,mathematics,x plus two y plus three z equals zero,x+2y+3z=0,x + 2y + 3z = 0,False,True,100.0,66.67,0.0,1182.4
+134,133,mathematics,OP dot A equals zero,\mathsf{OP}\cdot \mathsf{A}=0,A = 0,False,False,0.74,93.1,75.0,465.3
+135,134,mathematics,x times one plus y times two plus z times three,x\cdot 1 + y\cdot 2 + z\cdot 3,x \left(1 + y \right 2 + z \right 3),False,False,14.07,53.33,45.45,1500.2
+136,135,mathematics,x equals r cosine theta,x=r\cos \theta,x = r,False,False,16.24,85.71,40.0,552.4
+137,136,mathematics,y equals r sine theta,y=r\sin \theta,y = r,False,False,16.24,85.71,40.0,662.8
+138,137,mathematics,one minus x squared minus y squared,1-x^{2}-y^{2},1-x ^{2} -y \frac \ 2 \sqrt,False,False,67.34,100.0,23.08,1475.7
+139,138,mathematics,r squared cosine squared theta,r^{2}\cos^{2}\theta,r ^{2} \frac \ 2 \sqrt \sum,False,False,38.05,94.74,45.45,1294.2
+140,139,mathematics,r squared sine squared theta,r^{2}\sin^{2}\theta,r ^{2} \frac \ 2 \sqrt \sum,False,False,38.05,94.74,45.45,1260.2
+141,140,mathematics,the integral from zero to pi over two integral from zero to one of one minus r squared r dr d theta,\displaystyle\int_{0}^{\frac{\pi}{2}}\int_{0}^{1}(1-r^{2})r dr d\theta,\frac{integralfrom0topi}{2integralfrom0to1of1minusrsquaredrdrdtheta},False,False,6.73,80.0,100.0,4.0
+142,141,mathematics,r minus r cubed,(r-r^{3}),r-r ^{3},False,False,75.15,33.33,22.22,1446.5
+143,142,mathematics,r to the four over four,\frac{r^4}{4},\frac{4}{4},False,False,53.68,15.38,22.22,1.3
+144,143,mathematics,one-half m v squared,\frac{1}{2}mv^{2},mv ^{2},False,False,31.14,70.59,53.85,880.0
+145,144,mathematics,one-half m r squared omega squared,\frac{1}{2}mr^{2}\omega^{2},mr ^{2} \frac \ 2 \sqrt,False,False,23.43,81.48,61.11,1276.6
+146,145,mathematics,x squared plus y squared,x^{2}+y^{2},x ^{2} + y \frac \ 2 \sqrt,False,False,60.16,100.0,27.27,1311.6
+147,146,mathematics,pi a to the four over two,\pi a^{4} \over 2,\frac{4}{2},False,False,15.59,70.59,62.5,1.6
+148,147,mathematics,four a to the four cosine to the four theta,4a^4\cos^{4}\theta,4a ^{4} \frac \ 4 \sqrt,False,False,39.68,88.89,60.0,989.8
+149,148,mathematics,three halves of pi a to the fourth,\frac{3}{2}(\pi a^{4}),3}{a ^ \frac 4 \,False,False,7.25,77.27,60.0,889.2
+150,149,mathematics,y of t minus two equals t,y(t)-2=t,y(t-2) = t,False,False,21.26,50.0,25.0,749.1
+151,150,mathematics,z of t minus two equals minus 3t,z(t)-2=-3t,z(t-2) =,False,False,14.81,50.0,50.0,792.5
+152,151,mathematics,minus one plus two t,\displaystyle -1+2t,-1 + 2t,False,True,81.87,84.21,16.67,599.3
+153,152,mathematics,y of t equals two plus t,y(t)=2+t,y(t) = 2 + t,False,True,100.0,50.0,0.0,896.8
+154,153,mathematics,z of t equals two minus 3t,z(t)=2-3t,z(t) = 2,False,False,60.65,55.56,33.33,829.6
+155,154,mathematics,Q of t is Q0 plus t times the vector Q0 Q1,"Q(t)=Q_{0}+t\vec{Q_{0},Q_{1}}",+ t,False,False,0.0,96.55,92.31,302.1
+156,155,mathematics,x plus 2y plus 4z equals seven,x+2y+4z=7,x + 2y + 4z = 7,False,True,100.0,66.67,0.0,955.9
+157,156,mathematics,minus one plus 2t plus twice two plus t plus four times two minus 3t,(-1+2t)+2(2+t)+4(2-3t),-1 + 2t + 2 + t + 4x-2,False,False,24.74,68.18,45.45,1194.4
+158,157,mathematics,minus one plus four plus eight is eleven,-1+4+8=11,-1 + 4 + 8,False,False,71.65,77.78,25.0,636.9
+159,158,mathematics,one times two plus two times one plus four times minus three,1\times2+2\times1+4\times(-3)$.,1(2 + 2) (1 + 4)-3,False,False,13.79,83.87,46.67,995.5
+160,159,mathematics,a theta minus a sine theta,a\theta-a\sin \theta,a ^,False,False,0.63,90.0,83.33,385.3
+161,160,mathematics,x of theta is theta minus sine theta,x(\theta) = \theta-\sin \theta,x( { ) = \frac - ^},False,False,7.61,70.0,44.44,1247.6
+162,161,mathematics,one minus theta squared over two,1-\theta^{2}\over2,\frac{1minusthetasquared}{2},False,False,4.37,100.0,100.0,1.5
+163,162,mathematics,theta minus theta cubed over six,\theta-\frac{\theta^{3}}{6},\frac{thetaminusthetacubed}{6},False,False,11.22,66.67,100.0,1.2
+164,163,mathematics,theta squared over two,\frac{\theta^2}{2},\frac{thetasquared}{2},False,False,16.65,44.44,100.0,0.8
+165,164,mathematics,square root of one minus cosine t squared plus sine squared t,\sqrt{1-\cos^{2}t+\sin^{2}t},\frac{1- ^} \ 2 \sqrt + \sum \cos \sin 2 \pi t,False,False,7.81,100.0,55.56,1466.3
+166,165,mathematics,square root of one minus two cosine t plus cosine squared t plus sine squared t,\displaystyle\sqrt{1-2\cos t+\cos ^{2}t+\sin ^{2}t},\frac{1-2} ^ 2 \ t + \sqrt \cos \sum 2 \pi t + \int \beta \theta 2 \delta t,False,False,17.71,100.0,60.87,2306.2
+167,166,mathematics,cosine squared plus sine squared,\cos ^{2}+\sin ^{2},\frac ^{2} + \ \cos \sqrt 2 \pi,False,False,39.37,100.0,45.45,1042.1
+168,167,mathematics,square root of two minus two cosine t,\sqrt{2-2\cos t},\frac{2} - 2,False,False,9.19,75.0,62.5,709.7
+169,168,mathematics,d by dt of r cross v is the zero vector,\displaystyle\frac{d}{dt}(\mathbf{r}\times\mathbf{v})=\mathbf{0},d ^{dt} r \frac v \ = 0,False,False,8.57,82.81,64.0,1467.9
+170,169,mathematics,uv prime equals u prime v plus u v prime,(uv)^{\prime}=u^{\prime}v+uv^{\prime},\frac mathcal { u} v + uv,False,False,17.17,89.19,72.73,1265.9
+171,170,mathematics,dr dt cross v plus r cross dv dt,\displaystyle\frac{d\mathbf{r}}{dt}\times \mathbf{v}+\mathbf{r}\times \frac{d\mathbf{v}}{dt},v + r,False,False,0.0,95.65,91.67,682.4
+172,171,mathematics,the antiderivative of sine x cosine x,\int{\sin x \cos x} dx,\frac{} x ^ x,False,False,3.44,72.73,66.67,884.9
+173,172,mathematics,C1 minus C2 plus a half is equal to zero,\mathcal{C}_{1}-\mathcal{C}_{2}+\frac{1}{2}=0,- { \frac 2} + ^ \ 1 \sqrt \sum 2 \pi = 0,False,False,4.29,91.11,66.67,1612.6
+174,173,mathematics,minus x squared over two,-\frac{x^{2}}{2},\frac{minusxsquared}{2},False,False,16.3,81.25,100.0,1.2
+175,174,mathematics,A e to the minus x squared over two,Ae^{-\frac{x^{2}}{2}},\frac{minusxsquared}{2},False,False,16.85,85.71,88.24,1.7
+176,175,mathematics,a times d by dx of e to the minus x squared over two,\displaystyle a\frac{d}{dx}(e^{-\frac{x^{2}}{2}}),a(d) \frac{minusxsquared}{2},False,False,14.49,73.47,78.57,536.9
+177,176,mathematics,h inverse of f of x plus c,h^{-1}(f(x))+c,f(x) + c,False,False,18.97,64.29,57.14,710.0
+178,177,mathematics,natural log of absolute y is equal to minus x squared over 2 plus c,\ln(|y|)=-\frac{x^{2}}{2}+c,\frac{yisequaltominusxsquared}{2plusc},False,False,4.07,100.0,100.0,2.9
+179,178,mathematics,plus or minus a e to the minus x squared over two,\pm ae^{-x^{2}/2},+ (-ae) \frac{minusxsquared}{2},False,False,5.63,100.0,100.0,627.5
+180,179,mathematics,log y plus c one is equal to minus x squared over two plus c two,\log y+c_{1}=-\frac{x^{2}}{2}+c_2,\frac{yplusc1isequaltominusxsquared}{2plusc2},False,False,3.86,100.0,100.0,3.0
+181,180,mathematics,log y is equal to minus x squared over 2 plus c2 minus c1,\log y=-\frac{x^{2}}{2}+c_{2}-c_{1},\frac{yisequaltominusxsquared}{2plusc2},False,False,4.35,94.29,100.0,2.5
+182,181,mathematics,a times e to the minus 0 squared over 2 is equal to 3,ae^{-\frac{0^{2}}{2}}=3,a(e) \frac{minus0squared}{2isequalto3},False,False,4.31,100.0,100.0,679.4
+183,182,mathematics,y is equal to 3e to the minus x squared over 2,y = 3e^{-x^{2}/2},y = \frac{minusxsquared}{2},False,False,6.78,100.0,100.0,447.2
+184,183,mathematics,twice the logarithm of x plus a constant,2\log(x)+\text{c},2} (x) + ^{constant \frac,False,False,19.02,100.0,100.0,1022.9
+185,184,mathematics,e to the log y is equal to e to the 2 log x plus c,e^{\log y} = e^{2\log(x)+c},y = e x + c,False,False,1.82,74.07,66.67,1110.0
+186,185,mathematics,e to the log x squared,(e^{\log x})^2,x ^{2},False,False,5.24,78.57,70.0,670.5
+187,186,mathematics,minus 1 divided by 2 y divided by x,-\frac{1}{2(y/x)},\frac{minus1}{2ydividedbyx},False,False,14.13,100.0,100.0,1.9
+188,187,mathematics,dy dx is equal to minus x over 2y,\frac{dy}{dx} = -\frac{x}{2y},dy ^{dx} = -x,False,False,24.57,65.52,52.63,1208.0
+189,188,mathematics,x squared over 2 plus y squared,\frac{x^{2}}{2}+y^{2},\frac{xsquared}{2plusysquared},False,False,6.61,85.71,100.0,1.5
+190,189,mathematics,y is equal to minus the square root of a squared minus x squared over two,y=-\sqrt{a^{2}-\frac{x^{2}}{2}},\frac{yisequaltominusthesquarerootofasquaredminusxsquared}{2},False,False,5.48,100.0,100.0,2.8
+191,190,mathematics,x to the 1 half times 2,x^{\frac{1}{2}} \times (2),(-2),False,False,1.18,92.31,86.67,510.8
+192,191,mathematics,dx over x to the p,\frac{dx}{x^{p}},\frac{dx}{x},False,False,52.87,25.0,33.33,1.3
+193,192,mathematics,1 over 1 minus p,\frac{1}{1-p},\frac{1}{1minusp},False,False,43.36,38.46,55.56,1.0
+194,193,mathematics,the integral from 1 to infinity dx over x,\int_{1}^{\infty} \frac{dx}{x},\frac \left(1\right) \frac{dx}{x},False,False,43.06,56.67,47.06,789.5
+195,194,mathematics,y equals 1 over the square root of x,y=1/\sqrt{x},\frac{yequals1}{thesquarerootofx},False,False,1.76,100.0,100.0,1.8
+196,195,mathematics,y equals 1 over x minus 3 squared,y=\frac{1}{(x-3)^{2}},\frac{yequals1}{xminus3squared},False,False,5.19,100.0,100.0,1.5
+197,196,mathematics,1 plus a plus a squared,1+a+a^{2},1 + a + a ^{2},False,True,100.0,55.56,0.0,933.7
+198,197,mathematics,one over one minus a,\frac{1}{1-a},\frac{1}{1},False,False,63.45,15.38,22.22,1.2
+199,198,mathematics,sum 1 over n squared n equals 1 to infinity,\sum_{n=1}^{\infty} 1/n^{2},\frac{1}{nsquarednequals1},False,False,3.12,85.19,100.0,1.8
+200,199,mathematics,pi squared over 6,\frac{\pi^{2}}{6},\frac{pisquared}{6},False,False,20.34,47.06,81.82,0.8
+201,200,mathematics,one over n cubed,\frac{1}{n^{3}},\frac{1}{ncubed},False,False,43.94,33.33,45.45,0.8
+202,201,mathematics,one plus one over two plus all the way up to one over n minus one plus 1 over n,1+\frac{1}{2}+\mathrm{\ldots}+\frac{1}{n-1}+\frac{1}{n},\frac{1plus1}{2} \frac{1}{nminus1plus1overn},False,False,29.04,63.64,71.88,3.4
+203,202,mathematics,a half plus a third,\frac{1}{2}+\frac{1}{3},\frac{1} ^ 2 \ + \sqrt \sum 3 \pi,False,False,19.47,86.96,53.33,1220.5
+204,203,mathematics,1 over n squared plus 1 square root,\frac{1}{n^{2} + 1},\frac{1}{nsquaredplus1},False,False,28.5,57.89,84.62,1.7
+205,204,mathematics,sum one over n to the five-halves,\sum\frac{1}{n^{5/2}},\frac{1}{n},False,False,31.06,47.62,50.0,1.3
+206,205,mathematics,one times one plus two times minus two plus minus three times one,1\times1+2\times(-2)+(-3)\times1,1 + 2(-2)-3(1),False,False,24.91,75.0,47.06,1041.5
+207,206,mathematics,x plus 3y plus z equals zero,x+3y+z=0,x + 3y + z = 0,False,True,100.0,75.0,0.0,906.2
+208,207,mathematics,minus 2x minus z will be x plus 3y plus z,-2x-z\operatorname{=}x+3y+z,-2x-z x + 3y + z,False,False,56.7,74.07,26.67,1425.8
+209,208,mathematics,x equals minus 3t,x=-3t,x =,False,False,2.23,80.0,60.0,399.4
+210,209,mathematics,y equals 3t,y=3\mathfrak{t},y =,False,False,0.82,93.33,71.43,398.1
+211,210,mathematics,z equals negative 6t,z\!=\!-6t,z =,False,False,2.23,77.78,60.0,507.0
+212,211,mathematics,dr dt dot r plus r dot dr dt,\displaystyle \frac{dr}{dt}\cdot{r}+r\cdot\frac{dr}{dt},r + r,False,False,0.01,94.55,88.46,533.2
+213,212,mathematics,d by dt of r dot r is zero,\displaystyle \frac{d}{dt}(\mathbf{r}\cdot\mathbf{r})=0,\frac{d} ^ dt \ r \sqrt r = 0,False,False,13.62,74.55,54.55,1546.9
+214,213,mathematics,minus v dot v,-\mathbf{v}\cdot\mathbf{v},-v,False,False,0.1,92.31,80.0,373.7
+215,214,mathematics,f of x y equals one over x plus y,"f(x,y)=\frac{1}{x+y}",\frac{fofxyequals1}{xplusy},False,False,15.68,95.0,93.75,2.0
+216,215,mathematics,f of x y equals one minus x squared minus y squared,"f(x,y)=1-x^{2}-y^{2}",f(xy) = 1-x ^{2} -y \frac \ 2 \sqrt,False,False,65.27,100.0,20.0,1904.8
+217,216,mathematics,z equals one minus x squared minus y squared,z=1-x^{2}-y^{2},z = 1-x ^{2} -y \frac \ 2 \sqrt,False,False,72.27,100.0,20.0,1543.7
+218,217,mathematics,x squared plus y squared equals one,x^{2}+y^{2}=1,x ^{2} + y \frac \ 2 \sqrt = 1,False,False,54.32,100.0,23.08,1362.0
+219,218,mathematics,f prime at x0 times delta x,f^{\prime}(x_{0})\Delta x,\left({ \right x\right)},False,False,1.94,92.0,78.57,931.3
+220,219,mathematics,d dy of y to the n times dy dx,\displaystyle (\frac{d}{dy}y^{n})\frac{dy}{dx},n \left(dy)(dx),False,False,1.63,82.61,80.0,1119.3
+221,220,mathematics,m x to the n minus one,(mx^{m-1}),n - 1,False,False,1.3,90.0,80.0,688.1
+222,221,mathematics,n y to the n minus 1,(ny^{n-1}),n - 1,False,False,3.07,80.0,70.0,612.2
+223,222,mathematics,x to the m minus one,\mathcal{x}^{m-1},m - 1,False,False,3.07,88.24,70.0,548.4
+224,223,mathematics,x to the m over n times n minus 1,x^\frac{m}{n}{(n-1)},\frac{m}{ntimesnminus1},False,False,28.06,65.0,81.25,2.0
+225,224,mathematics,minus one plus m over n,-1+\frac{m}{n},\frac{minus1plusm}{n},False,False,29.19,92.86,100.0,1.1
+226,225,mathematics,a minus one,\mathsf{a}-1,a - 1,False,False,5.43,83.33,50.0,590.3
+227,226,mathematics,a x to the a minus one,(ax^{a-1}),a - 1,False,False,3.07,80.0,70.0,537.4
+228,227,mathematics,y is equal to plus or minus square root of 1 minus x squared,y =\pm\sqrt{1-x^{2}},y = + /- ^{1-x} \frac 2 \,False,False,27.87,90.0,61.54,1382.3
+229,228,mathematics,2 x plus 2 y y prime,2x+2yy^{\prime},2x + 2yy,False,False,51.34,73.33,40.0,618.1
+230,229,mathematics,y to the fourth plus xy squared minus two is equal to zero,y^{4}+xy^{2}-2=0,+ xy ^{2} - 2 = 0,False,False,63.47,68.75,31.25,1198.0
+231,230,mathematics,four y cubed y prime,4y^{3}y^{\prime},4y ^{3} y,False,False,56.47,68.75,36.36,935.2
+232,231,mathematics,minus y squared divided by 4y cubed plus 2xy,-\frac{y^{2}}{4y^{3}+2xy},\frac{minusysquared}{4ycubed},False,False,12.55,84.0,100.0,2.0
+233,232,mathematics,y to the fourth plus xy squared minus 2 is equal to zero,y^{4}+xy^{2}-2=0,+ xy ^{2} - 2 = 0,False,False,63.47,68.75,31.25,1198.0
+234,233,mathematics,minus 1 squared divided by 4 times 1 cubed plus 2 times 1 times 1,\frac{(-1)^2}{4\times1^{3}+2\times1\times1},\frac{minus1squared}{4times1cubedplus2times1times1},False,False,3.28,55.81,100.0,2.9
+235,234,mathematics,tan inverse x is equal to pi over two,\operatorname{\tan}^{-1}x=\frac{\pi}{2},\frac{xisequaltopi}{2},False,False,17.29,71.79,72.22,1.6
+236,235,mathematics,d by dy tan y times dy dx,\displaystyle \frac{d}{dy}\tan(y)\frac{dy}{dx},y(dy)dx,False,False,1.46,86.96,72.73,871.4
+237,236,mathematics,d by dx of tan inverse of x,\frac{d}{dx}(tan^{-1}(x)),\frac{d} ^ dx \ ( \sqrt \sum ) \pi \int 1- \delta (x),False,False,21.21,100.0,52.38,2139.2
+238,237,mathematics,cosine squared of tan inverse x,\cos^{2}(tan^{-1}x),\frac{2} ( ^\right),False,False,14.54,73.68,62.5,971.1
+239,238,mathematics,one over 1 plus x squared,\frac{1}{1+x^{2}},\frac{1}{1plusxsquared},False,False,27.25,64.71,84.62,1.4
+240,239,mathematics,d by dx of tan inverse x is equal to one over 1 plus x squared,\frac{d}{dx}(tan^{-1}x)=\frac{1}{1 + x^{2}},\frac{xisequalto1}{1plusxsquared},False,False,10.92,74.42,81.82,2.7
+241,240,mathematics,1 over square root of 1 minus x squared,\frac{1}{\sqrt{1-x^{2}}},\frac{1}{squarerootof1minusxsquared},False,False,12.54,87.5,100.0,1.6
+242,241,mathematics,a to the x1 plus x2 is a to the x1 times a to the x2,\displaystyle a^{x_1 + x_2} = a^{x_{1}}\cdot a^{x_{2}},"a ^{x _ 1} + x2 = a \frac \ x_______1 \sqrt, da \cos \sum x \pi 2 \delta",False,False,22.71,100.0,65.62,3148.3
+243,242,mathematics,a to the x plus delta x,a^{x+\Delta x},x + ^ \delta x,False,False,7.4,57.14,75.0,715.6
+244,243,mathematics,M of a is equal to the limit as delta x goes to 0 of a to the delta x minus 1 divided by delta x,M(a)=\lim_{\Delta x\to 0}\frac{a^{\Delta x}-1}{\Delta x},M(a) = {} \delta x ^ \frac{deltaxminus1}{deltax},False,False,18.87,48.21,78.57,1102.9
+245,244,mathematics,k times f prime of kx,k\cdot f^{\prime}(kx),k \left(f\right),False,False,2.47,66.67,72.73,805.0
+246,245,mathematics,e to the log x is equal to x,\mathrm{e}^{\log x}=x,x = x,False,False,1.03,90.48,72.73,494.4
+247,246,mathematics,d by dx e to the w,\frac{d}{dx}\mathbf{e}^{w},\frac{d} ^ dx \ e \cos \sqrt w \sum,False,False,21.87,88.46,50.0,1567.5
+248,247,mathematics,e to the power log a to the power x,(e^{\ln a})^{x},e ^{\frac} a \ \sqrt x \pi,False,False,10.39,100.0,58.33,1253.9
+249,248,mathematics,d by dx of a to the x is equal to d by dx of e to the x log a,\frac{d}{dx}(a^{x})=\frac{d}{dx}(e^{x}\log a),x = d,False,False,0.0,93.33,90.91,490.6
+250,249,mathematics,log a times e to the x log a,"\log a\,\mathrm{e}^{x\log a}",a(e),False,False,0.97,92.86,84.62,573.8
+251,250,mathematics,The derivative with respect to x of 2 to the x is log 2 times 2 to the x,\frac{d}{dx}(2^{x})=\log{2}(2^{x}),\frac{} ^ x \ 2 \sqrt 2(2),False,False,1.66,67.65,66.67,1579.1
+252,251,mathematics,log 10 times 10 to the x,\log 10\times 10^{x},10 \left(1010),False,False,2.93,80.0,87.5,483.8
+253,252,mathematics,log u prime is equal to u primie over u,\log u^{\prime}=u^{\prime}/u,\frac{isequaltouprimie}{u},False,False,1.41,71.43,100.0,2.2
+254,253,mathematics,u prime is equal to u times log a,u^{\prime}=u\cdot\log a,\frac mathcal { u},False,False,2.65,82.61,100.0,756.8
+255,254,mathematics,v prime is equal to v times 1 plus log x,v^{\prime}=v(1+\log x),= v(1),False,False,14.53,81.82,61.54,586.4
+256,255,mathematics,d by dx x to the x,(\frac{d}{dx}(x^{x})),\frac{d} ^ dx \ x \sqrt \sum x \pi,False,False,19.06,100.0,52.94,1567.9
+257,256,mathematics,one plus one over n to the power n,(1+\frac{1}{n})^{n},\frac{1plus1}{n},False,False,33.56,47.37,60.0,1.9
+258,257,mathematics,n log one plus one over n,n\log(1+1/n),\frac{1plus1}{n},False,False,2.24,100.0,100.0,1.3
+259,258,mathematics,one plus one over k to the kth power,(1+\frac{1}{k})^{k},\frac{1plus1}{k},False,False,33.56,47.37,60.0,1.6
+260,259,mathematics,ln of one plus one over k,\ln(1+\frac{1}{k}),\frac{1plus1}{k},False,False,43.09,66.67,58.33,1.3
+261,260,mathematics,e to the r log x prime,\mathrm{e}^{r}\log x^{\prime},e ^{r} \frac x \cos \ prime \sqrt,False,False,20.48,93.1,78.57,1512.0
+262,261,mathematics,u times r divided by x,u\times\mathbb{r}/x,\frac{utimesr}{x},False,False,4.22,78.95,100.0,1.4
+263,262,mathematics,r x to the r minus one,rx^{r-1},r - 1,False,False,5.97,75.0,62.5,564.2
+264,263,mathematics,y is ten x plus b,y=10x+b,10x + b,False,False,60.65,57.14,33.33,502.1
+265,264,mathematics,fifty t plus ten a plus b,50t+10a+b,50t + 10a + b,False,True,100.0,44.44,0.0,808.6
+266,265,mathematics,minus v to the minus 2 times v prime,-v^{-2}v^{\prime},-v -2(v\right),False,False,5.34,58.82,58.33,1135.9
+267,266,mathematics,x to the ten plus eight x,x^{10}+8x,10 + 8x,False,False,15.59,55.56,50.0,471.5
+268,267,mathematics,e to the x tan inverse x,\mathrm{e}^{x}{\tan^{-1}x},e ^{x} \frac \ \sqrt \sum 1- \pi x,False,False,17.26,100.0,58.82,1334.4
+269,268,mathematics,x divided by 1 plus x squared,\frac{x}{1+x^{2}},\frac{x}{1plusxsquared},False,False,27.25,64.71,84.62,1.6
+270,269,mathematics,the limit as delta x goes to 0 of f of x plus delta x minus f of x divided by delta x,\displaystyle \lim_{\Delta x\to 0}\frac{f(x+\Delta x)-f(x)}{\Delta x},limite ( { x)} \frac{fofxplusdeltaxminusfofx}{deltax},False,False,10.19,65.22,100.0,642.9
+271,270,mathematics,one over one plus y squared times y prime,\frac{1}{1+y^{2}}y^{\prime},\frac{1}{1plusysquaredtimesy},False,False,20.91,55.56,94.44,1.8
+272,271,mathematics,one divided by the square root of one plus x squared,1/\sqrt{1+x^{2}},\frac{1}{thesquarerootof1plusxsquared},False,False,1.62,100.0,100.0,2.0
+273,272,mathematics,x zero plus f prime of x zero x minus x zero,\displaystyle x_{0}+f^{\prime}(x_{0})(x - x_{0}),x _{0} + f x _{0} x-x _ ^ 0 \frac,False,False,40.48,81.25,39.29,2604.1
+274,273,mathematics,y equals cosine x,y=\cos x,y =,False,False,3.68,75.0,50.0,398.8
+275,274,mathematics,y equals e to the x,y=\mathrm{e}^{x},y = e,False,False,1.43,87.5,70.0,557.2
+276,275,mathematics,y equals one plus x,\displaystyle y=1+x,y = 1 + x,False,True,81.87,84.21,16.67,674.3
+277,276,mathematics,f prime is one over one plus x,f^{\prime}=\frac{1}{1+x},\frac{1}{1plusx},False,False,36.99,62.5,60.0,1.7
+278,277,mathematics,r one plus x to the r minus 1,(r\cdot{1+x}^{r-1}),r 1 + x (r-1),False,False,12.07,68.42,46.67,1054.1
+279,278,mathematics,e to the minus 3x divided by square root 1 plus x,e^{-3x}/\sqrt{1+x},- ^{3x} 1 + x,False,False,13.49,72.22,42.86,1217.8
+280,279,mathematics,e to the minus three x one plus x to the minus a half,e^{-3x}(1+x^{-1/2}),-3x _{1} + x,False,False,5.65,78.95,73.68,922.6
+281,280,mathematics,one minus three x minus a half of x plus three halves x squared.,1-3x-\frac{1}{2}x+\frac{3}{2}x^{2},1-3x x + 3 x ^{2},False,False,18.54,70.59,53.85,1703.4
+282,281,mathematics,t prime is equal to t divided by the square root of 1 minus v squared over c squared,t^{\prime}= t/\sqrt{1-v^{2}/c^{2}},\frac{isequaltot}{thesquarerootof1minusvsquaredovercsquared},False,False,0.57,100.0,100.0,3.7
+283,282,mathematics,v squared over c squared,\frac{v^{2}}{c^{2}},\frac{vsquared}{csquared},False,False,8.04,73.68,93.33,1.0
+284,283,mathematics,t times 1 plus a half v squared over c squared,t(1+\frac{1}{2}\frac{v^{2}}{c^{2}}),t \left(11) \frac{vsquared}{csquared},False,False,6.72,77.14,81.48,558.7
+285,284,mathematics,y equals one minus a half x squared,y=1-\frac{1}{2}x^{2},y = 1 x ^{2},False,False,25.69,70.0,50.0,1149.4
+286,285,mathematics,one plus a half v squared over c squared,1+\frac{1}{2}v^{2}/c^{2},\frac{vsquared}{csquared},False,False,3.18,79.17,95.0,2.0
+287,286,mathematics,f double prime of zero divided by two,f^{\prime\prime}(0)/2,\frac{0}{2},False,False,2.6,85.71,81.82,1.4
+288,287,mathematics,sine x is approximately x,\sin x\approx x,\frac x = x,False,False,9.2,73.33,50.0,562.4
+289,288,mathematics,cosine x is approximately one minus a half x squared,\cos x\approx 1-\frac{1}{2}x^{2},x ^{2},False,False,9.07,81.25,70.59,654.3
+290,289,mathematics,e to the x is approximately one plus x plus a half x squared,e^{x}\approx 1+x+\frac{1}{2}x^{2},1 + x x ^{2},False,False,12.13,78.79,63.64,1036.2
+291,290,mathematics,x minus a half x squared,x-\frac{1}{2}x^{2},x ^{2},False,False,16.53,72.22,64.29,751.2
+292,291,mathematics,1 plus x to the power r,(1+x^{r}),1 + x,False,False,4.28,88.89,66.67,479.4
+293,292,mathematics,one plus rx plus r times r minus one divided by two x squared,1+rx+\frac{r(r-1)}{2}x^{2},\frac{1plusrxplusrtimesrminus1}{2xsquared},False,False,4.26,100.0,100.0,2.7
+294,293,mathematics,e to the minus three x one plus x to the minus a half,e^{-3x}(1+x)^{-1/2},-3x _{1} + x,False,False,5.65,84.21,73.68,926.1
+295,294,mathematics,one minus a half x plus a half times minus a half times minus three halves x squared,1-\frac{1}{2}x+\frac{1}{2}\times(-\frac{1}{2})\times(-\frac{3}{2})x^{2},x + {} 1 ^ \frac 2 \ (-3) x ^{2},False,False,7.64,76.06,66.67,1946.0
+296,295,mathematics,f double prime is minus one over one plus x squared,f^{\prime\prime}=-\frac{1}{1 + x^{2}},\frac{minus1}{1plusxsquared},False,False,13.11,86.49,95.24,2.2
+297,296,mathematics,r one plus x to the r minus one,(r\cdot 1+x^{r-1}),r 1 + x r - 1,False,False,12.16,77.78,46.15,1150.4
+298,297,mathematics,r times r minus one x plus one to the r minus two,r(r-1)(x+1)^{r-2},r(r-1)x + 1 (r-2),False,False,45.14,41.18,29.41,1381.0
+299,298,mathematics,3 times 1 minus x times 1 plus x,3(1-x)(1+x),3(1-x)( 1 + x),False,True,100.0,27.27,0.0,1114.4
+300,299,mathematics,one minus x times 1 plus x is zero,(1 - x)(1 + x) = 0,1-x \left(1 + x\right),False,False,33.08,83.33,41.67,916.0
+301,300,mathematics,x is plus or minus 1,x={}(\pm1),+ (-1),False,False,6.9,70.0,62.5,622.8
+302,301,mathematics,f of x is three x minus x cubed,f(x)=3x-x^{3},3x-x ^{3},False,False,53.53,46.15,38.46,859.1
+303,302,mathematics,one over x plus two the quantity squared.,\frac{1}{({x+2})^2},\frac{1}{xplus2},False,False,31.29,36.84,46.67,1.7
+304,303,mathematics,negative two plus one,\-2 + 1\,2 + 1,False,False,22.66,37.5,25.0,387.5
+305,304,mathematics,1 plus 1 over x,1+\frac{1}{x},\frac{1plus1}{x},False,False,43.09,53.85,66.67,1.2
+306,305,mathematics,1 plus 2 over x,1+\frac{2}{x},\frac{1plus2}{x},False,False,38.42,53.85,66.67,0.9
+307,306,mathematics,one minus one over x plus 2,1-\frac{1}{x+2},\frac{1minus1}{xplus2},False,False,22.4,80.0,100.0,1.3
+308,307,mathematics,one times log x minus x times the derivative of log x,1\cdot\log x-x\cdot\frac{\mathrm{d}}{\mathrm{dx}}\log (x),1( \frac x-x) ( { )},False,False,3.9,84.21,76.0,1082.6
+309,308,mathematics,log x minus one divided by log x squared,(\log (x)-1)/\log x^{2},\frac{xminus1}{logxsquared},False,False,1.24,95.65,100.0,1.9
+310,309,mathematics,e divided by log e,e/\log e,\frac{e}{loge},False,False,2.51,100.0,100.0,1.0
+311,310,mathematics,log e is 1,\log(e) = {1},\frac \left(e\right) = 1,False,False,8.8,100.0,62.5,1034.7
+312,311,mathematics,log x minus 1 divided by log x squared,\log(x-1)/(\log x)^{2},\frac{xminus1}{logxsquared},False,False,1.24,95.45,100.0,1.9
+313,312,mathematics,1 over log x minus 1 over log x squared,1/\log x - 1/(\log x^{2}),\frac{1}{logxminus1overlogxsquared},False,False,0.94,100.0,100.0,1.8
+314,313,mathematics,1 over log 0 plus minus 1 over log 0 plus squared,\displaystyle \frac{1}{\log(0^{+})}-\frac{1}{(\log(0^{+}))^{2}},\frac{1}{log0plusminus1overlog0plussquared},False,False,10.5,71.43,86.11,2.1
+315,314,mathematics,one over minus infinity minus 1 over infinity,\frac{1}{-\infty}-\frac{1}{\infty},\frac{1}{minusinfinityminus1},False,False,16.62,55.88,100.0,1.4
+316,315,mathematics,minus log x to the minus 2 times 1 over x plus 2 log x to the minus 3 1 over x,\displaystyle -(\log x)^{-2} \cdot\frac{1}{x}+2(\log x)^{-3}\frac{1}{x},\frac{minus2times1}{xplus2} \frac{minus31}{x},False,False,17.88,76.06,75.68,3.7
+317,316,mathematics,x log x cubed,x(\log x)^3,x ^{3},False,False,4.63,81.82,85.71,595.6
+318,317,mathematics,2 minus log x,2-\log x,2- \frac x,False,False,18.46,62.5,25.0,483.3
+319,318,mathematics,e squared over two,\frac{e^{2}}{2},\frac{esquared}{2},False,False,26.56,46.67,63.64,1.1
+320,319,mathematics,one minus x,\displaystyle 1-x,1-x,False,True,22.66,82.35,25.0,269.7
+321,320,mathematics,x over 4,\frac{x}{4},\frac{x}{4},True,True,100.0,0.0,0.0,0.9
+322,321,mathematics,x squared over 16,x^{2}/16,\frac{xsquared}{16},False,False,2.02,100.0,100.0,0.8
+323,322,mathematics,the derivative of 1 minus x squared is 2 times 1 minus x times of minus 1,\displaystyle \frac{d}{dx}\left(1-x\right)^{2}=2\left(1-x\right)(-1),(-1-x) ^{2} = 2(1-x\right),False,False,31.79,73.53,51.52,1850.9
+324,323,mathematics,2x over 8,\frac{2x}{8},\frac{2x}{8},True,True,100.0,0.0,0.0,0.9
+325,324,mathematics,y is equal to v divided by x squared,y=\frac{v}{x^{2}},\frac{yisequaltov}{xsquared},False,False,13.11,100.0,100.0,1.7
+326,325,mathematics,A prime is 2x minus 4v over x squared,A^{\prime}=2x-4v/x^{2},\frac{2xminus4v}{xsquared},False,False,3.54,100.0,100.0,1.6
+327,326,mathematics,2x equals 2v over x squared,2x=2v/x^{2},\frac{2xequals2v}{xsquared},False,False,3.18,100.0,100.0,1.1
+328,327,mathematics,x cubed is equal to 2v,x^{3}=2v,x ^{3} = 2v,False,True,100.0,37.5,0.0,867.3
+329,328,mathematics,x is equal to 2 to the 1 3rd v to the 1 3rd,x=2^{\frac{1}{3}}v^{\frac{1}{3}},x = 2,False,False,0.03,96.88,87.5,483.4
+330,329,mathematics,x squared plus 4v over x,x^{2}+\frac{4v}{x},\frac{xsquaredplus4v}{x},False,False,27.76,88.89,92.86,1.4
+331,330,mathematics,2x minus 4v over x squared,\displaystyle 2x-\frac{4v}{x^{2}},\frac{2xminus4v}{xsquared},False,False,22.6,78.79,87.5,1.2
+332,331,mathematics,x squared plus 4v over x,x^{2}+4v/x,\frac{xsquaredplus4v}{x},False,False,2.74,100.0,100.0,1.1
+333,332,mathematics,two to the one third v to the one third squared plus four v,({2^{(1/3)}v^{(1/3)}})^{2}+4v,\frac{2} + 4v,False,False,3.51,86.21,79.31,846.5
+334,333,mathematics,a divided by v to the 2 3rds,\frac{a}{v^{2/3}},\frac{a}{v},False,False,35.83,35.29,46.15,1.8
+335,334,mathematics,2 to the 1 3rd v to the 1 3rd divided by 2 to the minus 2 3rds v to the 1 3rd,2^{1/3}v^{1/3}\over 2^{-2/3}v^{1/3},\frac{2} -2,False,False,0.2,85.71,86.67,751.3
+336,335,mathematics,2xy,(2xy),2xy,False,False,16.24,40.0,40.0,377.8
+337,336,mathematics,y prime is equal to minus 2xy divided by x squared,y^{\prime}=-\frac{2xy}{x^{2}},\frac{isequaltominus2xy}{xsquared},False,False,18.03,86.21,100.0,2.3
+338,337,mathematics,2x plus 4y plus 4x y prime,2x+4y+4xy^{\prime},2x + 4y,False,False,20.19,77.78,61.54,576.2
+339,338,mathematics,4x times minus 2y over x,4x\cdot-\frac{2y}{x},\frac{timesminus2y}{x},False,False,30.23,75.0,100.0,1.4
+340,339,mathematics,2x plus 4y,\displaystyle 2x+4y,2x + 4y,False,True,81.87,84.21,16.67,587.7
+341,340,mathematics,8 minus 8y equals 0,8-8y=0.,8-8y = 0,False,False,84.65,42.86,14.29,857.5
+342,341,mathematics,x over y is equal to 2,\frac{x}{y}=2,\frac{x}{yisequalto2},False,False,30.76,76.92,100.0,1.6
+343,342,mathematics,x squared plus 30 squared is equal to d squared,x^{2}+30^{2}=d^{2},x ^{2} + 30 \frac \ 2 \sqrt = d \cos \sum 2 \pi,False,False,41.12,100.0,35.29,1683.1
+344,343,mathematics,d D dt is minus 80,\frac{\mathrm{d}}{\mathrm{d}t}D=-80,- 80,False,False,0.0,94.29,88.89,397.8
+345,344,mathematics,r divided by h is equal to four divided by ten,r/h=4/10,\frac{r}{hisequalto4dividedby10},False,False,0.99,100.0,100.0,2.3
+346,345,mathematics,dv dt is two,\frac{dv}{dt} = 2,\frac{dv} ^ dt \ = 2,False,False,46.27,29.41,18.18,1296.5
+347,346,mathematics,two fifths h,\frac{2}{5}h,\frac{2} ^ 5 \ h,False,False,40.63,50.0,25.0,895.6
+348,347,mathematics,v is equal to a 3rd pi times 2 5ths,v=\frac{1}{3}\pi\times\frac{2}{5},v = \frac \left(2\right),False,False,4.35,72.73,77.78,1092.1
+349,348,mathematics,h squared times h,\mathbb{h}^{2}\times\mathbb{h},h ^{2} h,False,False,17.95,80.0,53.85,739.8
+350,349,mathematics,h squared times h,\mathbb{h}^{2}\times\mathbb{h},h ^{2} h,False,False,17.95,80.0,53.85,730.5
+351,350,mathematics,3h squared times dh dt,\displaystyle 3h^{2}\frac{dh}{dt},3h ^{2} \frac dh \ \sqrt dt,False,False,44.76,81.82,31.25,1453.0
+352,351,mathematics,2 is equal to pi over 3 times 2 5ths,2=\frac{\pi}{3}\times\frac{2}{5},\frac{2isequaltopi}{3times2},False,False,7.6,71.88,100.0,2.1
+353,352,mathematics,dh dt is equal to 1 over 2pi,\frac{dh}{dt}=\frac{1}{2\pi},dt = 1,False,False,0.6,85.71,77.78,617.1
+354,353,mathematics,dv dt is equal to dv dh times dh dt,dv/dt = \frac{dv}{dh}\times\frac{dh}{dt},"dt = {} dv ^ \frac, dh",False,False,4.69,65.0,64.0,1628.4
+355,354,mathematics,the square root of x squared plus y squared,\sqrt{x^{2}+y^{2}},\frac{x ^} 2 \ + y \cos \sqrt 2 \pi \sum,False,False,10.64,100.0,50.0,1461.0
+356,355,mathematics,b minus y,\mathcal{b}{-}y,b -y,False,False,1.53,80.0,62.5,579.5
+357,356,mathematics,the square root of a minus x squared plus b minus y squared,\sqrt{(a-x)^{2}+(b-y)^{2}},\frac{a-x ^} 2 \ + b -y \cos \sqrt 2 \pi \sum,False,False,8.78,100.0,50.0,1928.7
+358,357,mathematics,a minus x,\mathcal{a}-x,a-x,False,False,5.43,76.92,50.0,481.0
+359,358,mathematics,b minus y times y prime,(b - y)y^{\prime},b-y-y,False,False,10.62,76.47,60.0,675.7
+360,359,mathematics,x divided by square root of x squared plus y squared,x/\sqrt{x^{2}+y^{2}},\frac{x}{squarerootofxsquaredplusysquared},False,False,1.45,100.0,100.0,2.2
+361,360,mathematics,x squared equals 5,\displaystyle x^{2}=5,x ^{2} = 5,False,True,86.69,76.19,12.5,964.1
+362,361,mathematics,f of x equal to x squared minus 5,f(x)=x^{2}-5,f(x) = x ^{2} - 5,False,True,100.0,41.67,0.0,1372.5
+363,362,mathematics,f of x equals 0,f(\mathbf{x})=0,f(x) = 0,False,False,16.33,73.33,33.33,713.4
+364,363,mathematics,y minus y0 is equal to m x minus x0,y-y_{0}=m(x-x_{0}),y-y _{0} = mx,False,False,40.66,61.11,44.44,1095.6
+365,364,mathematics,x1 is equal to x0 minus y0 divided by m,x_{1}=x_{0}-\frac{y_{0}}{m},\frac{isequaltox0minusy0}{m},False,False,14.63,88.89,86.96,2.1
+366,365,mathematics,x0 is equal to 2,x_0 = 2,\frac mathcal { = 2},False,False,3.7,100.0,100.0,562.6
+367,366,mathematics,x0 squared minus 5,x_0^{2} - 5,\frac{2} - 5,False,False,46.46,45.45,44.44,686.5
+368,367,mathematics,minus a half x zero,-\frac{1}{2}x_{0},- ^{1} \frac 2 \ x _ \sqrt 0 \sum,False,False,11.58,100.0,38.46,1521.7
+369,368,mathematics,five halves over x zero,\frac{5}{2}\over x_0,\frac{x _} 0 ^,False,False,6.16,60.0,72.73,947.9
+370,369,mathematics,x one is a half times two,\displaystyle \mathbb{x}_{1}=\frac{1}{2}\times 2,(-2),False,False,0.18,97.92,94.74,404.4
+371,370,mathematics,9 4ths plus 5 halves times 4 9ths,(9/4+5/2)\times(4/9),+ 5}{2 ^ ( 4,False,False,3.67,90.0,73.33,944.2
+372,371,mathematics,square root of 5 minus xn,\sqrt{5}-x_n,\frac{5},False,False,14.54,66.67,62.5,545.0
+373,372,mathematics,one minus a half,1-\frac{1}{2},1- {} 1 ^ \frac 2 \,False,False,7.17,100.0,55.56,784.5
+374,373,mathematics,x minus x1 in absolute value,|x-x_1|,x-x _{1} ( \frac ),False,False,28.83,100.0,100.0,1114.8
+375,374,mathematics,e2 would be x minus x2 in absolute value,\displaystyle \mathbb{e}_2 = |x - x_{2}|,e2 = x- { ^ x2/} \frac,False,False,20.99,87.5,66.67,1213.5
+376,375,mathematics,y equals x squared minus 5,y=x^{2}-5,y = x ^{2} - 5,False,True,100.0,55.56,0.0,1162.1
+377,376,mathematics,the interval a less than x less than b,[a<x<b],a _{x} ^ b \frac,False,False,3.63,100.0,85.71,1077.2
+378,377,mathematics,f of b minus f of a divided by b minus a,(f(b)-f(a))/(b-a),\frac{fofbminusfofa}{b},False,False,1.52,100.0,100.0,2.3
+379,378,mathematics,f of b minus f of a over b minus a is equal to f prime of c,\frac{f(b)-f(a)}{b-a}=f^{\prime}(c),\frac{fofbminusfofa}{bminusaisequaltof},False,False,5.65,77.14,100.0,3.1
+380,379,mathematics,f of b is equal to f of a plus f prime of c times b minus a,f(b)=f(a)+f^{\prime}(c)(b - a),f(b) = f(a + f c \left(b\right),False,False,35.25,70.0,39.13,1996.0
+381,380,mathematics,e to the x minus 1 plus x,e^{x}-1+x,x- 1 + x,False,False,32.34,77.78,44.44,731.2
+382,381,mathematics,e to the 0 minus 1 plus 0,(e^{0}-1)+0,0- { 1 + 0},False,False,6.4,81.82,72.73,758.0
+383,382,mathematics,f prime of x is e to the x,f^{\prime}(x)=e^{x},f ^{(x) = e} \frac x \,False,False,38.32,84.21,35.71,1301.7
+384,383,mathematics,e to the x is bigger than 1 plus x plus x squared over 2,e^{x}>(1+x+\frac{x^{2}}{2}),\frac{1plusxplusxsquared}{2},False,False,13.85,88.89,86.96,2.8
+385,384,mathematics,x squared over 2,\frac{x^{2}}{2},\frac{xsquared}{2},False,False,26.56,46.67,63.64,0.8
+386,385,mathematics,x cubed over 3 times 2,\frac{x^{3}}{3\times 2},\frac{xcubed}{3times2},False,False,10.36,30.43,76.92,1.1
+387,386,mathematics,x to the fourth over four times three times two,x^{4}\over{4\times3\times2},\frac{4} 3/3 2,False,False,8.57,81.48,61.54,693.7
+388,387,mathematics,x to the 1 3rd,x^{\frac{1}{3}},x ^{1} \frac 3 \,False,False,16.19,66.67,45.45,877.5
+389,388,mathematics,one-third x to the minus two thirds,\frac{1}{3}x^{-\frac{2}{3}},-2,False,False,0.0,92.59,89.47,305.0
+390,389,mathematics,y is equal to 64 to the 1 3rd,y\mathrel{\mathop{=}}64^{1/3},y = 64,False,False,0.15,86.21,80.0,473.0
+391,390,mathematics,dy is 1 3rd times 64 to the minus 2 3rds dx,dy=\frac{1}{3}64^{-\frac{2}{3}}dx,\frac \left(64\right) -2,False,False,0.53,75.76,83.33,1202.9
+392,391,mathematics,dy is equal to 1 48th dx,dy=\frac{1}{48}dx,dy = 1,False,False,5.74,82.35,66.67,538.4
+393,392,mathematics,f prime of a times x minus a,f^{\prime}(a)(x-a),ax,False,False,0.02,88.89,84.62,405.2
+394,393,mathematics,f of x is x to the 1 3rd,f(x)=x^{1/3},f(x) = x ^{1} \frac 3 \,False,False,74.94,100.0,25.0,1283.4
+395,394,mathematics,4 plus 1 over 48 times x minus a,(4+\frac{1}{48}(x-a)),\frac{4plus1}{48timesx},False,False,18.4,71.43,81.25,2.0
+396,395,mathematics,one over a plus one,\frac{1}{a+1},\frac{1}{aplus1},False,False,47.49,30.77,44.44,1.0
+397,396,mathematics,1 over negative x times the derivative with respect to x of negative x,\displaystyle \frac{1}{-x}\frac{d}{dx}(-x),\frac{1}{negativextimesthederivativewithrespecttoxofnegativex},False,False,7.56,100.0,100.0,2.9
+398,397,mathematics,integral of secant squared x dx,\int \sec^{2}xdx,\frac sec ^{2} xdx,False,False,57.54,43.75,44.44,953.8
+399,398,mathematics,sine inverse x,\sin^{-1}x,\frac ^{-1} x,False,False,81.29,60.0,14.29,793.7
+400,399,mathematics,the integral of dx over 1 plus x squared,\int\frac{dx}{1+x^{2}},\frac{integralofdx}{1plusxsquared},False,False,14.59,95.45,100.0,2.0
+401,400,mathematics,f of x equals g of x plus a constant,f(x)=g(x)+\text{constant},f(x) = g(x).,False,False,29.34,72.0,57.14,1130.2
+402,401,mathematics,u is equal to x to the fourth plus two,u=x^{4}+2$.,u = x \frac{2},False,False,12.94,100.0,50.0,1024.4
+403,402,mathematics,1 24 x to the 4th plus 2 to the power 6 plus c,\frac{1}{24}x^{4}+2^{6}+c,\frac{2} 6 + c,False,False,1.77,60.0,70.0,854.9
+404,403,mathematics,the integral of u to the minus a half du,\int u^{-\frac{1}{2}}\mathrm{d}u,\frac \left(u\right),False,False,0.65,81.25,94.44,697.4
+405,404,mathematics,half one plus x squared to the minus a half times two x,{\frac{1}{2}}(1+x^{2})^{-\frac{1}{2}}2x,1 + x ^{2} \frac - \ \sqrt 1 \pi \sum 2 \delta,False,False,15.58,100.0,67.74,1537.8
+406,405,mathematics,square root of 1 plus x squared plus c,\sqrt{1+x^{2}}+c,\frac{1 + x ^} 2 \ + c,False,False,40.03,81.25,33.33,1043.9
+407,406,mathematics,6 e to the 6x,6\mathrm{e}^{6x},6e ^{6x},False,True,44.06,56.25,30.0,709.6
+408,407,mathematics,x e to the minus x squared,xe^{-x^{2}},-x ^{2},False,False,43.46,54.55,45.45,703.3
+409,408,mathematics,sine x cosine x dx,\sin x\cos xdx,\frac x ^ xdx,False,False,22.12,57.14,33.33,797.9
+410,409,mathematics,2 cosine x times minus sine x,2\cos x\cdot(-\sin x),2 x \left(\frac\right),False,False,3.47,80.95,55.56,946.6
+411,410,mathematics,the integral of sine x cosine x dx is equal to negative a half cosine squared x plus c,\int\sin x\cos xdx=-\frac{1}{2}\cos^{2}x+C,\frac{x} dx = egal \frac{2} x + c,False,False,22.56,73.81,62.5,1983.7
+412,411,mathematics,sine squared x,\sin^{2}x,\frac{2} x,False,False,55.8,55.56,33.33,631.1
+413,412,mathematics,a half sine squared plus cosine squared,\frac{1}{2}\sin^{2}+\cos^{2},\frac{2} + ^ \cos \ 2 \sqrt,False,False,14.48,71.43,61.11,1067.8
+414,413,mathematics,one over u,\frac{1}{u},\frac{1}{u},True,True,100.0,0.0,0.0,0.8
+415,414,mathematics,log x plus c,\log x+c,x + c,False,False,22.66,75.0,25.0,476.6
+416,415,mathematics,2b over n,\frac{2b}{n},\frac{2b}{n},True,True,100.0,0.0,0.0,0.9
+417,416,mathematics,b over n times 2b over n squared,(b/n)\times(2b/n^{2}),\frac{b}{ntimes2bovernsquared},False,False,2.15,100.0,100.0,1.5
+418,417,mathematics,b over n times n b over n squared,(b/n)\times(nb/n^{2}),\frac{b}{ntimesnbovernsquared},False,False,2.15,100.0,100.0,1.8
+419,418,mathematics,1 3rd n cubed,\frac{1}{3}n^{3},n ^{3},False,False,24.66,75.0,58.33,649.9
+420,419,mathematics,n plus 1 squared times n plus 1,(n+1)^{2}(n+1),n + 1 ^{2} n + 1,False,False,33.34,57.14,28.57,1223.7
+421,420,mathematics,n plus 1 cubed divided by n cubed,(n+1)^{3}/n^{3},\frac{nplus1cubed}{ncubed},False,False,1.41,100.0,100.0,1.8
+422,421,mathematics,the integral from 0 to b x squared dx,\int_{0}^{b}x^{2}dx,\frac _{0} ^ \ b \sqrt x \cos \sum 2 \pi \theta dx,False,False,29.4,100.0,43.75,2014.1
+423,422,mathematics,1 3rd n cubed,\frac{1}{3}n^{3},n ^{3},False,False,24.66,75.0,58.33,616.5
+424,423,mathematics,the sum of a i i equals 1 to n is a 1 plus a 2 plus dot dot dot plus a n,\sum^{n}_{i=1}a_{i}=a_{1}+a_{2}+\cdots+a_{n},\frac a _{i} = 1 a 1 + a 2 + an,False,False,12.36,72.73,63.89,2269.3
+425,424,mathematics,1 over n cubed times the sum i squared. i equals 1 to n,\frac{1}{n^{3}}\sum_{i=1}^{n}{i}^{2},\frac{1}{ncubed} i ^{2} i = 1,False,False,28.03,58.33,62.07,1043.6
+426,425,mathematics,b over n times i b over n squared,\frac{b}{n}\times(\frac{ib}{n})^{2},\frac{b}{ntimesibovernsquared},False,False,21.53,54.29,72.73,1.9
+427,426,mathematics,b cubed over n cubed,\frac{b^{3}}{n^{3}},\frac{bcubed}{ncubed},False,False,10.11,52.63,66.67,1.0
+428,427,mathematics,f of x is equal to x,f(\mathbf{x})=\mathbf{x},f(x) = x,False,False,4.94,79.17,50.0,652.7
+429,428,mathematics,f of x is x cubed,\displaystyle f(x)=x^{3},x ^{3},False,False,30.12,79.17,54.55,582.4
+430,429,mathematics,b minus a over n,\frac{b-a}{n},\frac{bminusa}{n},False,False,39.34,38.46,55.56,1.2
+431,430,mathematics,e to the r times 1 minus t,e^{r}(1 - t),r(1-t),False,False,41.13,50.0,40.0,839.6
+432,431,mathematics,i over 365 f of t dt,\displaystyle \frac{i}{365}f(t)dt,\frac{i}{365foftdt},False,False,43.44,57.58,42.86,1.6
+433,432,mathematics,f of b minus f of a,\displaystyle f(b)-f(a),f(b-f),False,False,13.83,73.91,40.0,728.8
+434,433,mathematics,b cubed over 3 minus a cubed over 3,\frac{b^{3}}{3}-\frac{a^{3}}{3},\frac{bcubed}{3minusacubedover3},False,False,6.65,58.06,82.61,2.0
+435,434,mathematics,minus cosine pi,-\cos\pi,- ^{},False,False,4.51,87.5,100.0,474.5
+436,435,mathematics,x of b minus x of a,x(b)-x(a),x(b-x),False,False,16.33,33.33,33.33,724.9
+437,436,mathematics,integral from 0 to 2pi of sine x dx,\int_{0}^{2\pi}\sin xdx,\frac _{0},False,False,11.26,86.96,71.43,614.7
+438,437,mathematics,minus cosine 2pi,-\cos2\pi,- ^ 2,False,False,5.27,77.78,50.0,555.1
+439,438,mathematics,minus the integral from b to a of f of x dx,\displaystyle -\int_{b}^{a}f(x)dx,- ^ _{b},False,False,9.22,84.85,70.59,801.1
+440,439,mathematics,e to the b minus e to the zero,e^{b}-e^{0},b - e,False,False,1.03,81.82,72.73,624.6
+441,440,mathematics,the integral from 0 to b e to the x dx is greater than or equal to the integral from 0 to b 1 plus x dx,\int_{0}^{b}e^xdx\geq\int_{0}^{b}(1 + x)dx,\frac _{0} xdx = 1} _{0 ^ \frac \ b \sqrt + xdz,False,False,16.14,88.1,54.84,2848.4
+442,441,mathematics,e to the b minus 1 is greater than or equal to b plus b squared over 2,e^{b}-1\geq b+\frac{b^{2}}{2},\frac{bminus1isgreaterthanorequaltobplusbsquared}{2},False,False,8.0,100.0,100.0,3.4
+443,442,mathematics,b greater than or equal to 0,b\geq 0,b = 0,False,False,7.36,57.14,33.33,558.5
+444,443,mathematics,u equals x cubed plus 2,u=x^{3}+2,u = x ^{3} + 2,False,True,100.0,55.56,0.0,966.2
+445,444,mathematics,du is equal to 2x dx,du\mathrel{\mathop{=}}2xdx,(2)xdx,False,False,6.89,88.46,76.92,469.8
+446,445,mathematics,dx is equal to f of b minus f of a,dx=f(b)-f(a),dx = f(b-f),False,False,49.13,41.67,25.0,969.1
+447,446,mathematics,one over b minus a,\frac{1}{b-a},\frac{1}{b},False,False,63.45,15.38,22.22,1.2
+448,447,mathematics,f of 4 minus f of 0 is equal to f prime of c times 4 minus 0,f(4)-f(0)=f^{\prime}(c)(4 - 0),f(4-f(0) = f c \left(4-0\right),False,False,42.39,70.0,34.78,1932.7
+449,448,mathematics,1 over 1 plus c times 4,\frac{1}{1 + c}(4),\frac{1}{1plusctimes4},False,False,29.76,55.56,83.33,1.6
+450,449,mathematics,y equals one over one plus x,y=\frac{1}{1+x},\frac{yequals1}{1plusx},False,False,18.32,86.67,100.0,1.3
+451,450,mathematics,dt over t squared,\frac{dt}{t^{2}},\frac{dt}{tsquared},False,False,41.83,43.75,58.33,0.8
+452,451,mathematics,the integral from 0 to x of f of t dt,\left(\int_{0}^{x}f(t)dt\right),\frac _{0},False,False,4.14,80.65,78.95,752.8
+453,452,mathematics,1 over t squared,\frac{1}{t^2},\frac{1}{tsquared},False,False,36.91,53.85,77.78,1.1
+454,453,mathematics,g of x is 1 minus 1 over x,g(x)=1-\frac{1}{x},\frac{1minus1}{x},False,False,36.42,72.22,64.29,1.6
+455,454,mathematics,f prime of x is equal to g prime of x,f^{\prime}(x)\mathrel{\mathop{}}=g^{\prime}(x),x = g,False,False,0.02,95.65,86.96,502.8
+456,455,mathematics,f of b minus f of a and that's equal to g of b plus c minus g of a plus c,f(b)-f(a)\stackrel{{\scriptstyle\text{def}}}{{=}}g(b+c)-g(a+c),f(b)-f(a) + représentant g(b) + c-g(a + c),False,False,40.06,62.9,46.15,2638.6
+457,456,mathematics,f of x is equal to minus 1 over x,\mathcal{f}(x)=-\frac{1}{x},\frac{fofxisequaltominus1}{x},False,False,18.5,81.48,100.0,2.1
+458,457,mathematics,L of x equals the integral from 1 to x dt over t,L(x)=\int_{1}^{x}\frac{dt}{t},\frac{Lofxequalstheintegralfrom1toxdt}{t},False,False,15.55,100.0,100.0,2.3
+459,458,mathematics,integral from 0 to x of e to the minus t squared dt,\int_{0}^{x}e^{-t^{2}}dt,\frac _{0} -t ^{2} \frac dt,False,False,35.01,79.17,42.86,1734.0
+460,459,mathematics,the integral from x to 1 with a minus sign dt over 2,\displaystyle \int_{x}^{1}{-}\frac{dt}{2},\frac _{x} \frac{aminussigndt}{2},False,False,35.8,73.17,61.9,623.3
+461,460,mathematics,minus 2x e to the minus x squared,-2xe^{-x^{2}},-2xe -x ^{2},False,False,58.43,30.77,23.08,1378.8
+462,461,mathematics,f prime of 0 is e to the minus 0 squared which is 1,\displaystyle f^{\prime}(0)=e^{-0^{2}}=1,- {} 0 ^ \frac 2 \,False,False,1.09,87.5,77.27,959.1
+463,462,mathematics,f of minus x is equal to minus f of x,f(-x)=-f(x),f(-x) = -f(x),False,True,100.0,18.18,0.0,1134.1
+464,463,mathematics,square root of pi over 2,\sqrt{\pi}/{2},\frac{squarerootofpi}{2},False,False,5.61,100.0,100.0,1.4
+465,464,mathematics,2 over the square root of pi times the integral from 0 to x e to the minus t squared dt,\displaystyle \frac{2}{\sqrt{\pi}}\int_{0}^{x}e^{-t^{2}}dt,\frac{2}{thesquarerootofpitimestheintegralfrom0} -t ^{2} \frac dt,False,False,17.39,87.93,100.0,1082.9
+466,465,mathematics,2 over the square root of pi,\frac{2}{\sqrt{\pi}},\frac{2}{thesquarerootofpi},False,False,16.56,60.0,100.0,1.5
+467,466,mathematics,f of x minus g of x times dx,(f(x)-g(x))dx,"f(x)-g(x),dx",False,False,70.99,15.38,15.38,1184.9
+468,467,mathematics,x equals y squared,\displaystyle x=y^{2},x = y ^{2},False,True,86.69,71.43,12.5,884.2
+469,468,mathematics,y equals x minus 2,\displaystyle y=x-2,y = x - 2,False,True,81.87,84.21,16.67,846.6
+470,469,mathematics,y squared minus y minus 2 is equal to 0,y^{2}-y-2~{}=~{}0,y ^{2} - y - 2 = 0,False,False,57.59,64.71,26.67,1527.7
+471,470,mathematics,y minus two times y plus one is equal to zero,(y-2)(y+1)=0,y - 2y + 1 = 0,False,False,16.01,75.0,33.33,1245.0
+472,471,mathematics,y equals x minus 2,\displaystyle y=x-2,y = x - 2,False,True,81.87,84.21,16.67,803.6
+473,472,mathematics,x equals y squared,\displaystyle x=y^{2},x = y ^{2},False,True,86.69,71.43,12.5,869.2
+474,473,mathematics,y plus 2 minus y squared is equal to 0,y+2-y^{2}~{}=~{}0,y + 2-y ^{2} = 0,False,False,59.3,52.94,26.67,1285.4
+475,474,mathematics,y squared over 2 plus 2y,\frac{y^{2}}{2}+2y,\frac{ysquared}{2},False,False,26.56,50.0,64.29,1.4
+476,475,mathematics,pi y squared,\pi y^{2},\frac y ^{2},False,False,76.6,55.56,16.67,793.6
+477,476,mathematics,a squared minus x squared minus two ax,a^{2}-x^{2}-2ax,a ^{2} -x \frac \ 2 \sqrt -2,False,False,45.98,100.0,33.33,1584.3
+478,477,mathematics,2ax minus x squared,2ax-x^{2},-x ^{2},False,False,60.65,44.44,33.33,805.9
+479,478,mathematics,pi times ax squared,\pi ax^{2},\frac ax ^{2},False,False,81.29,50.0,14.29,889.9
+480,479,mathematics,12 3rds minus 8 3rds pi a cubed,(\frac{12}{3}-\frac{8}{3})\pi a^{3},- 8 \frac a ^{3},False,False,9.04,71.43,69.57,1203.8
+481,480,mathematics,pi A x squared minus x cubed over 3,\pi(ax^{2}-\frac{x^{3}}{3}),\frac{piAxsquaredminusxcubed}{3},False,False,11.46,92.59,100.0,1.8
+482,481,mathematics,2 pi a x minus x cubed,2\pi(ax-x^{3}),2} ax-x ^{3 \frac,False,False,56.05,78.57,33.33,1320.7
+483,482,mathematics,x equals square root a,x=\sqrt{a},x =,False,False,1.35,90.0,66.67,417.7
+484,483,mathematics,pi over 2a squared,\frac{\pi}{2a}^{2},\frac{pi}{2asquared},False,False,19.67,44.44,75.0,1.1
+485,484,mathematics,a hundred minus thirty y,100-30{y},100-36y,False,False,11.2,33.33,50.0,495.2
+486,485,mathematics,delta x divided by b minus a is 1 over n,\frac{\Delta x}{b-a}=\frac{1}{n},\frac{deltax}{b} \frac{1}{n},False,False,49.08,18.75,44.44,2.4
+487,486,mathematics,1 over b minus a the integral from a to b f of x dx,\displaystyle \frac{1}{b-a}\int_{a}^{b}f(x)dx,\frac{1}{bminusatheintegralfrom},False,False,19.03,77.78,88.0,2.5
+488,487,mathematics,the integral from negative 1 to 1 square root of 1 minus x squared dx,\int_{-1}^{1}\sqrt{1-x^{2}}dx,\frac _{} 1}{1-x ^ \frac 2 \ \sqrt dx,False,False,23.86,96.55,40.91,1662.9
+489,488,mathematics,pi over 4,\frac{\pi}{4},\frac{pi}{4},False,False,42.39,7.69,28.57,0.9
+490,489,mathematics,negative one over pi times cosine pi,-\frac{1}{\pi}\cos\pi,\frac{1}{pi},False,False,42.77,42.86,50.0,1.3
+491,490,mathematics,y equals x squared,\displaystyle y=x^{2},y = x ^{2},False,True,86.69,71.43,12.5,976.3
+492,491,mathematics,pi x squared,\pi x^{2},\frac x ^{2},False,False,76.6,55.56,16.67,721.0
+493,492,mathematics,a hundred pi y minus 30 pi y squared,100\pi y-30\pi y^{2},100} y-30 { y ^ \frac 2 \,False,False,14.08,80.0,36.36,1230.3
+494,493,mathematics,y less than x less than 1 minus x squared,y<x<1-x^{2},y-x-x ^{2},False,False,50.99,36.36,27.27,1001.1
+495,494,mathematics,y is equal to 1 minus x squared,y=1-x^{2},y = 1-x ^{2},False,True,100.0,33.33,0.0,999.4
+496,495,mathematics,two pi r,\displaystyle 2\pi r,2 r,False,False,2.02,85.0,50.0,509.9
+497,496,mathematics,minus pi e to the minus r squared,-\pi e^{-r^{2}},- ^ e -r ^{2},False,False,46.98,46.67,33.33,1386.9
+498,497,mathematics,two pi r e to the minus r squared,2\pi re^{-r^{2}},-r ^{2},False,False,31.14,68.75,53.85,750.7
+499,498,mathematics,c pi times e to the minus r one squared minus e to the minus r two squared,\displaystyle c\pi(e^{-r_{1}^{2}}-e^{-r_{2}^{2}}),c ^ \left(e\right) -r _{1} ^ 2 \frac -e -r 2 ^{2},False,False,29.36,71.43,44.12,2990.0
+500,499,mathematics,1 minus e to the minus a squared,1-e^{-a^{2}},1-e -a ^{2},False,False,53.89,33.33,25.0,1103.7
+501,500,mathematics,a half to the fourth power minus a half to the ninth power,(1/2)^{4}-(1/2)^{9},\frac{1} ^ 2 \ \sqrt 4 \pi - \sum \sin 1 \delta \omega 2 \alpha \cos 9 \mu,False,False,1.71,100.0,84.21,2225.5
+502,501,mathematics,y n minus 2 plus y n minus 1 over 2,\displaystyle \frac{y_{n-2}+y_{n-1}}{2},\frac{ynminus2plusynminus1}{2},False,False,16.21,74.36,72.73,2.1
+503,502,mathematics,y zero plus four y one plus y two divided by six,(y_{0}+4y_{1}+y_{2})/6,\frac{y0plus4y1plusy2}{6},False,False,3.46,90.91,77.27,2.1
+504,503,mathematics,y2 plus 4y3 plus y4 divided by 6,(y_2 + 4y_3 + y_4)\over 6,\frac{plus4y3plusy4}{6},False,False,2.9,96.0,93.75,1.4
+505,504,mathematics,2y n minus 2 4 yn 1 yn,2y_{n - 2}+4y_{n - 1}+y_n,n - 2 4,False,False,0.6,76.0,80.95,706.6
+506,505,mathematics,cosine of two theta is cosine square root of theta minus the sine squre root of theta,\cos(2\theta)=\cos^{2}(\theta)-\sin^{2}(\theta),\frac \left(2\right) \frac{} ^ \frac{} ^,False,False,2.36,85.11,73.91,1848.3
+507,506,mathematics,cosine squared theta minus the sin squared of theta,\cos^{2}\theta-\sin^{2}\theta,\frac{2} - ^ \cos \ 2 \sqrt \sum,False,False,9.83,86.21,53.85,1257.7
+508,507,mathematics,cosine squared of theta minus the quantity 1 minus cosine squared of theta,\cos^{2}(\theta)-(1-\cos^{2}(\theta)),\frac{2} ( ^\right) 1- ^{} 2 \frac ( \\right),False,False,18.35,91.89,52.38,2143.6
+509,508,mathematics,sine squared of theta is 1 minus cosine of 2 theta divided by 2,\sin^{2}(\theta)=(1-\cos(2\theta))\over 2,\frac{2} ( ^\right) \frac{1minuscosineof2theta}{2},False,False,8.72,95.12,100.0,1003.2
+510,509,mathematics,integrals of the form sine to the nth power of x cosine to the nth power of x dx,\displaystyle \int \sin^{n}(x) \cos^{m}(x)dx,"\frac{^} \ n \sqrt (x) \sum \cos n \pi (x), dx",False,False,10.45,75.0,55.0,2189.4
+511,510,mathematics,sine to the nth power of x times the cosine of x,\sin ^{n}(x)\cos (x),x- ^{(x)},False,False,11.63,70.0,66.67,1573.5
+512,511,mathematics,u to the n plus one,\mathcal{u}^{n+1},n + 1,False,False,3.07,94.12,70.0,495.7
+513,512,mathematics,minus u cubed over three,-u^{3}\over 3,\frac{minusucubed}{3},False,False,6.34,100.0,100.0,1.3
+514,513,mathematics,minus cosine cubed of x over three,-\cos^{3}(x)\over 3,\frac{minuscosinecubedofx}{3},False,False,4.18,100.0,100.0,1.3
+515,514,mathematics,u minus u cubed over 3,u-\frac{u^{3}}{3},\frac{uminusucubed}{3},False,False,20.8,76.47,92.31,1.1
+516,515,mathematics,cosine of x plus cosine cubed of x over three,\cos(x)+ {\cos^{3}(x)\over 3},\frac{cosineofxpluscosinecubedofx}{3},False,False,3.58,93.1,100.0,1.8
+517,516,mathematics,one plus the coisine of two theta over two,\frac{1+\cos(2\theta)}{2},\frac{2theta}{2},False,False,25.0,36.0,53.85,1.6
+518,517,mathematics,sine squared times cosine squared,\sin^{2}\cos^{2},\frac{2} ^ \ \sqrt 2 \pi,False,False,12.48,100.0,50.0,978.3
+519,518,mathematics,a minus b times a plus b is a squared minus b squared,(a-b)(a+b)= a^{2}-b^{2},a-b(a + b) a ^{2} - b \frac \ 2 \sqrt \sum,False,False,49.58,100.0,31.82,2377.4
+520,519,mathematics,a quarter minus one eighth,\frac{1}{4}-\frac{1}{8},-1,False,False,0.01,91.3,86.67,304.0
+521,520,mathematics,one half sine of two x squared,\frac{1}{2}\sin^{2}(2x),\frac \left(2x\right) ^{2},False,False,23.61,78.26,68.75,1250.7
+522,521,mathematics,1 quarter of 1 minus the cosine of 4x divided by 2,\frac{1}{4}(\frac{1 - \cos(4x)}{2}),\frac{1minusthecosineof4x}{2},False,False,15.73,57.14,81.82,2.4
+523,522,mathematics,y equals a sin theta,y=a\sin \theta,y =,False,False,2.23,85.71,60.0,389.3
+524,523,mathematics,sine of 2 theta is twice the sine of theta times the cosine of theta,\sin(2\theta)=2\sin(\theta)\cos(\theta),\frac \left(2\right) \frac (} ) { ( ^ ),False,False,3.92,84.62,60.0,1734.9
+525,524,mathematics,sine of theta cosine of theta over 2,\frac{\sin(\theta)\cos(\theta)}{2},\frac{sineofthetacosineoftheta}{2},False,False,9.65,35.29,100.0,1.8
+526,525,mathematics,square root of a squared minus y squared,\sqrt{a^{2}-y^{2}},\frac{a ^} 2 \ - y \cos \sqrt 2 \pi \sum,False,False,10.64,100.0,50.0,1595.4
+527,526,mathematics,a squared theta over 2,a^{2}\theta \over2,\frac{asquaredtheta}{2},False,False,5.62,100.0,100.0,1.2
+528,527,mathematics,the arcsine of y over a divided by two,\frac{\arcsin(\frac{y}{a})}{2}$.,\frac{y}{adividedby2},False,False,32.17,68.75,82.35,1.7
+529,528,mathematics,a squared sine of theta cosine of theta,a^{2}\sin(\theta)\cos(\theta),a ^{2} ( \frac ) \ ( \sqrt ),False,False,34.52,68.97,30.77,1437.5
+530,529,mathematics,a sine of theta a cosine of theta over two,a\sin(\theta)a\cos(\theta)\over 2,\frac{asineofthetaacosineoftheta}{2},False,False,0.77,72.73,100.0,2.1
+531,530,mathematics,a squared theta zero divided by two plus b times the square root of a squared minus b squared over two,{a^{2}\theta_{0}\over 2}+{b\sqrt{a^{2} - b^{2}}\over 2},\frac{asquaredtheta0}{2plusbtimesthesquarerootofasquaredminusbsquaredover2},False,False,1.18,100.0,100.0,4.6
+532,531,mathematics,a squared theta over 2,a^{2}\theta/2,\frac{asquaredtheta}{2},False,False,5.62,100.0,100.0,1.2
+533,532,mathematics,1 plus sine squared over cosine squared,1 + \sin^{2}\over \cos^2,\frac{1plussinesquared}{cosinesquared},False,False,0.72,100.0,100.0,1.4
+534,533,mathematics,the tangent of x is sine x divided by cosine x,\tan(x)=\sin(x)/\cos(x),\frac \left(x\right),False,False,2.54,78.26,78.57,850.1
+535,534,mathematics,cosine squared plus sine squared is one,\cos^{2}+\sin^{2}=1,\frac ^{2} + \ \cos \sqrt 2 \pi,False,False,32.24,100.0,53.85,1126.6
+536,535,mathematics,one over cosine squared of x which is secant squared,1/\cos^{2}(x) = \sec^{2}(x),\frac{1}{cosinesquaredofx},False,False,1.36,85.19,100.0,2.1
+537,536,mathematics,one over the cosine times the tangent of x,{1\over\cos(x)}\tan(x),\frac{1}{thecosinetimesthetangentofx},False,False,1.46,100.0,100.0,1.7
+538,537,mathematics,u equals the cosine of x,u=\cos {x},u = the \cos(x),False,False,6.13,90.0,83.33,1.2
+539,538,mathematics,du is minus the sine of x dx,\mathrm{d}u = -\mathrm{\sin(x)}\mathrm{d}x,- ^ \left(x\right),False,False,1.51,83.33,84.21,922.4
+540,539,mathematics,sine x dx is minus du divided by u,\sin xdx=-\frac{du}{u},\frac{minusdu}{u},False,False,40.15,68.18,57.14,1.8
+541,540,mathematics,the secant of x plus the tangent of x,\operatorname{\sec}(x)+\tan(x),x + ^ \left(x\right),False,False,4.54,80.0,75.0,1155.8
+542,541,mathematics,secant squared is one plus tangent squared,\displaystyle \sec^2 = 1 + \tan^{2},\frac ^{2} = 1 + \ \cos \sqrt 2 \pi,False,False,32.68,88.57,66.67,1265.7
+543,542,mathematics,the secant squared the x plus x times dx that is du,\displaystyle\ (\sec^2(x) +\ x )\ dx = \ du\ \,\frac{2} x + x(dx),False,False,4.71,78.26,62.5,1219.3
+544,543,mathematics,u plus u cubed over 3 plus a constant,\displaystyle u+\frac{u^{3}}{3} + \text{const.},\frac{uplusucubed}{3},False,False,15.5,78.72,83.33,1.9
+545,544,mathematics,the integral of dx over x squared times the square root of 1 plus x squared,\int\frac{dx}{x^{2}\sqrt{1+x^{2}}},\frac{integralofdx}{xsquaredtimesthesquarerootof1plusxsquared},False,False,7.56,100.0,100.0,2.8
+546,545,mathematics,minus one over u plus a constant,-\frac{1}{u}+\text{const.},\frac{minus1}{u},False,False,23.99,65.38,72.22,1.3
+547,546,mathematics,1 over the square root of x squared minus 1,1\over \sqrt{x^{2} - 1},\frac{1}{thesquarerootofxsquaredminus1},False,False,1.57,100.0,100.0,1.8
+548,547,mathematics,square root of a squared minus x squared,\sqrt{a^{2}-x^{2}},\frac{a ^} 2 \ - x \cos \sqrt 2 \pi \sum,False,False,10.64,100.0,50.0,1624.4
+549,548,mathematics,x is a times the sine of theta,x=a\sin(\theta),a ^{(}\right),False,False,4.3,80.0,85.71,883.7
+550,549,mathematics,dx over x squared plus 4x,\frac{dx}{x^{2}+4x},\frac{dx}{xsquared},False,False,41.83,36.84,46.67,1.6
+551,550,mathematics,x squared plus 4x is u squared minus 4,x^{2}+4x=u^{2}-4,x ^{2} u ^{2} - 4,False,False,59.92,50.0,25.0,1640.8
+552,551,mathematics,4 times the tangent squared of theta,4\tan^{2}(\theta),4(6) ^{} 2 \frac ( \ ),False,False,5.54,100.0,66.67,1128.6
+553,552,mathematics,square root of u squared minus 4,\sqrt{u^{2}-4},\frac{u ^} 2 \ - 4,False,False,14.94,85.71,40.0,1074.8
+554,553,mathematics,du is 2 secant theta tangent theta d theta.,du=2\sec \theta \tan \theta d\theta,du = 2} sec \frac{d ^,False,False,23.32,77.14,70.0,982.0
+555,554,mathematics,natural logarithm of x plus 2 over 2,\ln({\frac{x+2}{2}}),\frac{xplus2}{2},False,False,36.47,55.0,64.29,1.7
+556,555,mathematics,e of x divided by q of x,\frac{e^x}{q(x)},\frac{eofx}{qofx},False,False,30.72,31.25,41.67,1.5
+557,556,mathematics,natural log of x minus 1 plus 3 times natural log of x plus 3,\ln(x-1)+3\ln(x+3),x- 1 + 3 x + 3,False,False,12.46,77.78,42.86,1147.6
+558,557,mathematics,3 times x minus 1,3\times(x-1),3(x-1),False,True,67.81,50.0,14.29,635.9
+559,558,mathematics,four x plus two minus three,(4x+2-3),4x + 2- 3,False,False,71.65,62.5,25.0,713.8
+560,559,mathematics,b times x plus two times x minus one,b(x+2)(x-1),b(x) + 2x-1),False,False,40.4,45.45,27.27,1059.3
+561,560,mathematics,1 over x minus 1 plus 3 over x plus 2,\frac{1}{x-1}+\frac{3}{x+2},\frac{1}{xminus1plus3overxplus2},False,False,20.38,66.67,89.47,2.2
+562,561,mathematics,a times x minus 1 times x plus 2,a(x-1)(x+2),a(x-1)(x + 2),False,True,100.0,18.18,0.0,1248.0
+563,562,mathematics,minus eight minus one divided by minus two minus one is equal to b,\frac{-8-1}{-2-1}=b,\frac{minus8minus1}{minus2minus1isequaltob},False,False,3.62,100.0,100.0,2.8
+564,563,mathematics,four x minus one,(4x\ -\ 1),4x - 1,False,False,60.65,40.0,33.33,589.0
+565,564,mathematics,four minus one divided by one plus two is equal to a,\frac{4-1}{1+2}=a,\frac{4minus1}{1plus2isequal},False,False,15.44,94.12,100.0,2.4
+566,565,mathematics,x minus one times x minus two times x plus five,(x-1)(x-2)(x+5),x- 1(x-2)(x + 5),False,False,73.11,33.33,13.33,1256.3
+567,566,mathematics,x plus five,\displaystyle x+5,x + 5,False,True,22.66,88.24,25.0,523.6
+568,567,mathematics,b over x minus 1 squared,\frac{b}{(x-1)^{2}},\frac{b}{xminus1squared},False,False,20.65,68.42,86.67,1.4
+569,568,mathematics,"negative a, plus 1, plus 1 3rd.",-a+1+\frac{1}{3},"a, + 1 + 1",False,False,8.59,81.25,66.67,783.0
+570,569,mathematics,"1 squared divided by 1 squared plus 1,",1^{2}/(1^{2}+1),\frac{1squared}{1squaredplus1},False,False,1.18,100.0,100.0,1.7
+571,570,mathematics,a times x squared plus 1,ax^{2}+1,ax ^{2} + 1,False,True,100.0,37.5,0.0,968.6
+572,571,mathematics,x cubed plus one,\mathcal{x}^3+{1},x ^{3} + 1,False,False,3.45,76.47,70.0,817.6
+573,572,mathematics,x plus 1 times x squared plus x plus 1,(x+1)(x^{2}+x+1),x + 1(x ^{2} + x + 1),False,False,75.08,56.25,12.5,1368.2
+574,573,mathematics,half the argtangent,\displaystyle \frac{1}{2}\arctan,2}{argtang \left(\frac\right),False,False,4.0,81.25,100.0,1160.7
+575,574,mathematics,d by dx of natrual log of x squared plus 1 is 2x over x squared plus 1,\frac{d}{dx}(\ln(x^{2}+1))=\frac{2x}{x^{2}+1},x ^{2} + 1 \frac{2x}{xsquaredplus1},False,False,33.83,73.33,71.43,825.4
+576,575,mathematics,x cubed plus x squared minus 2x,x^{3}+x^{2}-2x,x ^{3} + x \frac \ 2 \sqrt -2x,False,False,55.23,100.0,21.43,1414.5
+577,576,mathematics,b3 x plus c3 x squared plus 4 cubed,b_3 x+c_3 x^{2}+4^{3},x + c3x ^{2} + 4 \frac \ 3 \sqrt,False,False,44.3,100.0,36.84,1532.6
+578,577,mathematics,r of x is equal to a11 x to the 11th plus a10 x to the 10th,r(x)=a_{11}x^{11}+a_{10}x^{10},r(x) =,False,False,1.5,86.67,80.77,650.5
+579,578,mathematics,x is equal to two tan u,x=2\tan u,x = 2,False,False,16.24,77.78,40.0,535.9
+580,579,mathematics,dx is 2 secant squared u du,dx= 2\sec^{2}udu,\frac{2} u,False,False,16.81,68.75,66.67,637.1
+581,580,mathematics,cosine squared of two u,\cos^{2}(2u),\frac{2} \left(2u\right),False,False,18.44,100.0,44.44,1176.8
+582,581,mathematics,u is a log x,u=\log x,u = { mathcal} x ^,False,False,3.72,100.0,100.0,1198.3
+583,582,mathematics,u prime is one over x,u^{\prime}= 1/x,\frac{1}{x},False,False,3.47,86.67,77.78,1.4
+584,583,mathematics,x log x minus x plus c,x\log x-x+C,x-x + c,False,False,45.68,81.82,42.86,798.2
+585,584,mathematics,log x squared,(\log x)^{2},x ^{2},False,False,39.5,58.33,37.5,758.1
+586,585,mathematics,u prime is 2 log x times 1 over x,u^{\prime}=2\log x\times 1/x,\frac{xtimes1}{x},False,False,2.31,71.43,92.31,2.0
+587,586,mathematics,u prime is n times log x to the n minus 1 times 1 over x,u^{\prime}=n(\log x)^{n-1}\cdot\frac{1}{x},\frac{nminus1times1}{x},False,False,19.02,76.19,72.0,2.7
+588,587,mathematics,log x to the zero power dx,\log x^{0}dx,\frac x ^{0} dx,False,False,84.35,50.0,12.5,1278.8
+589,588,mathematics,x log x squared minus twice f one of x,x(\log x)^{2}-2f_{1}(x),x ^{2},False,False,4.38,73.91,73.68,761.0
+590,589,mathematics,x to the n e to the x dx,x^{n}e^{x}dx,"x ^{n} e \frac \ x \sqrt,dx",False,False,48.89,100.0,33.33,1995.1
+591,590,mathematics,n times g n minus 1 of x,n\cdot g_{n-1}(x),n \left(g)(n-1)(x),False,False,14.07,47.06,41.67,1641.9
+592,591,mathematics,x e to the x minus e to the x,\displaystyle \operatorname{xe^{x} - e^{x}},x-e,False,False,0.19,93.02,81.25,571.1
+593,592,mathematics,y log y squared minus 2y log y minus y,\displaystyle y (\log y)^{2}-2y\log y-y,y ^{2} y-y,False,False,17.2,74.36,52.94,1334.4
+594,593,mathematics,2 pi e x dx,2\pi exdx,2 exdx,False,False,58.92,33.33,16.67,892.6
+595,594,mathematics,e times two pi times x,e^{(2\pi x)},e(2 x),False,False,7.53,50.0,44.44,995.0
+596,595,mathematics,the integral of 2 pi x e minus e to the x dx,\int2\pi x (e - e^x)dx,\frac 2 x-e,False,False,2.72,77.27,69.23,904.1
+597,596,mathematics,2 pi e integral of x dx from 0 to 1 minus 2 pi integral from 0 to 1 of x e to the x dx,\displaystyle 2\pi e\int _{0}^{1} xdx - 2\pi \int _{0}^{1}xe^{x}dx,2} e ^ (x)dx _{0 \frac \cos \ 1-2 \sqrt \sum (0),False,False,4.31,83.33,75.0,2630.9
+598,597,mathematics,delta x squared plus delta y squared,\Delta x^{2}+\Delta y^{2},\frac \delta x ^{2} + \ \delta y \cos \sqrt 2 \pi,False,False,38.14,100.0,46.15,1914.0
+599,598,mathematics,1 plus dy dx the quantity squared,1+(\frac{dy}{dx})^{2},1 + dy/x,False,False,2.05,80.95,70.59,785.9
+600,599,mathematics,the integral from a to b of the square root of 1 plus dy dx squared dx,\int_{a}^{b}\sqrt{1 +(\frac{dy}{dx})^{2}}dx,"\frac _{} \frac{1 + dy ^} 2 \,dx",False,False,4.72,69.77,61.29,2048.7
+601,600,mathematics,square root of 1 plus f prime of x squared dx,\displaystyle \sqrt{1+f^{\prime}(x)^{2}}dx,"\frac{1 + f} x ^{2},dx",False,False,27.07,71.43,40.0,1835.7
+602,601,mathematics,square root of 1 plus m squared,\sqrt{1+m^{2}},\frac{1 + m ^} 2 \ \sqrt,False,False,45.65,100.0,40.0,992.6
+603,602,mathematics,the integral from 0 to 10 of the square root of 1 plus m squared dx,\int_{0}^{10}\sqrt{1+m^{2}}dx,\frac _{0} \frac{1 + m ^} 2 \ dx,False,False,31.65,75.86,42.86,1777.0
+604,603,mathematics,y equals square root of 1 minus x squared,y=\sqrt{1-x^{2}},y = ^{1-x} \frac 2 \ \sqrt,False,False,31.63,100.0,41.67,1264.7
+605,604,mathematics,square root of 1 plus y prime squared dx,\sqrt{1+(y^{\prime})^2}dx,\frac{1 + y ^} 2 \ dx,False,False,9.16,76.0,43.75,1347.2
+606,605,mathematics,"1 plus the quantity minus x over square root of 1 minus x squared, squared",1+(-\frac{x}{\sqrt{1-x^{2}}})^{2},"\frac{1plusthequantityminusx}{squarerootof1minusxsquared,squared}",False,False,2.39,100.0,100.0,3.0
+607,606,mathematics,x squared over 1 minus x squared,\frac{x^{2}}{1-x^{2}},\frac{xsquared}{1minusxsquared},False,False,6.35,90.48,100.0,1.5
+608,607,mathematics,sine inverse of a,\sin^{-1}(a),\frac ^{-1} (a),False,False,86.52,50.0,11.11,1093.9
+609,608,mathematics,y prime is 2x,y^{\prime}=2x,y ^{prime} = 2x,False,False,31.62,30.77,62.5,1086.1
+610,609,mathematics,the square root of 1 plus the quantity 2x squared dx.,\sqrt{1+(2x)^{2}}dx,"\frac{1} 2x ^{2},dx",False,False,26.26,42.11,33.33,1607.3
+611,610,mathematics,the integral from 0 to a of square root of 1 plus 4x squared dx,\int_{0}^{a}\sqrt{1+4x^{2}}dx,\frac _{0} ^ \ a \sqrt \cos \sum 1 + 4x \beta \sin 2 \pi \int dx,False,False,32.31,100.0,40.91,2465.2
+612,611,mathematics,dx is equal to a half secant squared u du,dx\mathrel{\mathop{}}=\frac{1}{2}\sec^{2}udu,dx = \frac{2} u,False,False,7.5,75.0,66.67,1207.6
+613,612,mathematics,x equals a half tan u,x=\frac{1}{2}\tan u,x =,False,False,0.11,89.47,81.82,454.4
+614,613,mathematics,x squared over a squared minus x squared,x^{2}/a^{2}-x^{2},\frac{xsquared}{asquaredminusxsquared},False,False,0.89,100.0,100.0,1.8
+615,614,mathematics,square root a squared minus x squared,\sqrt{a^{2}-x^{2}},a ^{2} -x \frac \ 2 \sqrt,False,False,45.89,100.0,42.86,1345.6
+616,615,mathematics,the square root of a squared over a squared minus x squared dx,\sqrt{\frac{a^{2}}{a^{2}-x^{2}}}dx,\frac{squarerootofasquared}{asquaredminusxsquareddx},False,False,3.14,100.0,100.0,2.6
+617,616,mathematics,"x, y is equal to a cosine pi over 2, a sine pi over 2","\displaystyle (x,y)=(a\cos\frac{\pi}{2},a\sin\frac{\pi}{2}).","\frac{x,yisequaltoacosinepi}{2,asinepiover2}",False,False,5.45,70.0,100.0,2.7
+618,617,mathematics,sine of pi over 2 is 1,\sin\frac{\pi}{2}=1,\frac{sineofpi}{2},False,False,21.97,63.16,100.0,1.3
+619,618,mathematics,t equals pi over 2,{t}=\frac{\pi}{2},\frac{tequalspi}{2},False,False,22.31,64.71,81.82,0.9
+620,619,mathematics,t equals pi,\mathcal{t}=\pi,t = {},False,False,6.59,80.0,83.33,587.4
+621,620,mathematics,ds squared is dx squared plus dy squared,ds^{2}=dx^{2}+dy^{2},ds ^{2} = dx \frac \ 2 \sqrt + dy \cos \sum 2 \pi,False,False,49.47,100.0,30.0,2179.0
+622,621,mathematics,the square root of minus a sine t squared plus a cosine t squared dt,"\displaystyle \sqrt{-a\sin^{2}(t)+a\cos^{2}(t)}\,dt",\frac{a ^} 2 \ + a \sqrt \sum 2 \pi \sin dt,False,False,2.35,80.39,66.67,1891.2
+623,622,mathematics,the square root of a squared,(\sqrt{a^{2}}),\frac{a ^} 2 \ \sqrt,False,False,12.94,100.0,60.0,943.4
+624,623,mathematics,delta x delta t squared plus delta y delta t the quantity squared,\displaystyle (\frac{\Delta x}{\Delta t})^{2}+(\frac{\Delta y}{\Delta t})^{2},\frac \delta x ^ \delta t}{2 \ + \sqrt \delta y \sum \sin \delta t,False,False,1.99,66.23,71.88,1923.4
+625,624,mathematics,d over dt squared,(\frac{d}{dt})^{2},\frac{d}{dtsquared},False,False,41.83,44.44,57.14,1.1
+626,625,mathematics,x is 2 sine t,x=2\sin t,x = 2 t,False,False,33.01,66.67,20.0,686.1
+627,626,mathematics,1 quarter of x squared plus y squared,1/4(x^{2}+y^{2}),x ^{2} + y \frac \ 2 \sqrt,False,False,36.49,100.0,50.0,1102.5
+628,627,mathematics,2 sine pi over 2,2\sin\frac{\pi}{2},\frac{pi}{2},False,False,37.41,33.33,44.44,1.2
+629,628,mathematics,2 cosine t squared plus sine t,2(\cos t)^{2}+\sin t,t ^{2},False,False,17.75,75.0,58.33,635.0
+630,629,mathematics,the square root of 4 cosine squared t plus sine squared t,\sqrt{4\cos^{2}t+\sin^{2}t},\frac{^} 2 \ \left(t\right) + \sqrt \cos \sum 2 \pi \right (t \lim ),False,False,1.62,100.0,94.12,2184.6
+631,630,mathematics,y squared equals 1,\displaystyle y^{2}=1,y ^{2} = 1,False,True,86.69,71.43,12.5,975.5
+632,631,mathematics,ds squared equals dx squared plus dy squared,dx^{2}=dx^{2}+dy^{2},ds ^{2} = dx \frac \ 2 \sqrt + dy \cos \sum 2 \pi,False,False,38.77,100.0,35.0,2036.8
+633,632,mathematics,2pi times 2sine t,2\pi\cdot 2\sin t,2 \left(2t\right),False,False,4.3,70.59,83.33,850.7
+634,633,mathematics,theta equals negative pi over 4,\theta=-\frac{\pi}{4},\theta = negative \pi over 4,False,False,3.17,80.95,100.0,2.1
+635,634,mathematics,theta equals seven pi over four,\theta=7\pi/4,\theta = 7\pi over 4,False,False,32.7,61.54,66.67,1.2
+636,635,mathematics,r equals square root of 2,r=\sqrt{2},r = {} 2 ^,False,False,10.91,90.0,50.0,776.4
+637,636,mathematics,r equals one over sine theta,r=1/\sin\theta,r = 1,False,False,11.63,92.86,50.0,476.7
+638,637,mathematics,x minus a squared plus y squared is equal to a squared,x-a^{2}+y^{2}~{}=~{}a^{2},x-a ^{2} + y \frac \ 2 \sqrt = a \cos \sum 2 \pi,False,False,37.66,100.0,43.48,1874.1
+639,638,mathematics,r squared minus two a r cosine theta equals zero,"r^{2}-2a\,r\cos\theta=0",r ^{2} - 2a­r \frac \ = 0,False,False,58.4,69.57,21.43,1529.5
+640,639,mathematics,minus pi over two is less than theta is less than pi over two,-\frac{\pi}{2}<\theta<\frac{\pi}{2},\frac{minuspi}{2islessthanthetaislessthanpiover2},False,False,3.07,85.71,100.0,2.7
+641,640,mathematics,pi a squared,(\pi a^{2}),\frac a ^{2},False,False,54.89,63.64,37.5,879.4
+642,641,mathematics,delta theta divided by 2pi,\Delta\theta/2\pi,\frac{},False,False,1.76,88.24,100.0,444.2
+643,642,mathematics,r is equal to 2a cosine theta,"r\mathrel{\mathop{}}=2a\,\cos\theta",r =,False,False,0.02,94.29,84.62,394.1
+644,643,mathematics,cosine of plus or minus pi over 2 is equal to 0,\cos(\pm\frac{\pi}{2})=0,\frac{cosineofplusorminuspi}{2isequalto0},False,False,3.51,100.0,100.0,2.4
+645,644,mathematics,4a squared divided by 2,4a^{2}/2,\frac{squared}{2},False,False,8.54,100.0,100.0,1.0
+646,645,mathematics,integral from minus pi over two pi over two cosine squared theta d theta,\displaystyle \int_{-\frac{\pi}{2}}^{\frac{\pi}{2}}\cos^{2}\theta d\theta,\frac{integralfromminuspi}{2piover2cosinesquaredthetadtheta},False,False,2.36,71.23,100.0,2.5
+647,646,mathematics,cosine 2 theta divided by 2,\cos2\theta \over 2,\frac{2theta}{2},False,False,2.03,73.68,100.0,1.1
+648,647,mathematics,a squared times pi over 2 minus minus pi over 2,a^{2}(\pi/2)-(-\pi/2),\frac{asquaredtimespi}{2minusminuspiover2},False,False,1.56,100.0,100.0,2.0
+649,648,mathematics,sine pi,\sin\pi,\frac{},False,False,1.98,85.71,100.0,330.4
+650,649,mathematics,2 cosine theta is equal to negative 1,2\cos\theta~{}=~{}-1,\frac =,False,False,0.09,85.0,90.0,393.1
+651,650,mathematics,r plus 2r cosine theta equals 1,r+2r\cos\theta=1,\theta = 1,False,False,5.97,62.5,62.5,1.7
+652,651,mathematics,one minus two r cosine theta,1-2r\cos\theta,1-2r,False,False,60.65,71.43,33.33,505.9
+653,652,mathematics,r squared equals 1 minus 2x squared,r^{2}=1-2x^{2},r ^{2} = 1-x \frac \ 2 \sqrt,False,False,55.19,100.0,28.57,1357.5
+654,653,mathematics,minus 3x squared plus y squared,-3x^{2}+y^{2},-3x ^{2} + y \frac \ 2 \sqrt,False,False,67.34,100.0,23.08,1249.2
+655,654,mathematics,1 over a plus b cosine theta,\frac{1}{a+b\cos\theta},\frac{1}{aplusb},False,False,45.41,47.83,45.45,1.6
+656,655,mathematics,dA dt is equal to a half r squared d theta dt,\frac{dA}{dt}=\frac{1}{2}r^{2}\frac{d\theta}{dt},\frac mathcal { d} = dies r ^{2} \frac \ \sqrt dt,False,False,20.95,68.75,67.74,2093.6
+657,656,mathematics,e x plus 2 cubed,e(x+2)^{3},ex + 2 ^{3},False,False,41.25,40.0,20.0,908.6
+658,657,mathematics,Ax plus b divided by x squared plus 2,(Ax+b)/(x^{2}+2),\frac{plusb}{xsquaredplus2},False,False,2.26,100.0,100.0,1.9
+659,658,mathematics,A2x plus B2 x squared plus 2 squared plus c over x plus d,\frac{A2x + B2}{(x^{2}+2)^{2}}+\frac{C}{x}+D,\frac{plusB2xsquaredplus2squaredplusc}{xplusd},False,False,3.8,84.09,100.0,2.5
+660,659,mathematics,u prime is equal to 1 over 1 plus x squared,u^{\prime}=\frac{1}{1+x^{2}},\frac{isequalto1}{1plusxsquared},False,False,11.46,92.86,100.0,2.0
+661,660,mathematics,v is equal to x squared over two,v=\frac{x^{2}}{2},\frac{visequaltoxsquared}{2},False,False,13.11,100.0,100.0,1.6
+662,661,mathematics,x squared over 2 tan inverse x,\frac{x^{2}}{2}\tan^{-1}x,\frac{xsquared}{2},False,False,19.96,60.0,66.67,1.2
+663,662,mathematics,a half x minus a half tan inverse x,\frac{1}{2}x-\frac{1}{2}\tan^{-1}x,\frac{1} ^ 2 \ x- \sqrt \sum 1 \pi \sin 2 \delta \int \theta 1- \mu x,False,False,15.51,100.0,52.17,2198.7
+664,663,mathematics,x log x,x\log{x},x ^ mathcal { x},False,False,9.36,100.0,100.0,924.5
+665,664,mathematics,x to the 10th minus 1,x^{10}-1,-1,False,False,0.82,75.0,71.43,439.1
+666,665,mathematics,x squared minus 1,\displaystyle x^{2}-1,x ^{2} - 1,False,True,86.69,76.19,12.5,1061.4
+667,666,mathematics,f of x divided by g of x,\frac{f(x)}{g(x)},\frac{fofx}{gofx},False,False,14.49,35.29,46.15,1.7
+668,667,mathematics,f of x divided by x minus a,\frac{f(x)}{x-a},\frac{fofx}{x},False,False,15.6,31.25,41.67,1.4
+669,668,mathematics,sine five x divided by sine two x,\sin 5x/\sin 2x,5x,False,False,0.82,86.67,71.43,307.7
+670,669,mathematics,five cosine five x divided by two cosine two x,5\cos(5x)/2\cos(2x),\frac{5x}{2},False,False,3.54,84.21,76.92,2.1
+671,670,mathematics,cosine x minus 1 divided by x squared,(\cos x-1)/x^{2},\frac{xminus1}{xsquared},False,False,1.44,100.0,100.0,1.6
+672,671,mathematics,sine of five x divided by sine of 2x,\sin(5x)/\sin(2x),\frac{sineof5x}{sineof2x},False,False,2.77,88.24,100.0,1.6
+673,672,mathematics,1 minus x squared over 2,1-x^{2}/2,\frac{1minusxsquared}{2},False,False,5.61,100.0,100.0,1.2
+674,673,mathematics,a 3rd x to the minus 2 3rds,\frac{1}{3}x^{-2/3},-2,False,False,0.02,89.47,86.67,399.5
+675,674,mathematics,x to the x is equal to e to the x log x,x^{x}=e^{x\log x},x = e,False,False,0.53,82.35,76.92,514.8
+676,675,mathematics,sine x over x squared,\sin(x)/x^{2},\frac{x}{xsquared},False,False,2.02,100.0,100.0,1.2
+677,676,mathematics,1 plus 2 over x plus 1 over x to the 5th power,1+2/x+1/x^{5},\frac{1plus2}{xplus1overx},False,False,1.41,100.0,100.0,2.3
+678,677,mathematics,1 over 1 over x,\frac{1}{1/x},\frac{1}{1overx},False,False,47.49,30.77,44.44,0.9
+679,678,mathematics,x to the 5th over x to the 4th,\frac{x^{5}}{x^{4}},\frac{x},False,False,2.71,57.89,73.33,563.2
+680,679,mathematics,one over x to the power p,\frac{1}{x^{p}},\frac{1}{x},False,False,47.68,26.67,36.36,1.5
+681,680,mathematics,dx over x to the pth power,\frac{dx}{x^{p}},\frac{dx}{x},False,False,52.87,25.0,33.33,1.4
+682,681,mathematics,1 over minus p plus 1,\frac{1}{p-1},\frac{1}{minuspplus1},False,False,26.03,69.23,100.0,1.1
+683,682,mathematics,integral from 0 to infinity dx over the square root of x squared plus 10,\displaystyle \int_{0}^{\infty}\frac{dx}{\sqrt{x^{2}+10}},\frac _{0} \frac{dx}{thesquarerootofxsquaredplus10},False,False,21.56,78.95,100.0,768.1
+684,683,mathematics,integral from 0 to 1 dx over square root of x squared plus 10,\int_{0}^{1}\frac{dx}{\sqrt{x^{2}+10}},\frac{integralfrom0to1dx}{squarerootofxsquaredplus10},False,False,7.26,100.0,100.0,2.7
+685,684,mathematics,1 over the square root of x cubed plus 3,1/\sqrt{x^{3}+3},\frac{1}{thesquarerootofxcubedplus3},False,False,1.73,100.0,100.0,1.8
+686,685,mathematics,1 over the square root of x cubed,\frac{1}{\sqrt{x^{3}}},\frac{1}{thesquarerootofxcubed},False,False,14.51,72.73,100.0,1.5
+687,686,mathematics,one over x to the three halves,\frac{1}{x^{3/2}},\frac{1}{x},False,False,35.83,35.29,46.15,1.3
+688,687,mathematics,x to the one half times two,x^{\frac{1}{2}}(2),(-2),False,False,1.52,88.89,85.71,435.8
+689,688,mathematics,1 over x squared,\frac{1}{x^{2}},\frac{1}{xsquared},False,False,36.91,46.67,63.64,1.1
+690,689,mathematics,y equals 1 over x,y=\frac{1}{x},\frac{yequals1}{x},False,False,32.27,69.23,88.89,0.9
+691,690,mathematics,y equals one over x to the one-half,\operatorname{y}=\frac{1}{x^{1/2}},\frac{yequals1}{x},False,False,18.71,67.65,72.22,1.4
+692,691,mathematics,y equals 1 over x minus 3 squared,y=\frac{1}{(x-3)^{2}},\frac{yequals1}{xminus3squared},False,False,5.19,100.0,100.0,1.4
+693,692,mathematics,the integral from zero to infinity dx over x minus three squared,\displaystyle \int_{0}^{\infty}\frac{dx}{(x-3)^{2}},\frac _{0} \frac{dx}{xminus3squared},False,False,32.98,72.55,73.08,772.1
+694,693,mathematics,1 plus a plus a squared,\mathrm{{1}+a+a^{2}},1 + a + a ^{2},False,False,51.11,75.0,35.71,915.4
+695,694,mathematics,1 over 1 minus a,\frac{1}{1-a},\frac{1}{1},False,False,63.45,15.38,22.22,1.2
+696,695,mathematics,sum 1 over n squared n equals 1 to infinity,\sum_{n=1}^{\infty}{1/n^{2}},\frac{1}{nsquarednequals1},False,False,3.69,82.14,95.0,1.8
+697,696,mathematics,pi squared over 6,\frac{\pi^{2}}{6},\frac{pisquared}{6},False,False,20.34,47.06,81.82,0.8
+698,697,mathematics,1 over n cubed,\frac{1}{n^{3}},\frac{1}{ncubed},False,False,43.94,33.33,45.45,0.7
+699,698,mathematics,1 plus 1 over 2 plus all the way up to 1 over n minus 1 plus 1 over n,1+\frac{1}{2}+\mathrm{\ldots}+\frac{1}{n-1}+\frac{1}{n},\frac{1plus1}{2} \frac{1}{nminus1plus1overn},False,False,29.04,63.64,71.88,3.4
+700,699,mathematics,sum 1 over n squared plus 1 square root,\sum\frac{1}{\sqrt{n^{2} + 1}},\frac{1}{nsquaredplus1},False,False,24.11,56.67,82.35,1.6
+701,700,mathematics,1 over n to the 5th square root,(1/\sqrt{n^{5}}),\frac{1}{n},False,False,4.54,75.0,75.0,1.5
+702,701,mathematics,n plus 1 times c n plus 1 divided by n plus 1,(n+1)c_{n+1}/(n+1),\frac{nplus1timescnplus1}{nplus1},False,False,2.4,100.0,100.0,2.2
+703,702,mathematics,1 over 1 minus x,\frac{1}{1-x},\frac{1}{1minusx},False,False,43.36,38.46,55.56,1.0
+704,703,mathematics,s times one minus x,s\cdot(1-x),s \left(1-x\right),False,True,39.53,90.91,28.57,1197.3
+705,704,mathematics,minus r less than x less than r,-r<x<r,-r ^{x} \frac r \,False,False,7.09,100.0,66.67,1153.5
+706,705,mathematics,sum a n x to the n,\sum {a_n}x^{n},\frac anx ^{n},False,False,39.21,53.33,36.36,1068.1
+707,706,mathematics,a1 x squared over 2,\frac{\mathbb{a_1} x^{2}}{2},\frac{xsquared}{2},False,False,19.03,60.71,64.71,1.3
+708,707,mathematics,a zero plus a one x plus a two x squared plus a three x cubed plus dot dot dot,\displaystyle \mathcal{a}_{0}+\mathcal{a}_{1}x+\mathcal{a}_{2}x^{2}+\mathcal{a}_{3}x^{3}+\cdots,a _{0} + a** ^ 1 \frac x + a* \ 2 \sqrt x \cos \sum 3 \pi + a3x \beta \sin 3 \delta,False,False,9.49,87.37,63.27,3275.1
+709,708,mathematics,a n is equal to f nth derivative divided by n factorial,a_n\mathrel{\mathop{}}=\frac{f^{n}}{n!},\frac{anisequaltofnthderivative}{n},False,False,10.57,79.49,100.0,2.5
+710,709,mathematics,the sum n equals 0 to infinity of 1 divided by n factorial x to the n,\sum_{n=0}^{\infty}\frac{1}{n!}x^{n},n = 0 \frac{1}{n},False,False,21.5,66.67,56.52,574.7
+711,710,mathematics,x minus x cubed over 3 factorial plus x to the 5th over 5 factorial,x-\frac{x^{3}}{3!}+\frac{x^{5}}{5!},\frac{xminusxcubed}{3factorialplusx} \frac{-5},False,False,5.79,94.29,100.0,666.3
+712,711,mathematics,x to the seventh over seven factorial,x^{7}/7!,\frac{7},False,False,18.67,87.5,57.14,529.3
+713,712,mathematics,x to the fourth over four factorial,x^{4}/4!,\frac{4},False,False,18.67,87.5,57.14,485.3
+714,713,mathematics,1 over 2 factorial times x squared plus 1 over 3 factorial times x cubed,\displaystyle{1\over2!}x^{2}+{1\over3!}x^{3},\frac{1}{2factorialtimesxsquaredplus1over3factorialtimesxcubed},False,False,1.18,100.0,100.0,2.9
+715,714,mathematics,1 over 1 plus x,\frac{1}{1+x},\frac{1}{1plusx},False,False,47.49,30.77,44.44,1.0
+716,715,mathematics,x over 2n plus 1,\frac{x}{2n+1},\frac{x}{2nplus1},False,False,52.51,28.57,40.0,0.9
+717,716,mathematics,x times the sine of x,x\mathinner{\sin\left(x\right)},x- ^ (x),False,False,5.31,87.1,60.0,749.0
+718,717,mathematics,x squared minus x to the fourth over three factorial plus x to the sixth over five factorial,x^{2}-\frac{x^{4}}{3!}+\frac{x^{6}}{5!},x ^{2} - x \frac{3} + x ^ \frac{5},False,False,29.87,61.54,44.83,2227.4
+719,718,mathematics,the integral from zero to x of dt over one plus x,\int_{0}^{x}\frac{dt}{1+x},\frac{integralfrom0toxofdt}{1plusx},False,False,15.49,92.31,100.0,2.3
+720,719,mathematics,1 minus t plus t squared minus t cubed,1-t+t^{2}-t^{3},1-t + t ^{2} -t \frac \ 3 \sqrt,False,False,72.27,100.0,20.0,1513.9
+721,720,mathematics,x minus x squared over two plus x cubed over three minus x to the fourth over four,x-x^{2}/2+x^{3}/3-x^{4}/4,\frac{xminusxsquared}{2plusxcubedover3minusx} \frac{4},False,False,3.34,100.0,100.0,613.8
+722,721,mathematics,x equals minus t squared,x=-t^{2},x = -t ^{2},False,True,100.0,37.5,0.0,912.2
+723,722,mathematics,t to the fourth over two factorial,\frac{t^{4}}{2!},\frac{2},False,False,8.12,50.0,63.64,516.4
+724,723,mathematics,two over the square root of pi,2/\sqrt{\pi},\frac{2}{thesquarerootofpi},False,False,1.09,100.0,100.0,1.6
+725,724,mathematics,integral of e to the minus t squared dt from 0 to x,\int_{0}^{x}(e^{-t^{2}})dt,\frac \left(e\right) -t ^{2} \frac dt,False,False,24.35,100.0,56.52,1846.6
+726,725,mathematics,x minus x cubed over 3,x-\frac{x^{3}}{3},\frac{xminusxcubed}{3},False,False,20.8,76.47,92.31,1.4
+727,726,mathematics,5 times 2 factorial,5\cdot2!,5 \left(2\right),False,False,3.58,100.0,100.0,743.4
+728,727,mathematics,minus x to the seventh over seven times three factorial,-\frac{x^{7}}{7\cdot3!},-x \frac{7} 3,False,False,8.37,65.22,57.14,1005.8
+729,728,mathematics,z of t minus two equals minus three t,z(t-2)=-3t,z(t-2) = -3t,False,True,100.0,20.0,0.0,1038.6
+730,729,mathematics,minus one plus two t,\displaystyle -1+2t,-1 + 2t,False,True,81.87,84.21,16.67,686.9
+731,730,mathematics,x plus two y plus four z equals seven,x+2y+4z=7,x + 2y + 4z = 7,False,True,100.0,66.67,0.0,1363.6
+732,731,mathematics,x of t plus twice y of t plus four z of t,x(t)+2y(t)+4z(t),x(t\right) y(t) + 4z(t).,False,False,68.89,68.75,25.0,2162.9
+733,732,mathematics,minus one plus two t plus twice two plus t plus four times two minus three t,-1+2t+2(2+t)+4(2-3t),-1 + 2t + 2 + t + 4(2-4-3t),False,False,64.51,55.0,25.0,1591.0
+734,733,mathematics,minus 8t plus 11 equals 7,-8t+11=7,-8t + 11 = 7,False,True,100.0,50.0,0.0,742.9
+735,734,mathematics,minus one plus two t will be zero,-1+2t=0\operatorname{},-1 + 2t,False,False,36.79,86.36,50.0,569.3
+736,735,mathematics,a minus a cosine theta,a-a\cos\theta,a-a ^{},False,False,20.63,76.92,60.0,650.6
+737,736,mathematics,x of theta is theta minus sine theta,x(\theta)=\theta-\sin\theta,x( { ) = \frac - ^},False,False,7.61,85.19,44.44,1092.9
+738,737,mathematics,t squared over two,\frac{t^{2}}{2},\frac{tsquared}{2},False,False,26.56,46.67,63.64,1.1
+739,738,mathematics,theta minus theta cubed over six,\theta-\frac{\theta-\theta^{3}}{6},\frac{thetaminusthetacubed}{6},False,False,11.22,52.94,100.0,1.2
+740,739,mathematics,t minus sine t,t-\sin t,t- { t},False,False,12.58,62.5,50.0,651.6
+741,740,mathematics,square root of one minus cosine t squared plus sine squared t,\sqrt{1-\cos^{2}t+\sin^{2}t},\frac{1- ^} \ 2 \sqrt + \sum \cos \sin 2 \pi t,False,False,7.81,100.0,55.56,1698.2
+742,741,mathematics,square root of one minus two cosine t plus cosine squared t plus sine squared t,\displaystyle \sqrt{1-2\cos t+\cos^{2}t+\sin^{2}t},\frac{1-2} ^ 2 \ t + \sqrt \cos \sum 2 \pi t + \int \beta \theta 2 \delta t,False,False,17.71,100.0,60.87,2431.7
+743,742,mathematics,square root of two minus two cosine t,\sqrt{2-2\cos t},\frac{2} - 2,False,False,9.19,75.0,62.5,749.0
+744,743,mathematics,F equals ma,\mathcal{F}=\mathcal{ma},\frac mathcal { F} = ^ mathcal \,False,False,14.85,62.5,100.0,1200.1
+745,744,mathematics,v divided by magnitude of v,v/||v||,\frac{v}{magnitudeofv},False,False,1.43,100.0,100.0,1.3
+746,745,mathematics,uv prime equals u prime v plus u v prime,(uv)^{\prime}=u^{\prime}v+uv^{\prime},\frac mathcal { u} v + uv,False,False,17.17,89.19,72.73,1417.8
+747,746,mathematics,dr dt cross v plus r cross dv dt,\displaystyle\frac{d\mathbf{r}}{dt}\times\mathbf{v}+\mathbf{r}\times\frac{d\mathbf{v}}{dt},v + r,False,False,0.0,96.67,91.67,551.2
+748,747,mathematics,determinant of A is not zero,\det(A)\neq0,\frac determin \left(A\right) = 0,False,False,3.17,100.0,100.0,1163.6
+749,748,mathematics,x plus 3y plus z equals zero,x+3y+z=0.,x + 3y + z = 0,False,False,88.25,77.78,11.11,908.7
+750,749,mathematics,x plus y equals zero,x+y=0,x + y = 0,False,True,100.0,80.0,0.0,1.1
+751,750,mathematics,minus 2x minus z will be x plus 3y plus z,-2x-z\operatorname{=}x+3y+z,-2x-z x + 3y + z,False,False,56.7,74.07,26.67,1540.4
+752,751,mathematics,x plus y plus two z,\displaystyle x+y+2z,x + y + 2z,False,True,84.65,75.0,14.29,738.6
+753,752,mathematics,dr dt dot r plus r dot dr dt,\frac{dr}{dt}\cdot r+r\cdot\frac{dr}{dt},r + r,False,False,0.04,90.0,86.96,587.6
+754,753,mathematics,r dot v is zero,\displaystyle \mathbf{r}\cdot\mathbf{v}=0,rtouch { v} = 0,False,False,34.21,87.8,58.33,908.3
+755,754,mathematics,r is perpendicular to v,\displaystyle \textbf{r}\operatorname{\perp} \mathcal{v},r = {} v ^,False,False,1.77,92.86,69.23,818.5
+756,755,mathematics,dr dt is v dot v plus r dot dv dt is going to be zero,\frac{dr}{dt}=v{{\cdot}}v+r\cdot\frac{dv}{dt}=0,v + r,False,False,0.0,93.62,90.32,551.8
+757,756,mathematics,f of x y equals one over x plus y,"f(x,y)=\frac{1}{x+y}",\frac{fofxyequals1}{xplusy},False,False,15.68,95.0,93.75,2.0
+758,757,mathematics,z equals f of x y,"{z}=f(x,y)",z = f(xy),False,False,34.01,40.0,30.0,833.3
+759,758,mathematics,"f of x, y equals one minus x squared minus y squared","f(x,y)=1-x^{2}-y^{2}","f(x,y) = 1-x ^{2} -y \frac \ 2 \sqrt",False,False,79.82,95.0,15.0,2044.3
+760,759,mathematics,z equals one minus x squared minus y squared,z=1-x^{2}-y^{2},z = 1-x ^{2} -y \frac \ 2 \sqrt,False,False,72.27,100.0,20.0,1584.7
+761,760,mathematics,f of x y equals minus y,"f(x,y)=-y",f(xy) = -y,False,False,61.62,33.33,11.11,1115.0
+762,761,mathematics,x squared plus y squared equals zero,x^{2}+y^{2}=0,x ^{2} + y \frac \ 2 \sqrt = 0,False,False,54.32,100.0,23.08,1417.5
+763,762,mathematics,f prime at x0 times delta x,f^{\prime}(x_{0})\times\Delta x,\left({ \right x\right)},False,False,1.71,87.1,80.0,923.6
+764,763,mathematics,x0 plus h,\mathcal{x}_{0}+h,+ h,False,False,0.18,94.12,80.0,333.8
+765,764,mathematics,z0 plus a times x minus x0 plus b times y minus y0,z_0+a(x-x_0)+b(y-y_0),+ a(x-x _{0} + b)y,False,False,31.46,71.43,52.38,1413.1
+766,765,mathematics,x squared minus 2xy,x^{2}-2xy,x ^{2},False,False,44.93,55.56,44.44,658.1
+767,766,mathematics,x minus y squared,(x -y^{2}),x-y ^{2},False,False,75.15,40.0,22.22,845.9
+768,767,mathematics,2x minus 2y,\displaystyle 2x-2y,2x -2y,False,True,81.87,78.95,16.67,640.8
+769,768,mathematics,twice x minus y,2\mathrm{(x - y)},x-y,False,False,4.28,82.35,66.67,484.0
+770,769,mathematics,x minus y plus one squared,(x-y+1)^{2},x-y + 1 ^{2},False,False,60.22,36.36,18.18,888.8
+771,770,mathematics,axi plus b,\mathtt{ax_i+b},+ b,False,False,0.3,93.33,77.78,441.9
+772,771,mathematics,yi minus axi,y_{i}-ax_{i},yi- \frac{axe},False,False,5.04,91.67,66.67,966.4
+773,772,mathematics,xi squared times a plus xi times b,x_i^2\times a+x_i\times b,\xi ^{2} (a) + x \left(b\right),False,False,3.76,100.0,92.31,1763.8
+774,773,mathematics,sum of xi yi,\mathsf{\sum_{i}(x_{i} y_{i})},\frac \left(x\right),False,False,0.93,80.0,85.0,726.2
+775,774,mathematics,y equals a constant times exponential of a times x,y=\text{c}\exp(ax),y = {} constant \frac ax,False,False,4.58,100.0,100.0,1127.3
+776,775,mathematics,a x squared plus b x plus c,ax^{2}+bx+c,ax ^{2} + bx + c,False,True,100.0,45.45,0.0,1151.2
+777,776,mathematics,a x squared plus b xy plus c y squared,ay^{2}+bxy+cy^{2},ax ^{2} + bxy + cy \frac \ 2 \sqrt,False,False,64.13,100.0,23.53,1635.3
+778,777,mathematics,x squared plus 2xy,x^{2}+2xy,x ^{2},False,False,44.93,55.56,44.44,625.6
+779,778,mathematics,a times x squared plus b over a xy,a(x^{2}+\frac{b}{a}xy),ax ^{2} + b,False,False,21.09,72.73,55.56,917.6
+780,779,mathematics,b squared over 4a y squared,\frac{b^2}{4a}y^{2},\frac{bsquared}{4aysquared},False,False,16.44,78.95,100.0,1.4
+781,780,mathematics,a times x squared plus a times 2xb over 2ay,ax^{2}+a\frac{2xb}{2ay},ax ^{2} + a(2xb),False,False,42.46,60.87,42.11,1847.5
+782,781,mathematics,b squared over 4 a squared y squared plus cy squared minus b squared over 4 a y squared,\displaystyle \frac{b^{2}}{4a^{2}}y^{2}+cy^{2}-\frac{b^{2}}{4a}y^{2},\frac{bsquared}{4asquaredysquaredpluscysquaredminusbsquaredover4aysquared},False,False,6.38,98.53,100.0,3.6
+783,782,mathematics,one over four a,\frac{1}{4a},\frac{1}{4},False,False,73.19,8.33,12.5,0.9
+784,783,mathematics,four ac minus b squared y squared,4ac-b^{2}y^{2},-b ^{2} y \frac \ 2 \sqrt,False,False,44.57,100.0,42.86,1499.5
+785,784,mathematics,u equals x plus b over two ay,u =x+\frac{b}{2a}y,\frac{uequalsxplusb}{2},False,False,17.81,100.0,100.0,1.7
+786,785,mathematics,four a c minus b squared equals zero,4ac-b^{2}=0,4ac - b ^{2} = 0,False,True,100.0,45.45,0.0,1560.8
+787,786,mathematics,f of x equals x to the five,f(x)=x^{5},f(x) = x,False,False,51.34,60.0,40.0,746.7
+788,787,mathematics,a times x plus b over 2a times y squared,\displaystyle a(x+\frac{b}{2a}y)^{2},\frac{atimesxplusb}{2atimesysquared},False,False,14.33,86.11,100.0,2.0
+789,788,mathematics,y squared times a times x over y squared,y^{2}a(x/y)^{2},\frac{ysquaredtimesatimesx}{ysquared},False,False,0.95,100.0,100.0,1.7
+790,789,mathematics,a t squared plus b t plus c,at^{2}+bt+c,at ^{2} + bt + c,False,True,100.0,45.45,0.0,1159.6
+791,790,mathematics,ax over y squared plus bx over y plus c,a(x/y)^{2}+b(x/y)+c,\frac{overysquaredplusbx}{yplusc},False,False,1.09,100.0,100.0,2.0
+792,791,mathematics,w sub y is bx plus 2cy,w_y=bx+{2}cy,w _{y} = bx + 2cy,False,True,32.78,66.67,33.33,1489.4
+793,792,mathematics,x minus x zero squared,(x-x_{0})^{2},x-x _{0} ^ \frac 2 \,False,False,50.71,92.31,30.77,1260.4
+794,793,mathematics,f sub xy times change in x times change in y plus one half of fyy times y minus y0 squared,\displaystyle f_{xy}\cdot\Delta x\cdot\Delta y+\frac{1}{2}f_{yy}(y-y_{0})^{2},y + 1 \left(y-y _ 0) ^{2},False,False,10.49,80.52,65.0,1715.3
+795,794,mathematics,f of x y equals x plus y plus 1 over xy,"f(x,y)=x+y+\frac{1}{xy}",f(xy) = x + y + 1,False,False,35.93,69.57,42.11,1204.8
+796,795,mathematics,two over x cubed y,\operatorname{\frac{2}{(x^{3}y)}},\frac{2}{xcubedy},False,False,24.42,66.67,58.82,1.3
+797,796,mathematics,two over xy cubed,\frac{2}{xy^{3}},\frac{2}{xycubed},False,False,49.1,31.25,41.67,0.8
+798,797,mathematics,dy equals f prime of x times dx,dy=f^{\prime}(x)dx,dy = f x \left(dx\right),False,False,26.64,100.0,61.54,1480.9
+799,798,mathematics,dy over dx is going to be one over cosine y,\mathrm{\frac{\mathrm{d}y}{dx}}\rightarrow\frac{1}{\cos y},\frac{dy}{dx},False,False,13.45,77.59,62.5,2.3
+800,799,mathematics,one over square root of one minus x squared,\frac{1}{\sqrt{(1-x^{2})}},\frac{1}{squarerootof1minusxsquared},False,False,12.54,80.77,100.0,1.6
+801,800,mathematics,df equals f sub x dx plus f sub y dy plus f sub z dz,df=f_{x}dx+f_{y}dy+f_{z}dz,"(f _{x} dx + f _ ^ y \frac,dy + f_______ \ z \sqrt )dz",False,False,43.42,100.0,53.85,3067.5
+802,801,mathematics,partial f partial x dx plus partial f partial y dy plus partial f over partial z dz,\displaystyle \frac{\partial f}{\partial x}dx+\frac{\partial f}{\partial y}dy+\frac{\partial f}{\partial z}dz,\frac{partialfpartialxdxpluspartialfpartialydypluspartialf}{partialzdz},False,False,2.91,44.04,100.0,3.4
+803,802,mathematics,delta y plus fz delta z,\displaystyle \Delta y+f(z)\Delta z,\frac \left(y\right),False,False,2.72,77.14,90.0,738.0
+804,803,mathematics,df dt equals f sub x dx dt plus f sub y dy dt plus f sub z dz dt,\frac{df}{dt}=f_{x}\frac{dx}{dt}+f_{y}\frac{dy}{dt}+f_{z}\frac{dz}{dt},dt = f _{x} dx ^ dT + f _ \frac y \ \sqrt dy \sum ddt + f _ \sin z \pi dz,False,False,15.45,88.57,53.7,3855.6
+805,804,mathematics,df is f sub x dx plus f sub y dy plus f sub z dz,\displaystyle df = f_{x}dx+f_{y}dy+f_{z}dz,"f _{x} dx + f _ ^ y \frac, dy + f _ \ z \sqrt,dz",False,False,50.21,90.48,37.04,2997.9
+806,805,mathematics,f sub x times x prime of t dt,f_{x}x^{\prime}(t)dt,f _{x} (x),False,False,25.96,70.0,53.33,999.6
+807,806,mathematics,f sub z z prime of t dt,f_{z}z^{\prime}(t)dt,f _{z} z ^ \frac prim \ (t)dt,False,False,56.65,60.0,33.33,1737.1
+808,807,mathematics,x squared y plus z,\mathsf{x}^{2}y+z,x ^{2} y + z,False,False,59.91,70.59,27.27,991.9
+809,808,mathematics,w sub y is x squared times dy dt,w_{y}={x}^2\frac{dy}{dt},x ^{2} (dy)dt,False,False,3.06,75.0,70.0,1193.5
+810,809,mathematics,2t e to the t plus t squared e to the t plus cosine t,2te^{t}+t^{2}e^{t}+\cos t,t + t ^{2} e,False,False,17.17,72.0,61.9,1069.8
+811,810,mathematics,derivative of t squared is 2t,\displaystyle \frac{d}{dt}t^{2}=2 t,\frac t ^{2},False,False,12.81,71.43,64.71,835.0
+812,811,mathematics,t squared times the derivative of e to the t,\displaystyle t^{2}\cdot \frac{d}{dt}{e}^{t},t ^{2} \frac \ (e),False,False,11.64,70.45,68.18,1149.6
+813,812,mathematics,one over v times du dt,\displaystyle \frac{1}{v}\frac{du}{dt},\frac{1}{v},False,False,23.97,71.05,58.82,1.4
+814,813,mathematics,minus u over v squared times dv dt,-\frac{u}{v^{2}}\frac{dv}{dt},\frac{minusu}{vsquared},False,False,15.17,68.97,80.95,1.5
+815,814,mathematics,x sub u times du plus x sub v times dv,x_{u}du+x_{v}dv,x _{u} du + x _ ^ v \frac,False,False,64.83,93.33,26.67,1429.3
+816,815,mathematics,dy is y sub u du plus y sub v dv,"\displaystyle \mathrm{d}y\,\ =y_u \mathrm{d}u + y_{v}\,\mathrm{d}v",+ y _{v},False,False,2.56,89.39,78.57,721.0
+817,816,mathematics,f sub x times x sub u plus f sub y times y sub u,\displaystyle f_{x}x_{u}+f_{y}y_{u},f _{x} x _ ^ u \frac + f _ \ y \sqrt y _ \sum u \pi,False,False,37.31,100.0,31.82,2509.9
+818,817,mathematics,f sub x times cosine theta plus f sub y times sine theta,f_{x}\cdot\cos \theta+f_{y}\cdot\sin \theta,f _{x} ( ^ ) + f_______ \frac y \,False,False,26.62,79.07,64.71,1778.9
+819,818,mathematics,a one x plus a two y plus a three z equals c,a_1x+a_2y+a_3z=c,a _ 1x + a _{2} + a _ ^ 3z = c,False,False,55.08,93.75,18.75,1765.9
+820,819,mathematics,x squared plus y squared minus z squared equals four,x^{2}+y^{2}-z^{2}=4,x ^{2} + y \frac \ 2 \sqrt -z \cos \sum 2 \pi = 4,False,False,39.2,100.0,31.58,1891.0
+821,820,mathematics,4x plus 2y minus 2z,4x+2y-2z,+ 2y,False,False,5.97,75.0,62.5,482.7
+822,821,mathematics,two delta y minus two delta z equals zero,2\Delta y-2\Delta z=,2 \delta y-2 ^ \delta z = 0,False,False,14.08,45.0,50.0,1160.5
+823,822,mathematics,x minus two,\displaystyle x-2,x - 2,False,True,22.66,88.24,25.0,557.7
+824,823,mathematics,two times y minus one minus two times z minus one equals zero,2(y-1)-2(z-1)=0,2(y-1)-1 = 0,False,False,45.75,40.0,33.33,802.2
+825,824,mathematics,y of s equals y0 plus b times s,y(s)=y_{0}+bs,y(s) = y _{0} + b(s).,False,False,73.86,61.54,23.08,1485.9
+826,825,mathematics,gradient w dot u,\nabla w \cdot \mathbf{u},\frac w dot u,False,False,4.06,64.0,71.43,666.9
+827,826,mathematics,PV equals nRT,\mathrm{PV}=\mathrm{nRT},\frac = nRT,False,False,7.12,75.0,66.67,540.8
+828,827,mathematics,square root of x squared plus y squared,\sqrt{x^{2}+y^{2}},\frac{x ^} 2 \ + y \cos \sqrt 2 \pi \sum,False,False,10.64,100.0,50.0,1401.2
+829,828,mathematics,f sub z equals lambda g sub z,f_{z}=\lambda g_{z},f _{z} = \frac g _ ^ z \,False,False,49.36,78.95,25.0,1585.5
+830,829,mathematics,f sub y equals lambda g sub y,f_{y}=\lambda g_{y},f _{y} = \frac g _ ^ y \,False,False,49.36,78.95,25.0,1508.4
+831,830,mathematics,f sub y is 2y,f_{y}=2{y},f _{y} = 2y,False,True,67.89,50.0,20.0,1340.1
+832,831,mathematics,g sub y is x,g_{y}=x,g _{y} = x,False,True,100.0,42.86,0.0,991.8
+833,832,mathematics,g equals c,g = c,g = c,True,True,31.62,0.0,0.0,500.6
+834,833,mathematics,x squared plus nine over x squared,x^{2}+\frac{9}{x^{2}},\frac{xsquaredplus9}{xsquared},False,False,12.04,100.0,100.0,1.6
+835,834,mathematics,2x minus lambda y equals zero,2x-\lambda y=0,2x- ^ y = 0,False,False,27.6,64.29,14.29,866.0
+836,835,mathematics,lambda minus two times xy equals zero,\lambda-2xy=0,\frac - 2xy = 0,False,False,81.29,69.23,14.29,900.8
+837,836,mathematics,negative four plus lambda squared,-4+\lambda^{2},4 + ^{} 2 \frac,False,False,9.45,100.0,50.0,714.9
+838,837,mathematics,lambda squared equals four,\lambda^{2}=4,\frac ^{2} = 4,False,False,81.29,61.54,14.29,727.9
+839,838,mathematics,lambda is plus or minus two,\lambda=\pm2,+ -2,False,False,4.49,91.67,75.0,300.8
+840,839,mathematics,x squared equals three,\displaystyle x^{2}=3,x ^{2} = 3,False,True,86.69,76.19,12.5,800.6
+841,840,mathematics,one half of a1u1,\frac{1}{2}a_1u_1,\frac{1} ^ 2 \ a _ \sqrt 1 \pi,False,False,25.88,100.0,46.15,1405.1
+842,841,mathematics,partial f over partial u one,\partial f \over \partial u_{1},\frac{partialf}{partialu1},False,False,2.37,54.84,100.0,1.4
+843,842,mathematics,2x dx,"2x, \mathrm{d}x",2xdx,False,False,7.28,73.33,50.0,477.0
+844,843,mathematics,x equals two,\mathcal{x}=2,x = 2,False,False,5.43,84.62,50.0,445.0
+845,844,mathematics,y plus 3z squared,y+3z^{2},y + 3z ^{2},False,True,100.0,37.5,0.0,822.8
+846,845,mathematics,dz equals minus one over six times four dx plus dy,dz=-\frac{1}{6}(4dx+dy),\frac{dzequalsminus1}{6times4dxplusdy},False,False,13.63,100.0,100.0,2.2
+847,846,mathematics,partial z over partial x is minus four over six,\displaystyle \frac{\partial z}{\partial x} = -\frac{4}{6},\frac{partialz}{partialxisminus4over6},False,False,4.37,55.17,100.0,1.8
+848,847,mathematics,dz equals minus four sixth dx,dz=-4x^{6}dx,dz = -4,False,False,24.66,75.0,58.33,534.4
+849,848,mathematics,partial z over partial x is minus gx over gz,\frac{\partial z}{\partial x} = -\frac{{g}_{x}}{{g}_{z}},\frac{partialz}{partialxisminusgx},False,False,4.98,51.79,90.0,2.1
+850,849,mathematics,b is a over cosine theta,\displaystyle \mathcal{b} = \frac{a}{\cos\theta},\frac{bisa}{cosinetheta},False,False,7.2,68.75,100.0,1.2
+851,850,mathematics,one half of a squared tangent theta,\frac{1}{2}a^{2}\tan\theta,a ^{2},False,False,16.53,80.77,64.29,749.6
+852,851,mathematics,zero equals dA equals cosine theta dB minus B sine theta d theta,0=dA=\cos\theta dB-B\sin\theta d\theta,0 = dA = - B,False,False,22.78,86.84,53.33,966.8
+853,852,mathematics,a equals one half ab sine theta,A=\frac{1}{2}ab\sin\theta,a = 1,False,False,0.29,96.0,84.62,439.9
+854,853,mathematics,one half of ab times sine theta times tangent theta plus cosine theta d theta.,"\displaystyle \frac{1}{2}ab\sin \theta\tan \theta+\cos \theta\, d\theta",\left({\right)},False,False,0.47,87.32,90.0,657.7
+855,854,mathematics,dg is g sub x dx plus g sub y dy plus g sub z dz,dg =g_{x}dx+g_{y}dy+g_{z}dz,"g _{x} dx + g _ ^ y \frac, dy + g_______ \ z \sqrt,dz",False,False,44.94,100.0,53.85,2827.6
+856,855,mathematics,minus fx gz over gx plus fz,-f_x\frac{gz}{gx}+fz,\frac{minusfxgz}{gx},False,False,43.77,70.0,75.0,1.5
+857,856,mathematics,"minus g sub z over g sub x, plus partial f over partial z",-\frac{g_{z}}{g_{x}}+\frac{\partial f}{\partial z},"\frac{minusgsubz}{gsubx,pluspartialfoverpartialz}",False,False,3.62,58.0,100.0,2.5
+858,857,mathematics,gradient F dot product with u,\nabla F\cdot\mathbf{u},\frac F dot ^{u},False,False,13.12,60.87,71.43,940.7
+859,858,mathematics,partial h partial y is less than zero,\partial h/\partial y<0,(h) _{y} = 0,False,False,3.14,86.96,85.71,1027.2
+860,859,mathematics,the integral of x squared is x squared times y,\int x^{2}dx = x^{2}y,\frac x ^{2} = x \cos \ 2 \sqrt (y),False,False,30.93,100.0,53.33,1524.4
+861,860,mathematics,the integral of y squared is y cubed over three,\int y^{2}dy=\frac{y^{3}}{3},\frac{integralofysquaredisycubed}{3},False,False,9.96,89.29,100.0,2.1
+862,861,mathematics,one minus x squared minus one-third,1-x^{2}-\frac{1}{3},1-x ^{2},False,False,31.89,68.42,53.33,810.1
+863,862,mathematics,two thirds x minus one-third x cubed,\frac{2}{3}x-\frac{1}{3}x^{3},x- {} 1 ^ \frac 3 \ x \cos \sqrt 3 \sum,False,False,2.7,100.0,71.43,1740.3
+864,863,mathematics,y is square root of one minus x squared,y=\sqrt{1-x^{2}},\frac{1-x ^} 2 \ \sqrt,False,False,36.55,100.0,50.0,924.0
+865,864,mathematics,y minus x squared y minus y cubed over three,y-x^{2}y-\frac{y^{3}}{3},\frac{yminusxsquaredyminusycubed}{3},False,False,11.91,100.0,100.0,2.1
+866,865,mathematics,root of one minus x squared minus x squared root of one minus x squared minus y minus x squared to the three halves over three,\displaystyle \sqrt{1-x^{2}}-x^{2}\sqrt{1 - x^{2}}-\frac{(1-x^{2})^\frac{3}{2}}{3},\frac{1-x ^} 2 \ -x \cos \sqrt 2 \pi \sum \sin 1-x \beta \int 2 \delta \mu -y-x \theta \omega 2 \alpha \tan \frac{3},False,False,16.59,100.0,58.82,3706.9
+867,866,mathematics,square root of one minus x squared will be cosine theta,\sqrt{1-x^{2}}=\cos\theta,\frac{1-x ^} 2 \ \sqrt,False,False,32.71,68.0,53.85,946.4
+868,867,mathematics,x squared to a three halves,x^{3/2},x ^{2},False,False,22.54,42.86,28.57,650.2
+869,868,mathematics,two thirds times the integral from zero to pi over two of cosine to the four theta d theta,\displaystyle \frac{2}{3}\int_{0}^{\pi/2}\cos^{4}\theta d\theta,\frac{timestheintegralfrom0topi}{2ofcosine},False,False,1.82,82.54,100.0,3.5
+870,869,mathematics,one plus cosine two theta over two,\frac{1+ \cos{(2\theta)}}{2},\frac{1pluscosine2theta}{2},False,False,15.97,35.71,100.0,1.3
+871,870,mathematics,one quarter plus one half cosine two theta plus one quarter cosine squared two theta,\displaystyle 1/4+1/2\cos2\theta+1/4\cos^{2}2\theta,\frac{1} 2 + 1 \frac{2} ^,False,False,5.7,80.39,68.18,1740.5
+872,871,mathematics,integral from zero to one of integral from x to square root of x of e to the y over y dy dx,\displaystyle \int_{0}^{1}\int_{x}^{\sqrt{x}}\frac{e^{y}}{y}dydx,\frac _{0} ^ \ 1 \sqrt \sum _ \sin x \pi \cos \int 2 \delta \theta x \phi (e) \frac{y}{ydydx},False,False,25.39,100.0,56.76,2508.2
+873,872,mathematics,integral from zero to one of e to the y minus y e to the y dy,\int_{0}^{1}e^{y}-ye^{y}dy,\frac _{0} y-ye,False,False,9.67,73.08,65.22,1270.4
+874,873,mathematics,r minus r cubed,(r-r^{3}),r-r ^{3},False,False,75.15,33.33,22.22,839.4
+875,874,mathematics,one-half mr squared omega squared,\frac{1}{2}mr^{2}\omega^{2},\frac{2} ^ \ 2 \sqrt,False,False,4.55,62.96,66.67,840.2
+876,875,mathematics,x squared plus y squared,x^{2}+y^{2},x ^{2} + y \frac \ 2 \sqrt,False,False,60.16,100.0,27.27,1187.8
+877,876,mathematics,pi a to the 4 over 2,\frac{\pi a^{4}}{2},\frac{4}{2},False,False,31.11,42.11,41.67,1.6
+878,877,mathematics,r equals 2a cosine theta,r=2a\cos\theta,r =,False,False,1.35,92.86,66.67,499.9
+879,878,mathematics,4a to the four cosine to the four theta,4a^{4}\cos^{4}\theta,4a ^{4} \frac \ 4 \sqrt,False,False,44.15,70.0,41.67,1070.1
+880,879,mathematics,three halves of pi a to the fourth,\frac{3}{2}(\pi a^{4}),3}{a ^ \frac 4 \,False,False,7.25,77.27,60.0,944.6
+881,880,mathematics,x over a squared plus y over b squared equals one,x/a^{2}+y/b^{2}=1,\frac{x}{asquaredplusyoverbsquaredequals1},False,False,0.84,100.0,100.0,2.2
+882,881,mathematics,u squared plus v squared less than 1,u^{2}+v^{2}<1,u ^{2} + v \frac \ 2 \sqrt weniger als 1,False,False,29.83,100.0,100.0,1666.5
+883,882,mathematics,u equals x over a,u = \frac{\mathcal{x}}{\mathcal{a}},u = x,False,False,0.27,85.71,80.0,511.1
+884,883,mathematics,du is one over a dx,\mathrm{d}u = \frac{1}{a}\mathrm{d}x,\frac{1}{adx},False,False,24.12,69.44,61.11,2.4
+885,884,mathematics,dv is one over b dy,"\displaystyle dv = \frac{1}{b} \,dy",\frac{1}{bdy},False,False,39.34,68.57,50.0,1.1
+886,885,mathematics,du dv is one over ab dx dy,\mathrm{d}u\mathrm{d}v= \frac{1}{ab}\mathrm{d}x\mathrm{d}y,\frac{dudvis1}{abdxdy},False,False,16.48,75.86,55.17,1.4
+887,886,mathematics,u equals 3x minus 2y,"u=3x-2y,",u = 3x,False,False,36.79,75.0,50.0,677.6
+888,887,mathematics,v equals x plus y,\displaystyle v=x+y,v = x + y,False,True,81.87,89.47,16.67,802.6
+889,888,mathematics,v sub x delta x plus v sub y delta y,v_{x}\Delta x+v_{y}\Delta y,v _{x} ^ \delta x + v _ \frac y \ \sqrt \delta y,False,False,40.81,92.59,33.33,2510.9
+890,889,mathematics,x equals r cosine theta,x=r\cos\theta,x = r,False,False,16.24,92.31,40.0,566.4
+891,890,mathematics,r cosine squared theta plus r sine squared theta,r\cos^{2}\theta+r\sin^{2}\theta,\frac{2} + r ^ \cos \ 2 \sqrt \sum,False,False,9.4,90.32,53.33,2130.7
+892,891,mathematics,y equals t squared,y=t^{2}.,y = t ^{2},False,False,86.69,50.0,12.5,1006.8
+893,892,mathematics,the integral along C of F dot dr,\int_{C}\mathbf{F}\cdot d\mathbf{r},\frac{} C ^ (F)dr,False,False,1.99,82.86,73.33,1233.8
+894,893,mathematics,negative t squared plus 2t squared,-t^{2}+2t^{2},t ^{2} + 2t \frac \ 2 \sqrt,False,False,58.55,100.0,30.77,1499.8
+895,894,mathematics,integral from zero to one of t squared dt,\int_{0}^{1}t^{2}dt,"\frac _{0} ^ \ 1 \sqrt t \cos \sum 2 \pi \theta,dt",False,False,27.5,100.0,50.0,2147.6
+896,895,mathematics,dr dt times dt,\frac{dr}{dt}\times dt,"\frac{dr} ^, dt \,dt",False,False,41.36,45.45,33.33,1596.2
+897,896,mathematics,M dx plus N dy,"M\,dx+N\,dy",Mdx + Ndy,False,True,39.23,54.55,22.22,743.6
+898,897,mathematics,negative y is minus t squared,-y=-t^{2},-t ^{2},False,False,60.65,44.44,33.33,718.0
+899,898,mathematics,dy equals 2x dx.,dy=2xdx,"dy = 2x, dx",False,False,60.25,57.14,14.29,995.7
+900,899,mathematics,y equals sine squared theta,y=\sin^{2}\theta,y = \sin(squared \theta),False,False,8.54,75.0,100.0,1.6
+901,900,mathematics,y equals x squared,\displaystyle y=x^{2},y = x ^{2},False,True,86.69,71.43,12.5,939.3
+902,901,mathematics,dy equals 2x dx,dy=2xdx,"dy = 2x, dx",False,False,60.25,57.14,14.29,1052.3
+903,902,mathematics,F dot t dS,(F\cdot t dS),F(t)dS,False,False,9.66,69.23,57.14,680.3
+904,903,mathematics,x cubed plus y to the fifth,x^{3}+y^{5},x ^{3} + y,False,False,56.47,63.64,36.36,823.7
+905,904,mathematics,xi plus yj,x\mathbf{i}+y\mathbf{j},\xi + yj,False,False,3.21,82.61,72.73,662.6
+906,905,mathematics,integral of x dx plus y dy,"\int x\,dx+y\,dy","\frac x ^,dx + y}{, da",False,False,35.07,75.0,50.0,1464.7
+907,906,mathematics,2pi a squared,2\pi a^{2},a ^{2},False,False,67.03,50.0,28.57,648.5
+908,907,mathematics,dx is negative a sine theta d theta,dx=-a\sin\theta d\theta,dx = 0a ^{d \frac},False,False,12.22,82.61,55.56,1112.6
+909,908,mathematics,integral from 0 to 2pi of a squared times sine squared theta plus cosine squared theta d theta,\displaystyle \int_{0}^{2\pi}a^{2}(\sin^{2}\theta+\cos^{2}\theta)d\theta,\frac _{0} a ^{2} ( \frac ) + \ \cos \sqrt 2 \sum ( \int ),False,False,24.88,80.56,60.61,2480.9
+910,909,mathematics,one-half of sine two theta,\frac{1}{2}(\sin2\theta),\frac{1} ^ 2 \ \sqrt,False,False,21.94,58.33,58.33,865.2
+911,910,mathematics,f sub x dx plus f sub y dy,f_{x}dx+f_{y}dy,f _{x} dx + f _ ^ y \frac dy,False,False,68.91,100.0,13.33,2040.4
+912,911,mathematics,dx becomes x prime of t dt,\displaystyle d\mathbf{x}=\mathbf{x}^{\prime}(t)dt,dx = x ^{(t)},False,False,5.88,82.0,55.0,1004.3
+913,912,mathematics,dy becomes y prime of t dt,dy=y^{\prime}(t)dt,dy = y ^{(t)},False,False,50.42,66.67,30.77,985.3
+914,913,mathematics,the integral of f sub x times dx  dt plus f sub y times dy dt,\int f_{x}\frac{dx}{dt}+f_{y}\frac{dy}{dt},"\frac f _{x} (dx ^ )dt + f _ \ y \sqrt (dy \sum ),dt",False,False,21.98,85.71,46.67,2795.6
+915,914,mathematics,integral from t0 to t1 of dF dt dt,\displaystyle \int_{t_{0}}^{t_{1}}\frac{dF}{dt}dt,\frac _{},False,False,0.04,85.71,89.66,440.7
+916,915,mathematics,three y squared plus four x squared,3y^{2}+4x^{2},3y ^{2} + 4x \frac \ 2 \sqrt,False,False,67.34,100.0,23.08,1361.1
+917,916,mathematics,four x squared plus eight xy,4x^{2}+8xy,4x ^{2} + 8,False,False,77.88,50.0,20.0,821.5
+918,917,mathematics,four thirds x one cubed,\frac{4}{3}x_{1}^{3},x _ 1 ^{3},False,False,14.43,70.0,56.25,848.4
+919,918,mathematics,y cubed plus 4x1 squared y,y^{3}+4x_1^{2}y,y ^{3} + 4x1 \frac \ 2 \sqrt y,False,False,52.26,100.0,26.67,1495.5
+920,919,mathematics,f of x one and y one is four thirds x one cubed plus y one cubed plus four x one squared y one,"\displaystyle f(x_{1},y_{1})=\frac{4}{3}x_{1}^{3}+y_{1}^{3}+4x_{1}^{2}y_{1}",x _{1} ^ 3 \frac + y _ \ 1 \sqrt \cos 2 \pi + 4x _ \sum 1 \delta \sin 2 \alpha y _ \mu 1 \int,False,False,12.86,100.0,65.52,3042.2
+921,920,mathematics,4 x squared plus 8xy,4x^{2}+8xy,4x ^{2},False,False,51.34,50.0,40.0,852.1
+922,921,mathematics,f sub y is three y squared plus four x squared,f_{y}=3y^{2}+4x^{2},3y ^{2} + 4x \frac \ 2 \sqrt,False,False,40.85,100.0,47.37,1322.5
+923,922,mathematics,line integral along C of y e to the minus x dx plus one-half of x squared minus e to the minus x dy,\displaystyle \oint_{C}({y}e^{-x})dx+(\frac{1}{2}x^{2}-e^{-x})dy,-xdx x ^{2} - e -xdy,False,False,8.57,81.25,65.12,2175.8
+924,923,mathematics,x equals two plus cosine theta,x=2+\cos\theta,x = 2,False,False,11.63,92.86,50.0,472.1
+925,924,mathematics,dx equals minus sine theta d theta,dx=-\sin\theta d\theta,dx =,False,False,5.97,86.36,62.5,572.1
+926,925,mathematics,Nx minus My dA,\displaystyle (Nx - My)dA,(Nx-My)dA,False,True,89.48,64.0,10.0,820.6
+927,926,mathematics,y equals f2 of x,y =\mathcal{f}_{2}(x),y =,False,False,0.04,85.71,84.62,412.9
+928,927,mathematics,integral from b to a of M of x and f2 of x dx,\displaystyle \int_{b}^{a}M(x)(f_{2}(x))dx,\frac \left(b\right),False,False,0.19,83.33,92.31,760.5
+929,928,mathematics,M of x f two of x minus M of x f one of x,\displaystyle (M(x)f_{2}(x))-(M(x)f_{1}(x)),x- M(x)f _{1} (x),False,False,27.83,72.09,53.33,1409.0
+930,929,mathematics,square root of x squared plus y squared,\sqrt{x^{2}+y^{2}},\frac{x ^} 2 \ + y \cos \sqrt 2 \pi \sum,False,False,10.64,100.0,50.0,1405.0
+931,930,mathematics,the double integral of P sub x plus Q sub y dA,\iint(P_{x}+Q_{y})dA,\frac P _{x} + Q _ ^ y \,False,False,44.58,75.0,43.75,1528.7
+932,931,mathematics,minus yi plus xj over x squared plus y squared,\frac{-yi+{xj}}{x^{2}+y^{2}},\frac{minusyiplusxj}{xsquaredplusysquared},False,False,5.31,100.0,100.0,2.0
+933,932,mathematics,u equals one plus t squared,u=1+t^{2},u = 1 + t ^{2},False,True,100.0,55.56,0.0,992.9
+934,933,mathematics,the curl of f which is Nx minus My,\displaystyle \operatorname{\nabla}\times F=Nx-My,\frac c { (f) = Nx-My},False,False,41.46,81.63,53.85,1159.7
+935,934,mathematics,xy minus x squared,xy-x^{2},-x ^{2},False,False,71.65,37.5,25.0,722.9
+936,935,mathematics,z equals x squared plus y squared,z=x^{2}+y^{2},z = x ^{2} + y \frac \ 2 \sqrt,False,False,67.34,100.0,23.08,1333.2
+937,936,mathematics,z equals four minus x squared minus y squared,z=4-x^{2}-y^{2},z = 4-x ^{2} -y \frac \ 2 \sqrt,False,False,72.27,100.0,20.0,1587.2
+938,937,mathematics,two x squared plus two y squared less than four,2x^{2}+2y^{2}<4,2x ^{2} + 2y \frac \ 2 \sqrt \sum 4,False,False,58.6,100.0,26.67,1435.1
+939,938,mathematics,y is square root of two minus x squared,y=\sqrt{2-x^{2}},\frac{2} - x ^ \ 2 \sqrt \sum,False,False,15.6,100.0,58.33,1262.0
+940,939,mathematics,plus minus root of two minus x squared,\pm\sqrt{2-x^{2}},+ - ^{2} -x \frac \ 2 \sqrt,False,False,31.04,100.0,72.73,1340.6
+941,940,mathematics,x squared plus y squared plus z squared less than one,x^{2}+y^{2}+z^{2}<1,x ^{2} + y \frac \ 2 \sqrt + z \cos \sum 2 \pi près 1,False,False,35.06,100.0,47.37,2041.8
+942,941,mathematics,z equals one minus y,\displaystyle z=1-y,z = 1-y,False,True,81.87,78.95,16.67,659.6
+943,942,mathematics,z equals square root of one minus x squared minus y squared,z=\sqrt{1-x^{2}-y^{2}},z = ^{1-x} \frac 2 \ -y \cos \sqrt 2 \pi \sum,False,False,22.34,100.0,44.44,1787.4
+944,943,mathematics,one minus y is less than square root of one minus x squared minus y squared,1-y<\sqrt{1-x^{2}-y^{2}},1-y = 1-x ^{2} -y \frac \ 2 \sqrt,False,False,49.0,100.0,35.0,1621.2
+945,944,mathematics,negative square root of two y minus two y squared,-\sqrt{2y-2y^{2}},\frac{2y - 2y ^} 2 \ \sqrt,False,False,52.39,100.0,38.46,1249.7
+946,945,mathematics,rho times cosine phi,\rho\cos \phi,\frac \rho}{^,False,False,3.61,84.62,100.0,816.5
+947,946,mathematics,rho sine phi cos theta,\rho\sin\phi\cos\theta,\frac \rho {} ^ \ \sqrt,False,False,4.08,86.36,100.0,991.6
+948,947,mathematics,rho sine phi sine theta.,\rho\sin\phi\sin\theta,\frac \rho {} ^ \,False,False,5.33,86.36,100.0,908.2
+949,948,mathematics,z is rho cos phi,z=\rho\cos\phi,z = { (}\right),False,False,7.11,92.86,100.0,916.0
+950,949,mathematics,rho is the square root of r squared plus z squared,\rho=\sqrt{r^{2}+z^{2}},\frac{r ^} 2 \ + z \cos \sqrt 2 \pi \sum,False,False,9.13,100.0,56.25,1494.1
+951,950,mathematics,phi equals pi over four,\phi=\frac{\pi}{4},\phi = \pi over 4,False,False,6.25,72.22,66.67,1.3
+952,951,mathematics,z equals r,\mathcal{z}=\mathcal{r},z = r,False,False,1.1,86.96,66.67,575.5
+953,952,mathematics,a squared sine phi d phi d theta,\displaystyle a^{2}\sin\phi d\phi d\theta,a ^{2},False,False,24.66,85.37,58.33,687.5
+954,953,mathematics,rho squared sine phi d rho d phi d theta,\rho^2\sin \phi d\rho d\phi d\theta,\rho ^{2},False,False,3.79,85.71,81.82,804.0
+955,954,mathematics,z equals one over root two,z=1/\sqrt{2},z = 1,False,False,5.97,91.67,62.5,549.7
+956,955,mathematics,rho equals one over root two cosine phi,\rho=\frac{1}{\sqrt{2}}\cos{\phi},\rho = 1,False,False,0.19,84.85,81.25,1.7
+957,956,mathematics,one over root two times secant phi,\frac{1}{\sqrt{2}}\cdot\sec\phi,\frac{1}{root2},False,False,34.26,61.29,61.54,1.4
+958,957,mathematics,cos phi equals one over root two,\cos\phi=\frac{1}{\sqrt{2}},\phi = 1,False,False,0.53,81.48,76.92,1.3
+959,958,mathematics,phi equals pi over four,\phi=\frac{\pi}{4},\phi = \pi over 4,False,False,6.25,72.22,66.67,1.0
+960,959,mathematics,two pi over three minus five pi over six root two,2\pi/3-5\pi/6\sqrt{2},\frac{2pi}{3minus5piover6},False,False,2.47,100.0,100.0,1.9
+961,960,mathematics,rho cubed over three,\rho^{3}/3,\frac{rhocubed}{3},False,False,7.33,100.0,100.0,0.9
+962,961,mathematics,sine phi secant cubed phi,\sin\phi\sec^{3}\phi,\frac{3} ^,False,False,15.85,75.0,62.5,663.7
+963,962,mathematics,z over rho cubed delta dV,\frac{z}{\rho^{3}}\Delta dV,\frac{z}{rhocubeddelta},False,False,21.12,40.74,92.86,1.4
+964,963,mathematics,rho cosine phi over rho cubed,\frac{\rho\cos\phi}{\rho^{3}},\frac{phi}{rhocubed},False,False,3.93,51.72,84.62,1.1
+965,964,mathematics,minus c times x y z over rho cubed,"-\frac{c(x,y,z)}{\rho^{3}}",\frac{minusctimesxyz}{rhocubed},False,False,2.59,76.92,100.0,1.6
+966,965,mathematics,xi yj zk,\displaystyle xi+yj+zk,xiyjzk,False,False,8.97,72.73,33.33,690.6
+967,966,mathematics,square root of x squared plus y squared plus z squared is equal to a,\sqrt{x^{2}+y^{2}+z^{2}}=a,\frac{x ^} 2 \ + y \cos \sqrt 2 \pi + z \beta \sum 2 \delta \alpha =,False,False,7.6,100.0,50.0,2077.9
+968,967,mathematics,four pi a squared,4\pi a^{2},4} a ^{2 \frac,False,False,46.86,100.0,28.57,923.3
+969,968,mathematics,z squared over a,\frac{\mathbb{z}^{2}}{a},z ^{2},False,False,11.9,79.17,64.29,711.2
+970,969,mathematics,dS equals a squared sine phi d phi d theta,dS=a^{2}\sin\phi d\phi d\theta,dS = a ^{2},False,False,47.24,83.33,42.86,978.7
+971,970,mathematics,cosine squared phi sine phi d phi,\cos^{2}\phi \sin\phi d\phi,\frac{2} ^,False,False,10.62,81.48,70.0,750.7
+972,971,mathematics,four thirds pi a cubed,\frac{4}{3}\pi a^{3},\frac a ^{3},False,False,24.95,50.0,53.85,786.0
+973,972,mathematics,f of x plus delta x and y,"f(x+\Delta x,y)",f(x) + ^ \delta x undy,False,False,10.74,73.33,77.78,1346.5
+974,973,mathematics,"f of x, y plus delta x times f sub x","f(x,y)+\Delta x\cdot f_{x}","f(x,y + ^ \delta x) (f _{x} )",False,False,46.13,50.0,40.0,1963.2
+975,974,mathematics,f sub y times delta y,\displaystyle f_y \times\Delta y,f _{y} ( \frac y),False,False,6.13,84.38,85.71,1148.8
+976,975,mathematics,z equals x squared plus y squared,z=x^{2}+y^{2},z = x ^{2} + y \frac \ 2 \sqrt,False,False,67.34,100.0,23.08,1316.4
+977,976,mathematics,partial r over partial u times delta u,\displaystyle \frac{\partial r}{\partial u}\cdot\Delta u,\frac{partialr}{partialutimesdeltau},False,False,4.52,50.0,100.0,1.8
+978,977,mathematics,z equals a cosine phi,"z=a\,\cos\phi",z =,False,False,1.35,92.31,66.67,401.4
+979,978,mathematics,delta A equals delta S times the cosine of alpha,\Delta A=\Delta S(\cos\alpha),\frac A = { \delta S( ^} ),False,False,6.71,68.97,55.56,1092.5
+980,979,mathematics,delta S is going to be one over cosine alpha,\Delta S=\frac{1}{\cos\alpha},\frac{deltaSisgoingtobe1}{cosinealpha},False,False,3.83,75.86,100.0,2.0
+981,980,mathematics,three times little n will be negative big N,3\mathrm{n}=\mathrm{-}\mathrm{N},3 \left puţin n = 0}{big N,False,False,2.06,90.62,85.71,1279.2
+982,981,mathematics,n over n dot i dy dz,\displaystyle \frac{n}{n\cdot i}{dy}{dz},\frac{n}{n},False,False,17.54,72.5,61.11,1.7
+983,982,mathematics,z minus f of x y,"z-f(x,y)",z-f(xy),False,False,61.92,12.5,12.5,890.0
+984,983,mathematics,P sub x plus Q sub y plus R sub z,P_{x}+Q_{y}+R_{z},P _{x} + Q _ ^ y \frac + R _ \ z \sqrt,False,False,52.31,100.0,23.53,2273.3
+985,984,mathematics,four thirds pi a cubed,\frac{4}{3}\pi a^{3},\frac a ^{3},False,False,24.95,50.0,53.85,832.9
+986,985,mathematics,partial u over partial x squared plus partial squared u over partial y squared plus partial squared u over partial z squared,\displaystyle \frac{\partial u}{\partial x^{2}}+\frac{\partial^{2}u}{\partial y^ {2}}+\frac{\partial^{2}u}{\partial z^{2}},\frac{partialu}{partialxsquaredpluspartialsquareduoverpartialysquaredpluspartialsquareduoverpartialzsquared},False,False,1.36,62.3,100.0,4.0
+987,986,mathematics,"partial u partial t is minus div F, which is therefore positive k times divergence of grad u",\displaystyle \frac{\partial\mathbf{u}}{\partial t}=\operatorname{-\nabla}\mathbf{F}=k\operatorname{\nabla}(\operatorname{\nabla}\mathbf{u}),(u) ^{t},False,False,0.1,96.43,89.74,796.8
+988,987,mathematics,dx is 3t2 dt,dx=3t^{2}dt,dx = 3t { 2} dt,False,False,71.37,45.45,9.09,1081.5
+989,988,mathematics,dy will be 2t dt,\displaystyle \mathrm{d}\mathrm{y}=2{t}{\mathrm{d}t},"dy = 2t, dt",False,False,1.6,86.54,66.67,994.2
+990,989,mathematics,the integral of yz dx plus xz dy plus xy dz,"\int yz\,dx+xz\,dy+xy\,dz","\frac yz},dx + xz ^{, da",False,False,33.19,68.0,50.0,1522.8
+991,990,mathematics,dx is 3t squared dt,\displaystyle dx={3t}^{2}dt,\frac{2} dt,False,False,20.19,77.78,64.29,884.1
+992,991,mathematics,xy is t to the five,xy=t^{5},xy = t ^{5},False,True,100.0,37.5,0.0,972.8
+993,992,mathematics,six t to the five,\displaystyle 6t^{5},6t ^{5},False,True,84.65,70.0,14.29,674.8
+994,993,mathematics,b y z squared minus 4z cubed,byz^{2}-4z^{3},byz ^{2} - 4z \frac \ 3 \sqrt,False,False,70.02,100.0,21.43,1515.2
+995,994,mathematics,x squared plus z cubed,x^{2}+z^{3},x ^{2} + z \frac \ 3 \sqrt,False,False,60.16,100.0,27.27,1190.1
+996,995,mathematics,three yz squared minus four z cubed,3yz^{2}-4z^{3},\frac{2} - 4z ^ \ 3 \sqrt,False,False,44.57,100.0,42.86,1175.8
+997,996,mathematics,f sub x is two xy,f_{x}=2xy,f _{x} = 2xy,False,True,100.0,33.33,0.0,1098.5
+998,997,mathematics,f equals x squared y plus g,f=x^{2}y+g,f = x ^{2} y + g,False,True,100.0,60.0,0.0,1201.6
+999,998,mathematics,yz cubed plus h of z,yz^{3}+h(z),\frac{3} + h(z\right),False,False,60.16,100.0,36.36,1175.8
+1000,999,mathematics,zero plus three yz squared,0+3yz^{2},0 + 3yz ^{2},False,True,100.0,33.33,0.0,1017.8
+1001,1000,mathematics,R sub y minus Q sub z times i plus P sub z minus R sub x times j,(R_{y}-Q_{z})i+(P_{z}-R_{x})j,(R _{y} - Q _ ^ z \frac i + P _ \ z \sqrt - R _ \sum x \pi j,False,False,37.85,100.0,31.03,3255.3
+1002,1001,mathematics,partial over partial y of r minus partial partial z of q,\displaystyle \frac{\partial}{\partial y}(R)-\frac{\partial}{\partial z}(Q),\frac{partial}{partialyofrminuspartialpartialzofq},False,False,1.39,48.0,100.0,2.4
+1003,1002,mathematics,two to the n,2^{\mathcal{n}},2 ^{n},False,False,23.26,73.33,37.5,653.3
+1004,1003,mathematics,6 times 1 plus 4 plus 9 plus 16 plus 25 plus 36,6\times(1+4+9+16+25+36),6 \left(1 + 4 + 9 + 16 + 25 + 36),False,True,86.77,69.57,6.67,1358.2
+1005,1004,mathematics,r over t times t,\frac{r}{t}t,\frac{r}{ttimest},False,False,43.36,50.0,75.0,1.3
+1006,1005,mathematics,two plus a half divided by two is one and a quarter.,(2+\frac{1}{2})\div2=1+\frac{1}{4},\frac{2plusahalf}{2},False,False,12.7,67.65,73.91,2.1
+1007,1006,mathematics,x is c times the expected value of r,x =c\cdot\operatorname*{\mathbb{E}}[r],x = c _{(r)},False,False,7.44,84.21,66.67,1019.0
+1008,1007,mathematics,u minus expected value of r over u minus x,\displaystyle u - \operatorname*{\mathbb{E}}\left[r\right]\over{u-x},\frac{r}{uminusx},False,False,2.78,85.29,77.27,2.1
+1009,1008,mathematics,1 over C squared plus 1,\frac{1}{C^{2}+1},\frac{1}{Csquaredplus1},False,False,28.5,64.71,84.62,1.1
+1010,1009,mathematics,1 over 2c squared,\frac{1}{2c^{2}},\frac{1}{2csquared},False,False,41.83,43.75,58.33,0.8
+1011,1010,mathematics,z is c natural log of c plus 1,z=c\ln(c)+1,c + 1,False,False,2.0,81.82,66.67,615.8
+1012,1011,mathematics,c minus 1 times the sum j equals 1 to n expected value of tj,(c-1)\cdot\sum_{j=1}^{n}\mathbb{E}[t_j],c - 1 j = 1,False,False,1.21,94.87,76.92,1087.4
+1013,1012,mathematics,e to the minus c log of c plus c minus 1,e^{-(c\log(c)+c-1)},-c c + c - 1,False,False,13.46,78.95,56.25,1250.2
+1014,1013,mathematics,negative c minus one,\displaystyle -(c-1),c - 1,False,False,8.34,85.0,57.14,570.7
+1015,1014,mathematics,dy dx equal y squared,\frac{dy}{dx}=y^{2},\frac{dy} ^ dx \ = y \cos \sqrt 2 \pi,False,False,33.99,100.0,33.33,1618.5
+1016,1015,mathematics,y of x equals minus 1 over x plus c,y(x)=-\frac{1}{x+c},\frac{yofxequalsminus1}{xplusc},False,False,12.91,100.0,100.0,2.0
+1017,1016,mathematics,y of x equals 1 over 1 minus x,y(x)=\frac{1}{1-x},\frac{yofxequals1}{1minusx},False,False,15.31,100.0,100.0,1.6
+1018,1017,mathematics,y dot plus ty equals to t,y\dot{+}ty=t,+ ty =,False,False,12.14,75.0,55.56,575.4
+1019,1018,mathematics,y of 0 equals to 3,y(0)=3,y(0) =,False,False,81.87,33.33,16.67,643.0
+1020,1019,mathematics,u equals exponential of t squared over 2,u=\exp(t^{2}/2),u = \frac{tsquared}{2},False,False,8.25,100.0,91.67,401.4
+1021,1020,mathematics,exponential of minus t squared over 2,\exp(-t^{2}/2),\frac{minustsquared}{2},False,False,5.62,100.0,100.0,1.5
+1022,1021,mathematics,3 equals to 1 plus c,"3=1+c,",3 = 1 + c,False,False,81.87,83.33,16.67,757.3
+1023,1022,mathematics,exponential of t squared over 2 minus 1,\exp(t^{2}/2)-1,\frac{tsquared}{2minus1},False,False,2.62,100.0,100.0,1.7
+1024,1023,mathematics,b modulus r,b\mod r,b ^ mod r,False,False,3.58,42.86,100.0,711.1
+1025,1024,mathematics,pi over 2,\frac{\pi}{2},\frac{pi}{2},False,False,42.39,7.69,28.57,0.9
+1026,1025,mathematics,3i pi over 6,3i(\pi/6),\frac{pi}{6},False,False,3.29,100.0,100.0,0.8
+1027,1026,mathematics,3 sine pi over 6,3\sin(\pi/6),\frac{pi}{6},False,False,2.8,75.0,100.0,0.9
+1028,1027,mathematics,3 root of 3 over 2,3\sqrt{\frac{3}{2}},\frac{3rootof3}{2},False,False,36.19,68.42,81.82,1.1
+1029,1028,mathematics,a plus ib,a+\mathrm{i}b,a + ib,False,True,9.35,76.92,42.86,560.2
+1030,1029,mathematics,1 over minus 2 plus 3i,\frac{1}{-2+3i},\frac{1}{minus2},False,False,36.38,40.0,54.55,1.4
+1031,1030,mathematics,reverse tan of minus 3 over 2,\tan^{-1}(-\frac{3}{2}),\frac{tanofminus3}{2},False,False,25.18,69.57,81.25,1.4
+1032,1031,mathematics,exponential 2n pi,\exp(2n\pi),\frac exp(2n ^ ),False,False,13.12,72.73,83.33,943.6
+1033,1032,mathematics,0 modulus 2 pi,0\mod2\pi,0 ^ mod 2,False,False,4.8,77.78,100.0,656.2
+1034,1033,mathematics,n equals to 2,(n\!=\!2),n = }{,False,False,13.04,77.78,60.0,548.8
+1035,1034,mathematics,i dot i minus one,i(i-1),(i-1),False,False,81.87,16.67,16.67,458.8
+1036,1035,mathematics,1 over k squared plus omega squared,\frac{1}{k^{2}+\omega^{2}},\frac{1}{ksquaredplusomegasquared},False,False,16.21,69.23,100.0,1.7
+1037,1036,mathematics,k sine omega t,k\sin\omega t,k ^{t},False,False,6.27,92.31,75.0,616.0
+1038,1037,mathematics,cosine omega t plus three sine omega t,\cos\omega t+3\sin\omega t,\frac t + 3,False,False,14.54,84.62,62.5,572.1
+1039,1038,mathematics,plus minus three omega cosine omega t,\pm3\omega\cos\omega t,+ - 3}{,False,False,4.37,100.0,100.0,718.3
+1040,1039,mathematics,exponential of minus three t,\exp(-3t),-3t,False,False,11.63,66.67,50.0,384.5
+1041,1040,mathematics,8 root 4 minus 5i,8\sqrt{4}-5{i},8 ^{4} - 5i,False,False,44.43,64.29,30.0,1070.6
+1042,1041,mathematics,root 4 plus or minus 5i,\mathrm{\sqrt{4}}\pm5i,4 + \frac,False,False,0.61,90.91,90.0,403.8
+1043,1042,mathematics,e 4t cosine 5t,\displaystyle e^{4t}\cos(5t),e ^{4t} (5t\right),False,False,55.57,78.57,25.0,1172.1
+1044,1043,mathematics,C1 exponential lambda 1 plus C2 exponential lambda 2,\displaystyle C_{1}\exp(\lambda_{1})+C_{2}\exp(\lambda_{2}),\frac \left(1\right),False,False,0.14,86.44,89.29,719.5
+1045,1044,mathematics,x dot of 0 equals to 0,\dot{x}(0)={0},0 =,False,False,0.06,85.71,81.82,420.0
+1046,1045,mathematics,lambda1 c1 plus lambda2 c2 equals to 0,\lambda_{1}C_{1}+\lambda_{2}C_{2}=0,+ { _} 2 ^ c2 =,False,False,0.82,82.86,73.91,1022.7
+1047,1046,mathematics,log of minus c2 over c1,\log{((-c_{2})/{c_{1}})},-c2,False,False,0.04,87.5,85.71,483.9
+1048,1047,mathematics,minus c2 over c1 is less than 1,-\frac{c2}{c1}<1,\frac{minusc2}{c1islessthan1},False,False,23.31,100.0,100.0,1.7
+1049,1048,mathematics,P D equals D squared plus 4i,P(D)=D^{2}+4i,P D = D ^{2},False,False,39.4,53.85,38.46,821.1
+1050,1049,mathematics,x dot dot plus 4x equal f0,x\ddot{x}+4x=f0,+ 4x =,False,False,17.38,86.67,63.64,499.7
+1051,1050,mathematics,s squared plus 4,(s^{2}+4),s ^{2} + 4,False,False,75.15,55.56,22.22,911.5
+1052,1051,mathematics,s squared equal minus 4,s^{2}=-4,s ^{2} = -4,False,True,100.0,37.5,0.0,772.6
+1053,1052,mathematics,4 minus omega squared,4-\omega^{2},4- ^{} 2 \frac,False,False,10.91,100.0,42.86,703.9
+1054,1053,mathematics,exponential i omega t,\exp(i\omega t),exp(i ^ t),False,False,8.33,46.67,66.67,796.0
+1055,1054,mathematics,omega equals to 2t,\omega\mathrm{=}2\mathrm{t},\frac =,False,False,0.09,88.89,90.0,286.1
+1056,1055,mathematics,delta t minus 2 exponential of t squared sine t cos 2t,\delta(t-2)\exp(t^{2})\sin t\cos 2t,\frac \delta t - 2 t ^{2},False,False,23.16,80.0,57.89,1302.9
+1057,1056,mathematics,delta t exponential of t squared dt,\delta(t)\exp(t^{2})dt,t ^{2} (dt ),False,False,33.28,81.82,57.14,1069.8
+1058,1057,mathematics,3u t minus 2u t minus 1,3u(t)-2u(t-1),t - 2u t- 1,False,False,12.16,61.54,46.15,915.9
+1059,1058,mathematics,exponential t squared dt,\exp(t^{2})dt,t ^{2} (dt ),False,False,49.63,76.92,40.0,1066.4
+1060,1059,mathematics,4 sine 2 cos 4,4\sin2\cos4,4 2 \frac 4,False,False,7.89,81.82,40.0,563.5
+1061,1060,mathematics,f of t equals three u t,f(t)=3u(t),f(t) = 3ut,False,False,67.89,40.0,20.0,1024.0
+1062,1061,mathematics,minus two u of t minus one,-2u(t-1),-2u(t-1),True,True,100.0,0.0,0.0,768.1
+1063,1062,mathematics,seven x dots plus three x equals f of t,7x\dot{+}3x=f(t),+ 3x = f(t),False,False,46.66,62.5,38.46,779.7
+1064,1063,mathematics,minus 3C1 minus 1 half C2 equals to 0,-3C_{1}-\frac{1}{2}C_{2}=0,-3C _{1} - 1,False,False,21.01,73.08,59.09,912.2
+1065,1064,mathematics,C2 exponential minus one half t minus exponential minus three t,\displaystyle {C_2}(\exp(-\frac{1}{2}t)-\exp(-3t)),-1 t- ^ exp(-3t),False,False,11.65,80.0,74.07,1154.6
+1066,1065,mathematics,c1 equals minus 2,\mathrm{c_1}=-2,\frac mathcal { = -2},False,False,9.44,93.33,100.0,620.5
+1067,1066,mathematics,one minus exponential of minus two t,1-\exp(-2t),1- ^{exp(-2t)},False,False,33.94,36.36,75.0,802.3
+1068,1067,mathematics,i squared equals negative one,i^{2}=-1,i ^{2} =,False,False,71.65,50.0,25.0,718.3
+1069,1068,mathematics,a squared plus b squared,a^{2}+b^{2},a ^{2} + b \frac \ 2 \sqrt,False,False,60.16,100.0,27.27,1251.6
+1070,1069,mathematics,two plus i divided by one minus 3i,\frac{2+i}{1-3i},\frac{2plusi}{1},False,False,32.68,43.75,58.33,1.7
+1071,1070,mathematics,one squared plus three squared,1^{2}+3^{2},1 ^{2} + 3 \frac \ 2 \sqrt,False,False,60.16,100.0,27.27,1263.0
+1072,1071,mathematics,r cosine theta plus i times r sine theta,r\cos\theta+i\times r\sin\theta,\frac + i(r),False,False,5.84,87.1,66.67,707.0
+1073,1072,mathematics,a to the x times a to the y equals a to the x plus y,a^{x}\times a^{y}=a^{x+y},y = x + y,False,False,1.85,88.0,73.68,987.2
+1074,1073,mathematics,dy dt equals a times y,\frac{dy}{dt}=ay,\frac{dy} ^ dt \ = a _ \sqrt y \sum,False,False,35.66,100.0,41.67,2020.7
+1075,1074,mathematics,e to the i theta two,e^{i\theta_{2}},e ^{i} 2 \frac,False,False,30.53,80.0,50.0,1105.9
+1076,1075,mathematics,sine of theta one plus theta two,\sin(\theta_{1}+\theta_{2}),\frac ( ^ 1 + ) 2,False,False,1.79,85.19,71.43,979.5
+1077,1076,mathematics,e to the i theta times r2 e to the i theta two,e^{i\theta}\times r_{2}e^{i\theta_{2}},(i),False,False,0.01,97.37,95.45,399.1
+1078,1077,mathematics,e to the i theta one plus theta two,e^{i(\theta_{1}+\theta_{2})},i ^ 1 + \frac 2,False,False,0.81,82.14,77.78,869.9
+1079,1078,mathematics,e to the negative x cosine x,e^{-x}\cos x,e ^{-2} x \frac (x),False,False,28.01,91.67,62.5,1254.9
+1080,1079,mathematics,e to the i omega t divided by two plus three i,e^{i\omega t}/(2+3i),\frac{iomegat}{2plus3i},False,False,4.03,70.0,100.0,2.3
+1081,1080,mathematics,e to the i omega t divided by root 13 e to the i phi,\frac{e^{i\omega t}}{\sqrt{13}e^{i\phi}},i ^ mathcal { t},False,False,2.01,85.0,81.82,1036.0
+1082,1081,mathematics,1 over root 13 cosine omega t minus phi,\displaystyle \frac{1}{\sqrt{13}}\cos(\omega t-\phi),\frac t- {},False,False,1.06,84.62,83.33,640.1
+1083,1082,mathematics,1 over 13 2 times cosine omega t plus 3 sine omega t,\displaystyle \frac{1}{13}(2\cos\omega t+3\sin\omega t),\frac{1}{132timescosineomegatplus3},False,False,14.32,67.27,100.0,2.6
+1084,1083,mathematics,tan inverse 3 over 2,\tan^{-1}(3/2),\frac{3}{2},False,False,2.6,71.43,72.73,1.0
+1085,1084,mathematics,3 pi over 2 omega,(3\pi/2\omega),\frac{3pi}{2omega},False,False,1.71,78.57,100.0,0.9
+1086,1085,mathematics,y i minus y hat i,\mathcal{y}_{i}-\hat{\mathcal{y}}_{i},yi-y,False,False,0.2,89.19,80.0,587.5
+1087,1086,mathematics,y prime equals negative y divided by x squared plus y squared,y^{\prime}=-\frac{y}{x^{2}+y^{2}},\frac{equalsnegativey}{xsquaredplusysquared},False,False,7.67,100.0,100.0,2.4
+1088,1087,mathematics,y is equal to negative one over two m,y=-\frac{1}{2m},\frac{yisequaltonegative1}{2m},False,False,20.97,100.0,100.0,1.6
+1089,1088,mathematics,r squared is equal to one over four m squared,r^{2}=\frac{1}{4m^{2}},\frac{rsquaredisequalto1}{4msquared},False,False,13.63,100.0,100.0,1.8
+1090,1089,mathematics,d1 plus d2,\mathcal{d}_{1}+\mathcal{d}_{2},(d _{1} + d _ ^ 2 \frac ),False,False,25.14,87.1,52.94,1477.0
+1091,1090,mathematics,z minus y over n,\frac{z-y}{n},\frac{zminusy}{n},False,False,39.34,38.46,55.56,1.2
+1092,1091,mathematics,y over n times a half is y over two n,\frac{y}{n}\times\frac{1}{2}=\frac{y}{2n},\frac{y}{n} \frac{y}{2n},False,False,48.14,43.9,37.5,2.0
+1093,1092,mathematics,z minus y over 2n,z-\frac{y}{2n},z-y,False,False,1.43,78.57,70.0,590.1
+1094,1093,mathematics,y over 2n plus z minus y over 2n,\frac{y}{2n}+z-\frac{y}{2n},\frac{y}{2npluszminusy},False,False,36.27,51.85,57.89,1.8
+1095,1094,mathematics,one half plus one over two n,\frac{1}{2}+\frac{1}{2n},\frac{plus1}{2n},False,False,34.03,50.0,50.0,1.3
+1096,1095,mathematics,p to the k times 1 minus p to the n minus k power,p^{k}(1-p)^{n-k},k \left(1-p\right) n - k,False,False,23.61,100.0,50.0,1564.6
+1097,1096,mathematics,2 to the minus n minus k,2^{-(n-k)},-n-k,False,False,9.46,60.0,60.0,638.6
+1098,1097,mathematics,2 to the alpha log p over alpha plus 1 minus alpha log 1 minus p over 1 minus alpha times n,2^{(\alpha \log (\frac{p}{\alpha}) + (1-\alpha) \log (\frac{1-p}{1-\alpha})) \cdot n},\frac{p}{alphaplus1minusalpha} \frac{1minusp}{1minusalphatimesn},False,False,13.9,64.71,100.0,4.1
+1099,1098,mathematics,hundred over square root two pi alpha one minus alpha n,100/\sqrt{2\pi\alpha(1-\alpha)n},2}{1- \frac n,False,False,3.41,87.5,71.43,782.2
+1100,1099,mathematics,1 over square root 2 pi P1 minus Pn,1/\sqrt{2\pi p(1-p)n},\frac{1}{squareroot2piP1minusPn},False,False,1.99,100.0,100.0,2.0
+1101,1100,mathematics,1 over square root 50 pi,\frac{1}{\sqrt{50\pi}},\frac{1}{squareroot50pi},False,False,21.12,45.45,100.0,1.1

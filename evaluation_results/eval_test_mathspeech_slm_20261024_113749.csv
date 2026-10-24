@@ -1,0 +1,108 @@
+index,id,domain,input,target,prediction,strict_match,norm_match,bleu_4,cer_pct,ter_pct,latency_ms
+1,1,Math,2b over n,\frac{2b}{n},\frac{2b}{n},True,True,100.0,0.0,0.0,536.7
+2,2,Math,2x equals 2v over x squared,2x=2v/x^{2},2x = \frac{2V}{x^2},False,False,13.02,100.0,54.55,560.6
+3,3,Math,one half of ab times sine theta times tangent theta plus cosine theta d theta.,"\displaystyle \frac{1}{2}ab\sin \theta\tan \theta+\cos \theta\, d\theta","1/2ab \cdot \sin\theta \cdot \tan\theta + \cos\theta \, d\theta",False,False,42.82,50.7,40.0,969.2
+4,4,Math,pi over 3 sine x plus sine pi over 3 cosine x,\displaystyle \frac{\pi}{3} \sin(x) + \sin\frac{\pi}{3} \cos(x),\frac{\pi}{3} \sin{x} + \sin\left(\frac{\pi}{3}\right) \cos{x},False,False,50.12,49.21,36.0,998.7
+5,5,Math,one quarter plus one half cosine two theta plus one quarter cosine squared two theta,\displaystyle 1/4+1/2\cos2\theta+1/4\cos^{2}2\theta,\frac{1}{4} + \frac{1}{2}\cos(2\theta) + \frac{1}{4}\cos^2(2\theta),False,False,5.32,72.55,90.91,1315.2
+6,6,Math,d by dx of tan inverse of x,\frac{d}{dx}(tan^{-1}(x)),\frac{d}{dx} \tan^{-1}(x),False,False,65.55,12.0,23.81,511.1
+7,7,Math,g of x is equal to natural log of cosine of x,g(x) = \ln(\cos(x)),g(x) = \ln(\cos(x)),True,True,100.0,0.0,0.0,455.3
+8,8,Math,two times y minus one minus two times z minus one equals zero,2(y-1)-2(z-1)=0,2y - 1 - 2z - 1 = 0,False,False,14.16,66.67,26.67,612.7
+9,9,Math,dy is y sub u du plus y sub v dv,"\displaystyle \mathrm{d}y\,\ =y_u \mathrm{d}u + y_{v}\,\mathrm{d}v",\frac{d}{dx}y = \frac{\partial y}{\partial x}u + \frac{\partial y}{\partial x}v,False,False,7.6,92.42,75.0,1119.1
+10,10,Math,M dx plus N dy,"M\,dx+N\,dy",dx + dy,False,False,15.11,63.64,44.44,210.5
+11,11,Math,y prime is equal to minus 2xy divided by x squared,y^{\prime}=-\frac{2xy}{x^{2}},y' = -\frac{2xy}{x^2},False,False,53.79,41.38,30.0,551.4
+12,12,Math,x times the sine of x,x\mathinner{\sin\left(x\right)},x \times \sin(x),False,False,5.6,64.52,50.0,275.5
+13,13,Math,a x to the a minus one,(ax^{a-1}),a^x - 1,False,False,5.24,70.0,60.0,282.7
+14,14,Math,u is a log x,u=\log x,u = \log{x},False,True,22.12,50.0,50.0,276.0
+15,15,Math,one minus exponential of minus two t,1-\exp(-2t),1 - e^{-2t},False,False,15.28,54.55,50.0,307.1
+16,16,Math,f of x divided by g of x,\frac{f(x)}{g(x)},f \left( x \right) / g \left( x \right),False,False,5.56,100.0,69.23,602.9
+17,17,Math,partial u over partial x squared plus partial squared u over partial y squared plus partial squared u over partial z squared,\displaystyle \frac{\partial u}{\partial x^{2}}+\frac{\partial^{2}u}{\partial y^ {2}}+\frac{\partial^{2}u}{\partial z^{2}},\frac{\partial u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} + \frac{\partial^2 u}{\partial z^2},False,True,53.59,22.13,22.0,1393.6
+18,18,Math,e to the minus 3x divided by square root 1 plus x,e^{-3x}/\sqrt{1+x},e^{-3x} \div \sqrt{1 + x},False,False,78.45,44.44,7.14,555.4
+19,19,Math,f of x is x to the 1 3rd,f(x)=x^{1/3},f(x) = x^{1/3},False,True,100.0,16.67,0.0,379.2
+20,20,Math,pi over 2a squared,\frac{\pi}{2a}^{2},\frac{\pi}{2a^2},False,False,59.75,11.11,16.67,379.2
+21,21,Math,uv prime equals u prime v plus u v prime,(uv)^{\prime}=u^{\prime}v+uv^{\prime},u'v = u'v + uv',False,False,8.35,89.19,63.64,411.1
+22,22,Math,log u prime is equal to u primie over u,\log u^{\prime}=u^{\prime}/u,\log{u'} = \frac{u''}{u},False,False,4.52,75.0,57.14,504.4
+23,23,Math,a x squared plus b x plus c,ax^{2}+bx+c,a x^2 + b x + c,False,True,49.81,63.64,18.18,380.4
+24,24,Math,3 times x minus 1,3\times(x-1),3x - 1,False,False,20.02,83.33,42.86,285.3
+25,25,Math,natural log of absolute y is equal to minus x squared over 2 plus c,\ln(|y|)=-\frac{x^{2}}{2}+c,\ln |y| = -\frac{x^2}{2} + c,False,False,53.91,25.93,21.05,649.2
+26,26,Math,i dot i minus one,i(i-1),i \cdot i - 1,False,False,23.65,100.0,33.33,320.3
+27,27,Math,theta equals seven pi over four,\theta=7\pi/4,\theta = \frac{7\pi}{4},False,False,6.71,84.62,83.33,444.1
+28,28,Math,1 plus x squared,1 + x^2,1 + x^2,True,True,100.0,0.0,0.0,281.7
+29,29,Math,x to the x is equal to e to the x log x,x^{x}=e^{x\log x},x^x = e^{x \log x},False,True,63.59,23.53,15.38,426.5
+30,30,Math,1 over 1 plus x,\frac{1}{1+x},\frac{1}{1 + x},False,True,100.0,15.38,0.0,404.8
+31,31,Math,f equals x squared y plus g,f=x^{2}y+g,f = x^2y + g,False,True,41.25,60.0,20.0,347.0
+32,32,Math,minus one plus two t will be zero,-1+2t=0\operatorname{},-1 + 2t = 0,False,False,65.14,86.36,30.0,407.8
+33,33,Math,y equals one plus x,\displaystyle y=1+x,y = 1 + x,False,True,81.87,84.21,16.67,314.7
+34,34,Math,n plus 1 times c n plus 1 divided by n plus 1,(n+1)c_{n+1}/(n+1),n + 1 \times c$ $n + 1 \div n + 1,False,False,12.03,100.0,44.44,705.7
+35,35,Math,z equals one minus x squared minus y squared,z=1-x^{2}-y^{2},z = 1 - x^2 - y^2,False,True,43.32,60.0,26.67,511.0
+36,36,Math,five halves over x zero,\frac{5}{2}\over x_0,\frac{5}{2} / x_0,False,False,70.54,25.0,9.09,478.7
+37,37,Math,x squared over 2,\frac{x^{2}}{2},\frac{x^2}{2},False,True,51.74,13.33,18.18,317.0
+38,38,Math,d by dt of r cross v is the zero vector,\displaystyle\frac{d}{dt}(\mathbf{r}\times\mathbf{v})=\mathbf{0},\frac{\partial}{\partial t} (r \times v) = \mathbf{0},False,False,28.39,64.06,36.0,836.4
+39,39,Math,f of b minus f of a over b minus a is equal to f prime of c,\frac{f(b)-f(a)}{b-a}=f^{\prime}(c),f(b - a) / (b - a) = f'(c),False,False,9.83,74.29,46.15,579.5
+40,40,Math,u equals 3x minus 2y,"u=3x-2y,",u = 3x - 2y,False,False,86.69,62.5,12.5,402.5
+41,41,Math,x squared over 2 tan inverse x,\frac{x^{2}}{2}\tan^{-1}x,x^2 / 2 \tan^{-1} x,False,False,36.66,48.0,38.89,484.0
+42,42,Math,y squared over 2 plus 2y,\frac{y^{2}}{2}+2y,\frac{y^2}{2} + 2y,False,True,65.5,22.22,14.29,517.5
+43,43,Math,f double prime of zero divided by two,f^{\prime\prime}(0)/2,f''(0)/2,False,False,34.81,71.43,45.45,283.1
+44,44,Math,4 plus 1 over 48 times x minus a,(4+\frac{1}{48}(x-a)),4 + \frac{1}{48}x - a,False,False,59.92,38.1,25.0,552.3
+45,45,Math,minus cosine x divided by delta x,-\frac{\cos x}{\Delta x},-\frac{\cos(x)}{\delta x},False,False,30.53,12.5,30.0,407.2
+46,46,Math,f sub y is three y squared plus four x squared,f_{y}=3y^{2}+4x^{2},f_{y} = 3y^2 + 4x^2,False,True,57.65,36.84,21.05,600.8
+47,47,Math,1 over square root of 1 minus x squared,\frac{1}{\sqrt{1-x^{2}}},\frac{1}{\sqrt{1 - x^2}},False,True,75.08,16.67,12.5,542.2
+48,48,Math,one-half of sine two theta,\frac{1}{2}(\sin2\theta),\frac{1}{2} \sin(2\theta),False,False,66.75,8.33,16.67,509.3
+49,49,Math,2 times e to the u times e to the minus u,2 e^{u}e^{-u},2e^u e^{-u},False,True,55.72,23.08,16.67,335.6
+50,50,Math,one minus x times 1 plus x is zero,(1 - x)(1 + x) = 0,1 - x \times (1 + x) = 0,False,False,64.41,50.0,16.67,519.4
+51,51,Math,4x plus 2y minus 2z,4x+2y-2z,4x + 2y - 2z,False,True,100.0,50.0,0.0,438.7
+52,52,Math,d by dy tan y times dy dx,\displaystyle \frac{d}{dy}\tan(y)\frac{dy}{dx},\frac{dy}{dx} \tan(y),False,False,46.25,65.22,54.55,412.7
+53,53,Math,1 over x squared,\frac{1}{x^{2}},\frac{1}{x^2},False,True,64.58,13.33,18.18,412.0
+54,54,Math,theta is equal to pi over 2 to the 1 4th,\theta = (\frac{\pi}{2}) ^ \frac{1}{4},\theta = \frac{\pi}{2}^{\frac{1}{4}},False,False,66.24,13.16,21.05,677.9
+55,55,Math,1 over 2x plus 1 over 2 times x plus 4,\frac{1}{2x} + \frac{1}{2(x + 4)},\frac{1}{2x} + \frac{1}{2} \times x + 4,False,False,77.54,33.33,19.05,802.0
+56,56,Math,t minus sine t,t-\sin t,t - \sin(t),False,False,22.12,50.0,50.0,249.7
+57,57,Math,sum 1 over n squared n equals 1 to infinity,\sum_{n=1}^{\infty} 1/n^{2},\sum_{n=1}^{\infty} \frac{1}{n^2} = 1,False,False,54.03,48.15,38.89,896.3
+58,58,Math,the integral from 0 to 10 of the square root of 1 plus m squared dx,\int_{0}^{10}\sqrt{1+m^{2}}dx,"\int_{0}^{10} \sqrt{1 + m^2} \, dx",False,True,76.13,27.59,9.52,774.8
+59,59,Math,y equals x squared minus 5,y=x^{2}-5,y = x^2 - 5,False,True,39.23,55.56,22.22,375.8
+60,60,Math,four x squared plus eight xy,4x^{2}+8xy,4x^2 + 8xy,False,True,41.25,30.0,20.0,371.6
+61,61,Math,z equals one minus y,\displaystyle z=1-y,z = 1 - y,False,True,81.87,89.47,16.67,317.0
+62,62,Math,4a squared divided by 2,4a^{2}/2,4a^2 / 2,False,True,19.3,37.5,25.0,347.7
+63,63,Math,1 over a plus b cosine theta,\frac{1}{a+b\cos\theta},\frac{1}{a + b \cos{\theta}},False,False,70.44,21.74,18.18,514.8
+64,64,Math,u squared plus v squared less than 1,u^{2}+v^{2}<1,u^2 + v^2 < 1,False,True,12.14,46.15,30.77,448.6
+65,65,Math,negative two plus one,\-2 + 1\,-2 + 1,False,False,100.0,25.0,0.0,276.2
+66,66,Math,b3 x plus c3 x squared plus 4 cubed,b_3 x+c_3 x^{2}+4^{3},b_3x + c_3x^2 + 4^3,False,True,57.65,42.86,21.05,608.3
+67,67,Math,e to the u minus e to the minus u over 2 quantity squared,( \frac {e^{u} - e^{-u}} {2} )^2,e^u - \frac{1}{2}e^{-u},False,False,38.25,65.62,68.18,580.8
+68,68,Math,df is f sub x dx plus f sub y dy plus f sub z dz,\displaystyle df = f_{x}dx+f_{y}dy+f_{z}dz,"df = f_x \, dx + f_y \, dy + f_z \, dz",False,True,42.84,76.19,25.93,738.9
+69,69,Math,n log one plus one over n,n\log(1+1/n),n \log(1 + \frac{1}{n}),False,False,33.21,100.0,55.56,498.3
+70,70,Math,z equals a cosine phi,"z=a\,\cos\phi",z = a \cos(\phi),False,False,18.99,46.15,50.0,346.8
+71,71,Math,1 over x0 plus delta x,\frac{1}{x_{0} +\Delta x},\frac{1}{x_0 + \Delta x},False,True,63.81,12.0,14.29,474.8
+72,72,Math,square root of u squared minus 4,\sqrt{u^{2}-4},\sqrt{u^2 - 4},False,True,41.25,21.43,20.0,372.5
+73,73,Math,1 minus t plus t squared minus t cubed,1-t+t^{2}-t^{3},1 - t + t^2 - t^3,False,True,43.32,60.0,26.67,469.1
+74,74,Math,z0 plus a times x minus x0 plus b times y minus y0,z_0+a(x-x_0)+b(y-y_0),z_0 + ax - x_0 + by - y_0,False,False,53.64,52.38,19.05,608.5
+75,75,Math,one over n cubed,\frac{1}{n^{3}},\frac{1}{n^3},False,True,64.58,13.33,18.18,403.6
+76,76,Math,x squared y plus z,\mathsf{x}^{2}y+z,x^2y + z,False,False,10.62,76.47,45.45,286.3
+77,77,Math,dx over x to the p,\frac{dx}{x^{p}},\frac{d}{dx}x^p,False,False,36.46,43.75,58.33,404.2
+78,78,Math,one half plus one over two n,\frac{1}{2}+\frac{1}{2n},\frac{1}{2} + \frac{1}{2n},False,True,100.0,8.33,0.0,574.1
+79,79,Math,minus r less than x less than r,-r<x<r,-r < x < r,False,True,100.0,66.67,0.0,301.3
+80,80,Math,f of 4 minus f of 0 is equal to f prime of c times 4 minus 0,f(4)-f(0)=f^{\prime}(c)(4 - 0),f(4) - f(0) = f'(c) \cdot (4 - 0),False,False,65.84,53.33,21.74,769.2
+81,81,Math,x squared over 16,x^{2}/16,x^2 / 16,False,True,11.23,37.5,28.57,315.5
+82,82,Math,e to the i omega t divided by root 13 e to the i phi,\frac{e^{i\omega t}}{\sqrt{13}e^{i\phi}},e^{i\omega t} \div \sqrt{13} e^{i\phi},False,False,67.3,35.0,22.73,805.0
+83,83,Math,x to the seventh over seven factorial,x^{7}/7!,x^7 / 7!,False,True,11.23,37.5,28.57,309.1
+84,84,Math,dy equals 2x dx.,dy=2xdx,\frac{d}{dx}y = 2x,False,False,27.17,100.0,100.0,477.6
+85,85,Math,x squared plus 4v over x,x^{2}+\frac{4v}{x},x^2 + \frac{4V}{x},False,False,40.99,22.22,21.43,440.6
+86,86,Math,a half plus n minus 1 plus a half,\frac{1}{2}+n-1+\frac{1}{2},a \frac{1}{2} + n - 1 + \frac{1}{2},False,False,94.6,29.63,5.26,735.3
+87,87,Math,cosine squared of two u,\cos^{2}(2u),\cos^2(u),False,False,8.14,25.0,33.33,242.2
+88,88,Math,z equals one over root two,z=1/\sqrt{2},z = \frac{1}{\sqrt{2}},False,False,27.17,91.67,62.5,504.0
+89,89,Math,integral from 0 to x of e to the minus t squared dt,\int_{0}^{x}e^{-t^{2}}dt,"\int_{0}^{x} e^{-t^2} \, dt",False,True,76.13,25.0,9.52,669.8
+90,90,Math,the integral along C of F dot dr,\int_{C}\mathbf{F}\cdot d\mathbf{r},\int_C \mathbf{F} \cdot d\mathbf{r},False,True,69.36,8.57,13.33,649.7
+91,91,Math,a half sine squared plus cosine squared,\frac{1}{2}\sin^{2}+\cos^{2},a \frac{1}{2} \sin^2 + \cos^2,False,False,55.32,28.57,27.78,636.7
+92,92,Math,dy dx is equal to minus 1 divided by sine y,\frac{dy}{dx} = -\frac{1}{\sin y},\frac{d}{dx}y = -\frac{1}{\sin(y)},False,False,59.15,12.12,21.05,716.2
+93,93,Math,a to the x times a to the y equals a to the x plus y,a^{x}\times a^{y}=a^{x+y},a^x \times a^y = a^{x + y},False,True,48.71,28.0,21.05,547.3
+94,94,Math,1 over b minus a the integral from a to b f of x dx,\displaystyle \frac{1}{b-a}\int_{a}^{b}f(x)dx,"\frac{1}{b} - \int_{a}^{b} f(x) \, dx",False,False,72.06,51.11,20.0,833.1
+95,95,Math,f prime of x is equal to g prime of x,f^{\prime}(x)\mathrel{\mathop{}}=g^{\prime}(x),f'(x) = g'(x),False,False,4.96,82.61,60.87,343.6
+96,96,Math,the integral from 1 to infinity dx over x,\int_{1}^{\infty} \frac{dx}{x},\int_{1}^{\infty} \frac{dx}{x},True,True,100.0,0.0,0.0,606.9
+97,97,Math,e to the x squared,\mathrm{e}^{x^{2}},e^{x^2},False,True,25.55,61.11,41.67,285.2
+98,98,Math,natural log of m times n is equal to the natural log of m plus natural log of n,\ln(mn) = \ln(m) + \ln(n),\ln(mn) = \ln(m) + \ln(n),True,True,100.0,0.0,0.0,542.0
+99,99,Math,negative y is minus t squared,-y=-t^{2},-y = -t^2,False,True,63.45,44.44,22.22,343.3
+100,100,Math,log y is equal to minus x squared over 2 plus c2 minus c1,\log y=-\frac{x^{2}}{2}+c_{2}-c_{1},\log{y} = -\frac{x^2}{2} + c_2 - c_1,False,True,48.16,37.14,29.63,844.6
+101,101,Math,dr dt dot r plus r dot dr dt,\displaystyle \frac{dr}{dt}\cdot{r}+r\cdot\frac{dr}{dt},\frac{d}{dt}r + r \cdot \frac{d}{dt}r,False,False,50.7,49.09,26.92,766.8
+102,102,Math,sine x is approximately x,\sin x\approx x,\sin(x)$ is approximately $x$.,False,False,1.21,100.0,100.0,354.3
+103,103,Math,2 over the square root of pi,\frac{2}{\sqrt{\pi}},2 / \sqrt{\pi},False,False,28.3,50.0,50.0,316.4
+104,104,Math,u to the n plus one,\mathcal{u}^{n+1},u^n + 1,False,False,11.22,82.35,50.0,283.6
+105,105,Math,d by dx of natrual log of x squared plus 1 is 2x over x squared plus 1,\frac{d}{dx}(\ln(x^{2}+1))=\frac{2x}{x^{2}+1},\frac{d}{dx} \ln(x^2 + 1) = \frac{2x}{x^2 + 1},False,False,58.91,20.0,17.14,1096.7
+106,106,Math,d over dx of tan x is equal to secant squared of x,\frac{\mathrm{d}}{\mathrm{dx}}(\tan x) = \mathrm{\sec^2(x)},\frac{d}{dx} \tan{x} = \sec^2{x},False,False,18.76,52.54,46.43,708.5
+107,107,Math,four y cubed y prime,4y^{3}y^{\prime},4y^3\frac{dy}{dx},False,False,10.43,75.0,63.64,445.6

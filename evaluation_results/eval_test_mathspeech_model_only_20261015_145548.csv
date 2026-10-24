@@ -1,0 +1,21 @@
+index,id,domain,input,target,prediction,strict_match,norm_match,bleu_4,cer_pct,ter_pct,latency_ms
+1,1,Math,2b over n,\frac{2b}{n},\frac{2b}{n},True,True,100.0,0.0,0.0,13.8
+2,2,Math,2x equals 2v over x squared,2x=2v/x^{2},\frac{2xequals2v}{xsquared},False,False,3.18,100.0,100.0,0.3
+3,3,Math,one half of ab times sine theta times tangent theta plus cosine theta d theta.,"\displaystyle \frac{1}{2}ab\sin \theta\tan \theta+\cos \theta\, d\theta",\frac{1} ^ 2 \ ab( \sqrt \sum ) + \int \theta d \pi,False,False,16.85,67.61,50.0,3151.7
+4,4,Math,pi over 3 sine x plus sine pi over 3 cosine x,\displaystyle \frac{\pi}{3} \sin(x) + \sin\frac{\pi}{3} \cos(x),\frac{pi}{3sinexplussinepiover3cosinex},False,False,3.95,65.08,100.0,0.4
+5,5,Math,one quarter plus one half cosine two theta plus one quarter cosine squared two theta,\displaystyle 1/4+1/2\cos2\theta+1/4\cos^{2}2\theta,\frac{1} ^ 2 \ + \sqrt \cos 2 \sum \int (2 \pi ),False,False,2.66,86.27,81.82,2966.3
+6,6,Math,d by dx of tan inverse of x,\frac{d}{dx}(tan^{-1}(x)),\frac{d} ^ dx \ ( \sqrt \sum ) \pi \int 1- \delta (x),False,False,21.21,100.0,52.38,3501.9
+7,7,Math,g of x is equal to natural log of cosine of x,g(x) = \ln(\cos(x)),g(x) = { ( \frac x)},False,False,38.78,52.63,33.33,2010.7
+8,8,Math,two times y minus one minus two times z minus one equals zero,2(y-1)-2(z-1)=0,2(y-1)-1 = 0,False,False,45.75,40.0,33.33,1403.5
+9,9,Math,dy is y sub u du plus y sub v dv,"\displaystyle \mathrm{d}y\,\ =y_u \mathrm{d}u + y_{v}\,\mathrm{d}v","dy = y _{u} du + y _ ^ v \frac, dv",False,False,16.51,77.27,50.0,3717.0
+10,10,Math,M dx plus N dy,"M\,dx+N\,dy",Mdx + Ndy,False,True,39.23,54.55,22.22,1065.5
+11,11,Math,y prime is equal to minus 2xy divided by x squared,y^{\prime}=-\frac{2xy}{x^{2}},\frac{yprimeisequaltominus2xy}{xsquared},False,False,15.3,93.1,100.0,0.5
+12,12,Math,x times the sine of x,x\mathinner{\sin\left(x\right)},x- ^ (x),False,False,5.31,87.1,60.0,1352.2
+13,13,Math,a x to the a minus one,(ax^{a-1}),ax ^{a-1},False,False,77.88,30.0,20.0,1540.1
+14,14,Math,u is a log x,u=\log x,u = { mathcal} x ^,False,False,3.72,100.0,100.0,1593.1
+15,15,Math,one minus exponential of minus two t,1-\exp(-2t),1- ^{exp(-2t)},False,False,33.94,36.36,75.0,1194.6
+16,16,Math,f of x divided by g of x,\frac{f(x)}{g(x)},\frac{fofx}{gofx},False,False,14.49,35.29,46.15,0.2
+17,17,Math,partial u over partial x squared plus partial squared u over partial y squared plus partial squared u over partial z squared,\displaystyle \frac{\partial u}{\partial x^{2}}+\frac{\partial^{2}u}{\partial y^ {2}}+\frac{\partial^{2}u}{\partial z^{2}},\frac{partialu}{partialxsquaredpluspartialsquareduoverpartialysquaredpluspartialsquareduoverpartialzsquared},False,False,1.36,62.3,100.0,0.3
+18,18,Math,e to the minus 3x divided by square root 1 plus x,e^{-3x}/\sqrt{1+x},\frac{etotheminus3x}{squareroot1plusx},False,False,4.07,100.0,100.0,0.4
+19,19,Math,f of x is x to the 1 3rd,f(x)=x^{1/3},f(x) = x ^{1} \frac 3 \,False,False,74.94,100.0,25.0,2388.8
+20,20,Math,pi over 2a squared,\frac{\pi}{2a}^{2},\frac{pi}{2asquared},False,False,19.67,44.44,75.0,0.2
