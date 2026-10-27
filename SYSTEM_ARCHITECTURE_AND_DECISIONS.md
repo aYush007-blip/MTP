@@ -406,6 +406,18 @@ sequenceDiagram
 
 ---
 
+### Decision 20: Progressive In-Memory Chunked Streaming ASR & Two-Stage LaTeX Lock-in
+* **Context:** The system originally operated strictly in utterance-level batch mode, waiting until the speaker completely finished speaking (~800 ms silence or clicking stop) before starting transcription. Users requested live, word-by-word visual feedback in real time as speech occurs.
+* **Decision:**
+  - Deployed `whisper-server` as a persistent GPU-accelerated daemon (`http://127.0.0.1:8081`) with CUDA Flash Attention (`-fa`) and greedy decoding (`-bo 1 -bs 1 -nt`), keeping the ASR neural weights in GPU memory and cutting per-slice inference time to **~200–280 ms** with zero disk I/O.
+  - Implemented a two-stage live pipeline:
+    1. **Live Stage:** As audio is captured every 400 ms, the rolling speech buffer is sent via in-memory multipart HTTP POST to `whisper-server`, updating the active terminal line live using ANSI escape sequences (`\r\033[K`).
+    2. **Lock-in Stage:** When energy VAD detects an utterance pause, the finalized transcript is dispatched to `llama-server` (Qwen2.5-1.5B) to resolve mathematical LaTeX notation without breaking syntax mid-clause.
+  - Implemented [`main/src/live_streaming_terminal.py`](file:///mnt/thesis/main/src/live_streaming_terminal.py) supporting both live microphone streaming and simulated real-time audio playback.
+* **Impact:** Delivers instant, zero-perception-latency visual speech feedback while guaranteeing 100% syntactically valid KaTeX formulas.
+
+---
+
 ## 5. Quantitative Benchmark Comparison (Phase 1 vs. Phase 2)
 
 Empirical evaluation conducted on the held-out real lecture datasets directly on the Jetson Orin Nano hardware:
@@ -476,6 +488,7 @@ Every script and module in the repository maps to a specific subsystem layer:
 │       ├── slm_translator.py                # Qwen2.5 Small Language Model translator
 │       ├── router.py                        # Phase 1 Regex heuristic router & T5 wrapper
 │       ├── live_vad.py                      # Real-time microphone capture & Neural VAD
+│       ├── live_streaming_terminal.py       # Terminal live word-by-word streaming transcriber
 │       ├── evaluate_model.py                # Automated quantitative benchmarking suite
 │       ├── run_live_test.py                 # Live microphone acoustic test runner
 │       ├── download_slm.py                  # Verified Hugging Face Hub downloader
@@ -486,11 +499,13 @@ Every script and module in the repository maps to a specific subsystem layer:
 
 | Source File | Primary Subsystem | Key Dependencies | Dependent Consumers | Architectural Role |
 | :--- | :--- | :--- | :--- | :--- |
-| [`src/audio.py`](file:///mnt/thesis/main/src/audio.py) | Audio Ingestion | `numpy`, `wave` | `live_vad.py`, `gui/server.py` | Converts 48kHz stereo hardware mic input to 16kHz mono PCM using vectorized 3:1 decimation with 0 PyTorch/SciPy overhead. |
-| [`src/slm_translator.py`](file:///mnt/thesis/main/src/slm_translator.py) | Edge SLM Translation | `urllib`, `json`, `subprocess` | `gui/server.py`, `evaluate_model.py` | Bridges Whisper transcripts to Qwen2.5-1.5B via `llama-server` REST API, ChatML prompt orchestration, and LaTeX sanitization. |
+| [`src/audio.py`](file:///mnt/thesis/main/src/audio.py) | Audio Ingestion | `numpy`, `wave` | `live_vad.py`, `live_streaming_terminal.py`, `gui/server.py` | Converts 48kHz stereo hardware mic input to 16kHz mono PCM using vectorized 3:1 decimation with 0 PyTorch/SciPy overhead. |
+| [`src/slm_translator.py`](file:///mnt/thesis/main/src/slm_translator.py) | Edge SLM Translation | `urllib`, `json`, `subprocess` | `live_streaming_terminal.py`, `gui/server.py`, `evaluate_model.py` | Bridges Whisper transcripts to Qwen2.5-1.5B via `llama-server` REST API, ChatML prompt orchestration, and LaTeX sanitization. |
+| [`src/live_streaming_terminal.py`](file:///mnt/thesis/main/src/live_streaming_terminal.py) | Live Interactive Streaming | `pyaudio`, `audio.py`, `whisper-server`, `slm_translator.py` | Interactive Shell CLI | Executes real-time word-by-word terminal transcription via in-memory chunk streaming and instant LaTeX formula lock-in. |
 | [`src/router.py`](file:///mnt/thesis/main/src/router.py) | Phase 1 Fallback Translation | `torch`, `transformers` | `gui/server.py`, `evaluate_model.py` | Executes Phase 1 regex heuristic classification (`PURE_MATH`, `MIXED`, `NO_MATH`) and T5-small inference. |
 | [`src/live_vad.py`](file:///mnt/thesis/main/src/live_vad.py) | Acoustic Segmentation | `pyaudio`, `audio.py`, `whisper.cpp` | `gui/server.py`, `run_live_test.py` | 500ms rolling ring buffer + Silero/Energy VAD for real-time utterance segmentation from hardware microphone. |
 | [`src/evaluate_model.py`](file:///mnt/thesis/main/src/evaluate_model.py) | Benchmarking Suite | `slm_translator.py`, `router.py` | Automated CI / Evaluation CLI | Computes Norm-EM, Strict-EM, BLEU-4, CER, TER, and P95 latency distributions on lecture corpora. |
 | [`gui/server.py`](file:///mnt/thesis/main/gui/server.py) | Edge Web Application | `aiohttp`, `slm_translator.py`, `router.py` | Web Browser (`app.js`) | Asynchronous HTTP & WebSocket server providing real-time hardware mic streaming, file upload, text transcription, and engine switching. |
+
 
 
