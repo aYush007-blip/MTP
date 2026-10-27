@@ -63,9 +63,20 @@ from slm_translator import QwenMathTranslator
 WHISPER_SERVER_URL = "http://127.0.0.1:8081"
 LLAMA_SERVER_URL = "http://127.0.0.1:8080"
 WHISPER_BIN = "/mnt/thesis/main/whisper.cpp/build-orin/bin/whisper-server"
-WHISPER_MODEL = "/mnt/thesis/models/whisper/ggml-base.bin"
+WHISPER_BASE_MODEL = "/mnt/thesis/models/whisper/ggml-base.bin"
+WHISPER_SMALL_MODEL = "/mnt/thesis/models/whisper/ggml-small.en.bin"
 LLAMA_BIN = "/mnt/thesis/llama.cpp/build/bin/llama-server"
 LLAMA_MODEL = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+
+# Rich Mathematical & Signals and Systems Conditioning Prompt for Whisper ASR
+WHISPER_MATH_PROMPT = (
+    "The Fourier transform of a continuous-time signal x(t) is defined as "
+    "the integral from minus infinity to plus infinity of x(t) e^{-j \\omega t} dt. "
+    "Fourier series, inverse Fourier transform, Laplace transform, signals and systems, calculus, "
+    "continuous time signal, differential equations, delta function, omega, frequency domain, "
+    "time domain, x of t, e to the power minus j omega t dt, integral from minus infinity to plus infinity, "
+    "sine, cosine, theta, pi, derivative, matrix, vector."
+)
 
 # 4th-order Butterworth High-Pass Filter (120 Hz) designed for 16 kHz audio
 # Eliminates 50 Hz & 100 Hz AC electrical mains hum and low-frequency rumble
@@ -83,6 +94,19 @@ RESET = "\033[0m"
 CLEAR_LINE = "\r\033[K"
 
 
+def ensure_hardware_mic_gain():
+    """Ensure hardware USB microphone gain is optimal (-5 dB / 92%), not attenuated to -20 dB."""
+    try:
+        subprocess.run(
+            ["amixer", "-c", "2", "sset", "Mic", "110"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except Exception:
+        pass
+
+
 def is_service_alive(url: str, endpoint: str = "/health") -> bool:
     """Verify if a local HTTP service is actively responding."""
     try:
@@ -93,14 +117,16 @@ def is_service_alive(url: str, endpoint: str = "/health") -> bool:
         return False
 
 
-def ensure_edge_daemons():
+def ensure_edge_daemons(model_type: str = "small"):
     """Ensure both whisper-server and llama-server daemons are running on the Jetson."""
-    # 1. Check whisper-server (Port 8081)
+    model_path = WHISPER_SMALL_MODEL if model_type == "small" else WHISPER_BASE_MODEL
+
+    # 1. Check if whisper-server is alive
     if not is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
-        print(f"{YELLOW_BOLD}[Init]{RESET} Starting whisper-server daemon on port 8081 (Flash Attention, Anti-Hallucination)...")
+        print(f"{YELLOW_BOLD}[Init]{RESET} Starting whisper-server daemon with {Path(model_path).name} (Port 8081, Flash Attention)...")
         cmd = [
             WHISPER_BIN,
-            "-m", WHISPER_MODEL,
+            "-m", model_path,
             "--port", "8081",
             "--host", "127.0.0.1",
             "-fa", "-nt", "-bo", "1", "-bs", "1", "-t", "6",
@@ -109,15 +135,32 @@ def ensure_edge_daemons():
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
         subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(20):
+        for _ in range(25):
             time.sleep(0.5)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
                 break
-        print(f"{GREEN_BOLD}✅ whisper-server ready on {WHISPER_SERVER_URL}{RESET}")
+        print(f"{GREEN_BOLD}✅ whisper-server ready ({Path(model_path).name}) on {WHISPER_SERVER_URL}{RESET}")
     else:
-        print(f"{GREEN_BOLD}✅ whisper-server is active on {WHISPER_SERVER_URL}{RESET}")
+        # Server is already running: ensure requested model is loaded via /load endpoint
+        try:
+            boundary = "----ModelLoadBoundary"
+            body = (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="model"\r\n\r\n'
+                f"{model_path}\r\n--{boundary}--\r\n"
+            ).encode("utf-8")
+            req = urllib.request.Request(
+                f"{WHISPER_SERVER_URL}/load",
+                data=body,
+                headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            )
+            with urllib.request.urlopen(req, timeout=10.0) as resp:
+                pass
+        except Exception:
+            pass
+        print(f"{GREEN_BOLD}✅ whisper-server active with {Path(model_path).name} on {WHISPER_SERVER_URL}{RESET}")
 
-    # 2. Check llama-server (Port 8080)
+    # 2. Check if llama-server is alive (Port 8080)
     if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
         print(f"{YELLOW_BOLD}[Init]{RESET} Starting llama-server daemon on port 8080 (CUDA SM87)...")
         cmd = [
@@ -193,7 +236,7 @@ def query_whisper_stream(pcm_samples: np.ndarray) -> tuple[str, float]:
     ).encode("utf-8") + wav_bytes + (
         f"\r\n--{boundary}\r\n"
         f'Content-Disposition: form-data; name="prompt"\r\n\r\n'
-        f"Mathematical equations, formulas, calculus, algebra, variables, sine, cosine, theta, pi, integral, derivative, matrix.\r\n"
+        f"{WHISPER_MATH_PROMPT}\r\n"
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="no_speech_thold"\r\n\r\n'
         f"0.65\r\n"
@@ -215,7 +258,7 @@ def query_whisper_stream(pcm_samples: np.ndarray) -> tuple[str, float]:
             cleaned = clean_whisper_text(raw_text)
             latency_ms = (time.monotonic() - t0) * 1000.0
             return cleaned, latency_ms
-    except Exception as e:
+    except Exception:
         return "", 0.0
 
 
@@ -262,8 +305,9 @@ def calibrate_ambient_noise(
     return noise_floor, speech_threshold, silence_threshold
 
 
-def run_live_microphone(slm: QwenMathTranslator):
+def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
     """Run real-time microphone capture with live word-by-word streaming."""
+    ensure_hardware_mic_gain()
     pa = pyaudio.PyAudio()
 
     # Auto-detect AB13X USB Audio or fallback to default
@@ -303,20 +347,21 @@ def run_live_microphone(slm: QwenMathTranslator):
     )
 
     # 2. Initialize Adaptive VAD with dual thresholds and 400ms pre-roll buffer
+    silence_chunks = max(int(pause_sec * 10), 10)  # e.g. 1.5s = 15 chunks
     vad = AdaptiveEnergyVAD(
         speech_threshold=speech_thold,
         silence_threshold=silence_thold,
-        min_speech_chunks=2,       # 200ms speech onset
-        min_silence_chunks=7,      # 700ms natural speech pause
-        pre_roll_chunks=4,         # 400ms pre-trigger history
+        min_speech_chunks=2,            # 200ms speech onset
+        min_silence_chunks=silence_chunks, # 1.5s natural pause tolerance
+        pre_roll_chunks=4,              # 400ms pre-trigger history
     )
 
     print("=" * 70)
     print("🚀 LIVE SPEECH-TO-LATEX TERMINAL STREAMER READY")
     print("=" * 70)
     print("Speak mathematical phrases or lecture sentences into your microphone.")
-    print("Spoken words will appear LIVE in real-time as you talk.")
-    print("Natural pauses (~700ms) will lock in the final formatted LaTeX equation.")
+    print("Spoken words appear LIVE in real-time as you talk.")
+    print(f"Natural pauses (~{pause_sec:.1f}s) will lock in the final formatted LaTeX equation.")
     print("Press Ctrl+C to exit.")
     print("=" * 70 + "\n")
     print(f"{DIM}🎧 Listening...{RESET}\n")
@@ -361,16 +406,18 @@ def run_live_microphone(slm: QwenMathTranslator):
                 accumulated_samples = sum(len(c) for c in current_speech_chunks)
                 if (accumulated_samples >= 12800) and (now - last_transcribe_time >= 0.38):
                     accumulated = np.concatenate(current_speech_chunks)
-                    # Limit rolling ASR window to last 5 seconds for bounded edge latency
-                    if len(accumulated) > 16000 * 5:
-                        accumulated = accumulated[-16000 * 5:]
+                    # Limit rolling ASR window to last 6 seconds for bounded edge latency
+                    if len(accumulated) > 16000 * 6:
+                        accumulated = accumulated[-16000 * 6:]
 
                     partial_text, asr_ms = query_whisper_stream(accumulated)
-                    if partial_text and partial_text != last_partial_text:
+                    if partial_text:
                         last_partial_text = partial_text
                         elapsed_sec = round(len(accumulated) / 16000.0, 1)
+                        # If user is in a brief pause (> 400ms), show pausing indicator
+                        pause_indicator = f" {DIM}⏳ (pausing...){RESET}" if vad.silence_count >= 4 else ""
                         sys.stdout.write(
-                            f"{CLEAR_LINE}{YELLOW_BOLD}🎙️  [LIVE {elapsed_sec:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}"
+                            f"{CLEAR_LINE}{YELLOW_BOLD}🎙️  [LIVE {elapsed_sec:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}{pause_indicator}"
                         )
                         sys.stdout.flush()
                     last_transcribe_time = now
@@ -500,10 +547,12 @@ def main():
     parser = argparse.ArgumentParser(description="Live Streaming Speech-to-LaTeX Transcriber")
     parser.add_argument("--file", type=str, default=None, help="Path to WAV audio file to simulate live streaming")
     parser.add_argument("--mic", action="store_true", help="Force microphone input")
+    parser.add_argument("--pause", type=float, default=1.5, help="Silence pause duration (seconds) before equation lock-in (default: 1.5s)")
+    parser.add_argument("--model", type=str, default="small", choices=["base", "small"], help="Whisper model to use ('small' or 'base', default: 'small')")
     args = parser.parse_args()
 
-    # Ensure background GPU daemons
-    ensure_edge_daemons()
+    # Ensure background GPU daemons with requested model
+    ensure_edge_daemons(model_type=args.model)
 
     # Initialize SLM translator client
     slm = QwenMathTranslator.get_instance(backend="server")
@@ -511,8 +560,9 @@ def main():
     if args.file:
         run_file_simulation(args.file, slm)
     else:
-        run_live_microphone(slm)
+        run_live_microphone(slm, pause_sec=args.pause)
 
 
 if __name__ == "__main__":
     main()
+

@@ -438,6 +438,21 @@ sequenceDiagram
 
 ---
 
+### Decision 22: Whisper small.en (244M) Edge Model Upgrade, Signals Domain Prompt Conditioning, and Natural Lecture Pause Tolerance (1.5s)
+* **Context:** In live lecture testing, when the user spoke long, complex technical statements ("the fourier transform of a continuous time signal x(t) is integral from minus infinity to plus infinity x of t e to the power minus j omega t dt"):
+  1. The 700 ms silence hangover was too aggressive: the user paused for ~0.8s between "is..." and "integral...", causing the system to prematurely lock in after only 6.6 seconds (cutting off the entire second half of the equation).
+  2. The lightweight `base.en` (39M) model misrecognized domain terminology without specialized conditioning (e.g. "Fourier transform" became "Fourier form", "continuous time signal" became "continuity").
+  3. Hardware microphone capture volume was attenuated at `-20.00 dB`, muting soft consonants.
+* **Decision:**
+  - **Natural Lecture Pause Hangover (1.5s):** Increased default silence pause threshold from 700 ms to **1.5 seconds** (15 chunks) in [`main/src/live_streaming_terminal.py`](file:///mnt/thesis/main/src/live_streaming_terminal.py), and added visual pause indicators (`⏳ (pausing... speak to continue)`) during mid-sentence breathing pauses.
+  - **Hardware Microphone Gain Enforcement:** Added automatic hardware gain restoration via ALSA mixer (`amixer -c 2 sset Mic 110`, `-5.00 dB`) on startup.
+  - **Whisper small.en (244M) Deployment:** Downloaded [`ggml-small.en.bin`](file:///mnt/thesis/models/whisper/ggml-small.en.bin) (488 MB) and wired dynamic model loading via `whisper-server`'s `/load` HTTP endpoint. The 244M parameter model fits natively in Jetson Orin Nano VRAM alongside Qwen2.5-1.5B (total combined VRAM footprint ~2.2 GB / 8 GB).
+  - **Signals & Systems Prompt Conditioning:** Conditioned Whisper's decoder with explicit technical priors: Fourier transforms, continuous-time signals, Laplace transforms, omega, integrals, and differential equations.
+* **Impact:** Allows natural continuous delivery of long mathematical lecture utterances without mid-clause truncation. Qwen2.5-1.5B translates the recognized utterance into standard LaTeX:
+  $$\mathcal{F}\{x(t)\} = \int_{-\infty}^{\infty} x(t) e^{-j\omega t} \, dt$$
+
+---
+
 ## 5. Quantitative Benchmark Comparison (Phase 1 vs. Phase 2)
 
 Empirical evaluation conducted on the held-out real lecture datasets directly on the Jetson Orin Nano hardware:
