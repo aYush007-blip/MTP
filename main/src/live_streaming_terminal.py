@@ -157,7 +157,7 @@ def ensure_edge_daemons(model_type: str = "small"):
             "-m", model_path,
             "--port", "8081",
             "--host", "127.0.0.1",
-            "-fa", "-nt", "-bo", "1", "-bs", "1", "-t", "6",
+            "-fa", "-nt", "-bo", "1", "-bs", "1", "-t", "4",
             "-sns", "-nth", "0.65"
         ]
         env = os.environ.copy()
@@ -344,8 +344,12 @@ def calibrate_ambient_noise(
     return noise_floor, speech_threshold, silence_threshold
 
 
-def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
-    """Run real-time microphone capture with live word-by-word streaming."""
+def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.8, enter_only: bool = False):
+    """
+    Run real-time microphone capture with instant on-demand transcription on [Enter].
+    Optimized for NVIDIA Jetson: Zero GPU inference during audio accumulation prevents
+    over-current / thermal throttling, and [Enter] locks in equation immediately (<500ms).
+    """
     ensure_hardware_mic_gain()
     pa = pyaudio.PyAudio()
 
@@ -386,7 +390,7 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
     )
 
     # 2. Initialize Adaptive VAD with dual thresholds and 400ms pre-roll buffer
-    silence_chunks = max(int(pause_sec * 10), 8)  # e.g. 1.2s = 12 chunks
+    silence_chunks = max(int(pause_sec * 10), 8) if pause_sec > 0 else 18
     vad = AdaptiveEnergyVAD(
         speech_threshold=speech_thold,
         silence_threshold=silence_thold,
@@ -396,21 +400,19 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
     )
 
     print("=" * 70)
-    print("LIVE SPEECH-TO-LATEX TERMINAL STREAMER")
+    print("LIVE SPEECH-TO-LATEX TERMINAL TRANSCRIBER")
     print("=" * 70)
     print("Speak mathematical phrases or lecture sentences into your microphone.")
-    print("Spoken words appear LIVE in real-time as you talk.")
-    print(f"Equations lock in automatically on pause (~{pause_sec:.1f}s) OR press [Enter] to lock in instantly.")
+    print("Press [Enter] at any moment to transcribe immediately.")
+    if not enter_only and pause_sec > 0:
+        print(f"(Or pause naturally for ~{pause_sec:.1f}s for auto-transcription)")
     print("Press Ctrl+C to exit.")
     print("=" * 70 + "\n")
-    print(f"{DIM}[Listening...]{RESET}\n")
+    print(f"{DIM}[Listening...] Speak, then press [Enter] to transcribe.{RESET}\n")
 
     current_speech_chunks = []
     in_speech = False
-    last_transcribe_time = 0.0
-    last_partial_text = ""
-
-    # Streaming 120 Hz filter for seamless chunk continuity without boundary clicks
+    rolling_chunks = collections.deque(maxlen=120)  # Rolling 12-second audio history
     hpf = HighPassHumFilter()
 
     try:
@@ -421,8 +423,7 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                 r, _, _ = select.select([sys.stdin], [], [], 0.0)
                 if r:
                     sys.stdin.readline()
-                    if in_speech:
-                        manual_lock_in = True
+                    manual_lock_in = True
             except Exception:
                 pass
 
@@ -434,90 +435,108 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                 pcm_data = np.frombuffer(raw_bytes, dtype=np.int16)
                 mono_chunk = np.clip(pcm_data / 32768.0, -1.0, 1.0).astype(np.float32)
 
-            # Continuous high-pass filter (removes 50/100 Hz AC hum with zero boundary clicks)
+            # Continuous high-pass filter (removes 50/100 Hz AC hum)
             filtered_chunk = hpf.process(mono_chunk)
+            rms = float(np.sqrt(np.mean(filtered_chunk ** 2)))
+            rolling_chunks.append((filtered_chunk, rms))
 
             state, initial_chunks = vad.process(filtered_chunk)
-            if manual_lock_in and in_speech:
-                state = "end"
 
             if state == "start":
                 in_speech = True
-                # Prepend the pre-roll history to avoid clipping initial consonants
                 current_speech_chunks = list(initial_chunks) if initial_chunks else [filtered_chunk]
-                last_partial_text = ""
-                last_transcribe_time = time.monotonic()
-                sys.stdout.write(f"{CLEAR_LINE}{YELLOW_BOLD}[Speaking...]{RESET} ")
+                elapsed_sec = len(current_speech_chunks) * 0.1
+                sys.stdout.write(f"{CLEAR_LINE}{YELLOW_BOLD}[Recording {elapsed_sec:.1f}s]{RESET} [====....] {DIM}Press [Enter] to transcribe{RESET}\r")
                 sys.stdout.flush()
 
             elif in_speech:
                 current_speech_chunks.append(filtered_chunk)
-                now = time.monotonic()
+                elapsed_sec = len(current_speech_chunks) * 0.1
+                # Pure CPU/NumPy VU meter (0% GPU, zero over-current risk)
+                ratio = min(max((rms - noise_floor) / max(speech_thold * 1.5, 0.02), 0.0), 1.0)
+                bars = int(round(ratio * 8))
+                vu = "=" * bars + "." * (8 - bars)
+                pause_note = f" {DIM}(pause detected - press Enter to lock in){RESET}" if vad.silence_count >= 5 else f" {DIM}Press [Enter] to transcribe{RESET}"
+                sys.stdout.write(
+                    f"{CLEAR_LINE}{YELLOW_BOLD}[Recording {elapsed_sec:.1f}s]{RESET} [{vu}]{pause_note}\r"
+                )
+                sys.stdout.flush()
 
-                # Run live partial ASR every 380ms, but only once >= 800ms has accumulated
-                accumulated_samples = sum(len(c) for c in current_speech_chunks)
-                if (accumulated_samples >= 12800) and (now - last_transcribe_time >= 0.38):
-                    accumulated = np.concatenate(current_speech_chunks)
-                    # Limit rolling ASR window to last 8 seconds for bounded edge latency
-                    if len(accumulated) > 16000 * 8:
-                        accumulated = accumulated[-16000 * 8:]
+            # Determine if transcription should trigger:
+            # 1. User pressed [Enter] (Instant manual lock-in)
+            # 2. Natural pause ended speech (if not enter_only mode)
+            should_transcribe = False
+            is_manual = False
 
-                    partial_text, asr_ms = query_whisper_stream(accumulated)
-                    if partial_text:
-                        last_partial_text = partial_text
-                        elapsed_sec = round(len(accumulated) / 16000.0, 1)
-                        # If user is in a brief pause (> 400ms), show pausing indicator
-                        pause_indicator = f" {DIM}(pause detected - press Enter to lock in){RESET}" if vad.silence_count >= 4 else ""
-                        sys.stdout.write(
-                            f"{CLEAR_LINE}{YELLOW_BOLD}[Live {elapsed_sec:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}{pause_indicator}"
-                        )
-                        sys.stdout.flush()
-                    last_transcribe_time = now
+            if manual_lock_in:
+                should_transcribe = True
+                is_manual = True
+            elif not enter_only and pause_sec > 0 and state == "end" and in_speech:
+                should_transcribe = True
+                is_manual = False
 
-            if state == "end" and in_speech:
-                in_speech = False
-                # Strip trailing silence chunks to prevent end-of-audio hallucination
-                if not manual_lock_in and len(current_speech_chunks) > silence_chunks:
-                    speech_chunks = current_speech_chunks[:-silence_chunks]
+            if should_transcribe:
+                if in_speech and current_speech_chunks:
+                    if is_manual:
+                        speech_chunks = list(current_speech_chunks)
+                    else:
+                        # Auto-pause: strip trailing silence chunks
+                        if len(current_speech_chunks) > silence_chunks:
+                            speech_chunks = current_speech_chunks[:-silence_chunks]
+                        else:
+                            speech_chunks = current_speech_chunks
                 else:
-                    speech_chunks = current_speech_chunks
+                    # User pressed Enter without VAD active: find recent audio in rolling history
+                    earliest_idx = None
+                    for idx, (c, r) in enumerate(rolling_chunks):
+                        if r >= silence_thold:
+                            earliest_idx = max(0, idx - 4)  # 400ms pre-roll
+                            break
+                    if earliest_idx is not None and (len(rolling_chunks) - earliest_idx >= 4):
+                        speech_chunks = [c for c, _ in list(rolling_chunks)[earliest_idx:]]
+                    else:
+                        speech_chunks = []
 
-                if not speech_chunks:
+                if not speech_chunks or len(speech_chunks) < 4:
+                    if is_manual:
+                        sys.stdout.write(f"{CLEAR_LINE}{DIM}[Listening...] (No speech detected - speak and press [Enter]){RESET}\n")
+                    else:
+                        sys.stdout.write(f"{CLEAR_LINE}{DIM}[Listening...]{RESET}\r")
+                    sys.stdout.flush()
                     current_speech_chunks = []
-                    last_partial_text = ""
+                    in_speech = False
+                    vad.reset()
                     continue
 
                 full_utterance = np.concatenate(speech_chunks)
                 total_duration = len(full_utterance) / 16000.0
 
-                # Reject short acoustic transients (< 0.50s like coughs or clicks)
-                if total_duration < 0.50:
-                    sys.stdout.write(f"{CLEAR_LINE}{DIM}[Listening...]{RESET}\r")
-                    sys.stdout.flush()
-                    current_speech_chunks = []
-                    last_partial_text = ""
-                    continue
+                sys.stdout.write(f"{CLEAR_LINE}{CYAN_BOLD}[Transcribing {total_duration:.1f}s audio...]{RESET}\r")
+                sys.stdout.flush()
 
+                # Run Whisper ASR ONCE on GPU
                 final_text, final_asr_ms = query_whisper_stream(full_utterance)
-                # Fallback to last partial text if final decoding is empty or drastically truncated
-                if not final_text or (last_partial_text and len(final_text.split()) < max(1, len(last_partial_text.split()) // 3)):
-                    final_text = last_partial_text
 
                 if final_text.strip():
                     sys.stdout.write(f"{CLEAR_LINE}{WHITE_BOLD}[Spoken]:{RESET} \"{final_text}\"\n")
                     sys.stdout.flush()
 
-                    # Trigger Qwen2.5-1.5B SLM LaTeX translation
+                    # Run Qwen2.5-1.5B SLM ONCE on GPU
                     t_slm_start = time.monotonic()
                     latex_output = slm.translate(final_text)
                     slm_ms = (time.monotonic() - t_slm_start) * 1000.0
 
                     print(f"{GREEN_BOLD}[LaTeX]: {RESET}{GREEN_BOLD}{latex_output}{RESET}")
                     print(f"{DIM}[Latency]: ASR: {final_asr_ms:.1f}ms | SLM: {slm_ms:.1f}ms | Audio: {total_duration:.2f}s{RESET}\n")
-                    print(f"{DIM}[Listening...]{RESET}\n")
+                    print(f"{DIM}[Listening...] Speak, then press [Enter] to transcribe.{RESET}\n")
+                else:
+                    sys.stdout.write(f"{CLEAR_LINE}{DIM}[Listening...] (No speech recognized - speak and press [Enter]){RESET}\n")
+                    sys.stdout.flush()
 
                 current_speech_chunks = []
-                last_partial_text = ""
+                in_speech = False
+                vad.reset()
+                rolling_chunks.clear()
 
     except KeyboardInterrupt:
         print(f"\n{YELLOW_BOLD}[Stream]{RESET} Exiting live listener...")
@@ -612,7 +631,8 @@ def main():
     parser = argparse.ArgumentParser(description="Live Streaming Speech-to-LaTeX Transcriber")
     parser.add_argument("--file", type=str, default=None, help="Path to WAV audio file to simulate live streaming")
     parser.add_argument("--mic", action="store_true", help="Force microphone input")
-    parser.add_argument("--pause", type=float, default=1.2, help="Silence pause duration (seconds) before equation lock-in (default: 1.2s, or press Enter)")
+    parser.add_argument("--pause", type=float, default=1.8, help="Silence pause duration (seconds) before equation lock-in (default: 1.8s, or press Enter)")
+    parser.add_argument("--enter-only", action="store_true", help="Only transcribe upon pressing Enter (disables auto-pause lock-in)")
     parser.add_argument("--model", type=str, default="small", choices=["base", "small"], help="Whisper model to use ('small' or 'base', default: 'small')")
     args = parser.parse_args()
 
@@ -625,7 +645,7 @@ def main():
     if args.file:
         run_file_simulation(args.file, slm)
     else:
-        run_live_microphone(slm, pause_sec=args.pause)
+        run_live_microphone(slm, pause_sec=args.pause, enter_only=args.enter_only)
 
 
 if __name__ == "__main__":
