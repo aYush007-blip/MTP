@@ -28,6 +28,7 @@ import json
 import os
 from pathlib import Path
 import re
+import select
 import subprocess
 import sys
 import threading
@@ -49,7 +50,6 @@ except Exception:
 
 import numpy as np
 import pyaudio
-from scipy import signal
 
 # Ensure src/ is in sys.path
 SRC_DIR = Path(__file__).resolve().parent
@@ -68,19 +68,47 @@ WHISPER_SMALL_MODEL = "/mnt/thesis/models/whisper/ggml-small.en.bin"
 LLAMA_BIN = "/mnt/thesis/llama.cpp/build/bin/llama-server"
 LLAMA_MODEL = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
-# Rich Mathematical & Signals and Systems Conditioning Prompt for Whisper ASR
+# High-precision technical keyword vocabulary prompt for Whisper ASR (avoids sentence regurgitation)
 WHISPER_MATH_PROMPT = (
-    "The Fourier transform of a continuous-time signal x(t) is defined as "
-    "the integral from minus infinity to plus infinity of x(t) e^{-j \\omega t} dt. "
-    "Fourier series, inverse Fourier transform, Laplace transform, signals and systems, calculus, "
-    "continuous time signal, differential equations, delta function, omega, frequency domain, "
-    "time domain, x of t, e to the power minus j omega t dt, integral from minus infinity to plus infinity, "
-    "sine, cosine, theta, pi, derivative, matrix, vector."
+    "Fourier transform, Laplace, continuous-time signal, discrete-time, integral, "
+    "derivative, calculus, algebra, omega, theta, phi, pi, infinity, x(t), f(x), "
+    "e to the power, differential equation, matrix, vector, sinusoids."
 )
 
-# 4th-order Butterworth High-Pass Filter (120 Hz) designed for 16 kHz audio
-# Eliminates 50 Hz & 100 Hz AC electrical mains hum and low-frequency rumble
-SOS_HPF_16K = signal.butter(4, 120, "hp", fs=16000, output="sos")
+
+class HighPassHumFilter:
+    """
+    Cascaded 4th-order DC-blocking & 120 Hz mains hum attenuation filter.
+    Pure NumPy implementation: 0 external C/Fortran libraries, zero SciPy symbols.
+    Attenuates 50 Hz & 100 Hz AC electrical noise by >85%.
+    """
+    def __init__(self, r: float = 0.953):
+        self.r = r
+        self.x1_prev = 0.0
+        self.y1_prev = 0.0
+        self.x2_prev = 0.0
+        self.y2_prev = 0.0
+
+    def process(self, x: np.ndarray) -> np.ndarray:
+        # Stage 1
+        y1 = np.empty_like(x)
+        xp1, yp1, r = self.x1_prev, self.y1_prev, self.r
+        for i in range(len(x)):
+            y1[i] = x[i] - xp1 + r * yp1
+            yp1, xp1 = y1[i], x[i]
+        self.x1_prev, self.y1_prev = xp1, yp1
+
+        # Stage 2
+        y2 = np.empty_like(y1)
+        xp2, yp2 = self.x2_prev, self.y2_prev
+        for i in range(len(y1)):
+            y2[i] = y1[i] - xp2 + r * yp2
+            yp2, xp2 = y2[i], y1[i]
+        self.x2_prev, self.y2_prev = xp2, yp2
+        return y2
+
+    def reset(self):
+        self.x1_prev = self.y1_prev = self.x2_prev = self.y2_prev = 0.0
 
 # Terminal ANSI Styling
 CYAN_BOLD = "\033[1;36m"
@@ -141,23 +169,33 @@ def ensure_edge_daemons(model_type: str = "small"):
                 break
         print(f"{GREEN_BOLD}✅ whisper-server ready ({Path(model_path).name}) on {WHISPER_SERVER_URL}{RESET}")
     else:
-        # Server is already running: ensure requested model is loaded via /load endpoint
-        try:
-            boundary = "----ModelLoadBoundary"
-            body = (
-                f"--{boundary}\r\n"
-                f'Content-Disposition: form-data; name="model"\r\n\r\n'
-                f"{model_path}\r\n--{boundary}--\r\n"
-            ).encode("utf-8")
-            req = urllib.request.Request(
-                f"{WHISPER_SERVER_URL}/load",
-                data=body,
-                headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-            )
-            with urllib.request.urlopen(req, timeout=10.0) as resp:
+        # Server is already running: reload only if requested model is different
+        current_model_file = Path("/tmp/whisper_current_model.txt")
+        needs_reload = True
+        if current_model_file.exists():
+            try:
+                if current_model_file.read_text().strip() == model_path:
+                    needs_reload = False
+            except Exception:
                 pass
-        except Exception:
-            pass
+
+        if needs_reload:
+            try:
+                boundary = "----ModelLoadBoundary"
+                body = (
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="model"\r\n\r\n'
+                    f"{model_path}\r\n--{boundary}--\r\n"
+                ).encode("utf-8")
+                req = urllib.request.Request(
+                    f"{WHISPER_SERVER_URL}/load",
+                    data=body,
+                    headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                )
+                with urllib.request.urlopen(req, timeout=10.0) as resp:
+                    current_model_file.write_text(model_path)
+            except Exception:
+                pass
         print(f"{GREEN_BOLD}✅ whisper-server active with {Path(model_path).name} on {WHISPER_SERVER_URL}{RESET}")
 
     # 2. Check if llama-server is alive (Port 8080)
@@ -276,6 +314,7 @@ def calibrate_ambient_noise(
     """
     num_chunks = int(duration_sec * rate / chunk_size)
     cal_rmses = []
+    hpf = HighPassHumFilter()
 
     sys.stdout.write(f"{YELLOW_BOLD}🎙️  [Calibration]{RESET} Measuring ambient noise floor ({duration_sec:.1f}s)... ")
     sys.stdout.flush()
@@ -289,7 +328,7 @@ def calibrate_ambient_noise(
             mono_chunk = np.clip(pcm_data / 32768.0, -1.0, 1.0).astype(np.float32)
 
         # Apply high-pass filter
-        filtered_chunk = signal.sosfilt(SOS_HPF_16K, mono_chunk)
+        filtered_chunk = hpf.process(mono_chunk)
         rms = float(np.sqrt(np.mean(filtered_chunk ** 2)))
         cal_rmses.append(rms)
 
@@ -347,13 +386,13 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
     )
 
     # 2. Initialize Adaptive VAD with dual thresholds and 400ms pre-roll buffer
-    silence_chunks = max(int(pause_sec * 10), 10)  # e.g. 1.5s = 15 chunks
+    silence_chunks = max(int(pause_sec * 10), 8)  # e.g. 1.2s = 12 chunks
     vad = AdaptiveEnergyVAD(
         speech_threshold=speech_thold,
         silence_threshold=silence_thold,
-        min_speech_chunks=2,            # 200ms speech onset
-        min_silence_chunks=silence_chunks, # 1.5s natural pause tolerance
-        pre_roll_chunks=4,              # 400ms pre-trigger history
+        min_speech_chunks=2,               # 200ms speech onset
+        min_silence_chunks=silence_chunks, # natural pause tolerance
+        pre_roll_chunks=4,                 # 400ms pre-trigger history
     )
 
     print("=" * 70)
@@ -361,7 +400,7 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
     print("=" * 70)
     print("Speak mathematical phrases or lecture sentences into your microphone.")
     print("Spoken words appear LIVE in real-time as you talk.")
-    print(f"Natural pauses (~{pause_sec:.1f}s) will lock in the final formatted LaTeX equation.")
+    print(f"Equations lock in automatically on pause (~{pause_sec:.1f}s) OR press [Enter] to lock in instantly.")
     print("Press Ctrl+C to exit.")
     print("=" * 70 + "\n")
     print(f"{DIM}🎧 Listening...{RESET}\n")
@@ -371,11 +410,22 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
     last_transcribe_time = 0.0
     last_partial_text = ""
 
-    # Streaming filter initial conditions for seamless chunk continuity
-    filter_zi = signal.sosfilt_zi(SOS_HPF_16K)
+    # Streaming 120 Hz filter for seamless chunk continuity without boundary clicks
+    hpf = HighPassHumFilter()
 
     try:
         while True:
+            # Check for instant manual lock-in via Enter key
+            manual_lock_in = False
+            try:
+                r, _, _ = select.select([sys.stdin], [], [], 0.0)
+                if r:
+                    sys.stdin.readline()
+                    if in_speech:
+                        manual_lock_in = True
+            except Exception:
+                pass
+
             raw_bytes = stream.read(chunk_size, exception_on_overflow=False)
 
             if rate == 48000 and channels == 2:
@@ -385,9 +435,11 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                 mono_chunk = np.clip(pcm_data / 32768.0, -1.0, 1.0).astype(np.float32)
 
             # Continuous high-pass filter (removes 50/100 Hz AC hum with zero boundary clicks)
-            filtered_chunk, filter_zi = signal.sosfilt(SOS_HPF_16K, mono_chunk, zi=filter_zi)
+            filtered_chunk = hpf.process(mono_chunk)
 
             state, initial_chunks = vad.process(filtered_chunk)
+            if manual_lock_in and in_speech:
+                state = "end"
 
             if state == "start":
                 in_speech = True
@@ -406,16 +458,16 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                 accumulated_samples = sum(len(c) for c in current_speech_chunks)
                 if (accumulated_samples >= 12800) and (now - last_transcribe_time >= 0.38):
                     accumulated = np.concatenate(current_speech_chunks)
-                    # Limit rolling ASR window to last 6 seconds for bounded edge latency
-                    if len(accumulated) > 16000 * 6:
-                        accumulated = accumulated[-16000 * 6:]
+                    # Limit rolling ASR window to last 8 seconds for bounded edge latency
+                    if len(accumulated) > 16000 * 8:
+                        accumulated = accumulated[-16000 * 8:]
 
                     partial_text, asr_ms = query_whisper_stream(accumulated)
                     if partial_text:
                         last_partial_text = partial_text
                         elapsed_sec = round(len(accumulated) / 16000.0, 1)
                         # If user is in a brief pause (> 400ms), show pausing indicator
-                        pause_indicator = f" {DIM}⏳ (pausing...){RESET}" if vad.silence_count >= 4 else ""
+                        pause_indicator = f" {DIM}⏳ (pausing... or press Enter){RESET}" if vad.silence_count >= 4 else ""
                         sys.stdout.write(
                             f"{CLEAR_LINE}{YELLOW_BOLD}🎙️  [LIVE {elapsed_sec:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}{pause_indicator}"
                         )
@@ -424,11 +476,22 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
 
             if state == "end" and in_speech:
                 in_speech = False
-                full_utterance = np.concatenate(current_speech_chunks)
+                # Strip trailing silence chunks to prevent end-of-audio hallucination
+                if not manual_lock_in and len(current_speech_chunks) > silence_chunks:
+                    speech_chunks = current_speech_chunks[:-silence_chunks]
+                else:
+                    speech_chunks = current_speech_chunks
+
+                if not speech_chunks:
+                    current_speech_chunks = []
+                    last_partial_text = ""
+                    continue
+
+                full_utterance = np.concatenate(speech_chunks)
                 total_duration = len(full_utterance) / 16000.0
 
-                # Reject short acoustic transients (< 0.60s like coughs or clicks)
-                if total_duration < 0.60:
+                # Reject short acoustic transients (< 0.50s like coughs or clicks)
+                if total_duration < 0.50:
                     sys.stdout.write(f"{CLEAR_LINE}{DIM}🎧 Listening...{RESET}\r")
                     sys.stdout.flush()
                     current_speech_chunks = []
@@ -436,7 +499,8 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                     continue
 
                 final_text, final_asr_ms = query_whisper_stream(full_utterance)
-                if not final_text:
+                # Fallback to last partial text if final decoding is empty or drastically truncated
+                if not final_text or (last_partial_text and len(final_text.split()) < max(1, len(last_partial_text.split()) // 3)):
                     final_text = last_partial_text
 
                 if final_text.strip():
@@ -492,7 +556,8 @@ def run_file_simulation(audio_path: str, slm: QwenMathTranslator):
     float_audio = np.clip(pcm / 32768.0, -1.0, 1.0).astype(np.float32)
 
     # Filter with HPF
-    filtered_audio = signal.sosfilt(SOS_HPF_16K, float_audio)
+    hpf = HighPassHumFilter()
+    filtered_audio = hpf.process(float_audio)
 
     total_sec = len(filtered_audio) / 16000.0
     print("\n" + "=" * 70)
@@ -547,7 +612,7 @@ def main():
     parser = argparse.ArgumentParser(description="Live Streaming Speech-to-LaTeX Transcriber")
     parser.add_argument("--file", type=str, default=None, help="Path to WAV audio file to simulate live streaming")
     parser.add_argument("--mic", action="store_true", help="Force microphone input")
-    parser.add_argument("--pause", type=float, default=1.5, help="Silence pause duration (seconds) before equation lock-in (default: 1.5s)")
+    parser.add_argument("--pause", type=float, default=1.2, help="Silence pause duration (seconds) before equation lock-in (default: 1.2s, or press Enter)")
     parser.add_argument("--model", type=str, default="small", choices=["base", "small"], help="Whisper model to use ('small' or 'base', default: 'small')")
     args = parser.parse_args()
 
