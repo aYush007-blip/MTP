@@ -167,7 +167,7 @@ def ensure_edge_daemons(model_type: str = "small"):
             time.sleep(0.5)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
                 break
-        print(f"{GREEN_BOLD}✅ whisper-server ready ({Path(model_path).name}) on {WHISPER_SERVER_URL}{RESET}")
+        print(f"{GREEN_BOLD}[Ready]{RESET} whisper-server ready ({Path(model_path).name}) on {WHISPER_SERVER_URL}")
     else:
         # Server is already running: reload only if requested model is different
         current_model_file = Path("/tmp/whisper_current_model.txt")
@@ -196,7 +196,7 @@ def ensure_edge_daemons(model_type: str = "small"):
                     current_model_file.write_text(model_path)
             except Exception:
                 pass
-        print(f"{GREEN_BOLD}✅ whisper-server active with {Path(model_path).name} on {WHISPER_SERVER_URL}{RESET}")
+        print(f"{GREEN_BOLD}[Active]{RESET} whisper-server active with {Path(model_path).name} on {WHISPER_SERVER_URL}")
 
     # 2. Check if llama-server is alive (Port 8080)
     if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
@@ -214,9 +214,9 @@ def ensure_edge_daemons(model_type: str = "small"):
             time.sleep(0.5)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
                 break
-        print(f"{GREEN_BOLD}✅ llama-server (Qwen2.5-1.5B) ready on {LLAMA_SERVER_URL}{RESET}")
+        print(f"{GREEN_BOLD}[Ready]{RESET} llama-server (Qwen2.5-1.5B) ready on {LLAMA_SERVER_URL}")
     else:
-        print(f"{GREEN_BOLD}✅ llama-server (Qwen2.5-1.5B) is active on {LLAMA_SERVER_URL}{RESET}")
+        print(f"{GREEN_BOLD}[Active]{RESET} llama-server (Qwen2.5-1.5B) is active on {LLAMA_SERVER_URL}")
 
 
 def clean_whisper_text(text: str) -> str:
@@ -316,7 +316,7 @@ def calibrate_ambient_noise(
     cal_rmses = []
     hpf = HighPassHumFilter()
 
-    sys.stdout.write(f"{YELLOW_BOLD}🎙️  [Calibration]{RESET} Measuring ambient noise floor ({duration_sec:.1f}s)... ")
+    sys.stdout.write(f"{YELLOW_BOLD}[Calibration]{RESET} Measuring ambient noise floor ({duration_sec:.1f}s)... ")
     sys.stdout.flush()
 
     for _ in range(max(num_chunks, 6)):
@@ -361,11 +361,11 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
             device_index = i
             channels = 2
             rate = 48000
-            print(f"🎙️  Found USB Microphone: {info['name']} (Device {i}, 48kHz Stereo)")
+            print(f"[Audio] Detected USB Microphone: {info['name']} (Device {i}, 48kHz Stereo)")
             break
 
     if device_index is None:
-        print("🎙️  Using default system microphone (16kHz Mono)")
+        print("[Audio] Using default system microphone (16kHz Mono)")
         device_index = None
         channels = 1
         rate = 16000
@@ -396,14 +396,14 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
     )
 
     print("=" * 70)
-    print("🚀 LIVE SPEECH-TO-LATEX TERMINAL STREAMER READY")
+    print("LIVE SPEECH-TO-LATEX TERMINAL STREAMER")
     print("=" * 70)
     print("Speak mathematical phrases or lecture sentences into your microphone.")
     print("Spoken words appear LIVE in real-time as you talk.")
     print(f"Equations lock in automatically on pause (~{pause_sec:.1f}s) OR press [Enter] to lock in instantly.")
     print("Press Ctrl+C to exit.")
     print("=" * 70 + "\n")
-    print(f"{DIM}🎧 Listening...{RESET}\n")
+    print(f"{DIM}[Listening...]{RESET}\n")
 
     current_speech_chunks = []
     in_speech = False
@@ -447,7 +447,7 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                 current_speech_chunks = list(initial_chunks) if initial_chunks else [filtered_chunk]
                 last_partial_text = ""
                 last_transcribe_time = time.monotonic()
-                sys.stdout.write(f"{CLEAR_LINE}{YELLOW_BOLD}🎙️  [Speaking...]{RESET} ")
+                sys.stdout.write(f"{CLEAR_LINE}{YELLOW_BOLD}[Speaking...]{RESET} ")
                 sys.stdout.flush()
 
             elif in_speech:
@@ -467,9 +467,9 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                         last_partial_text = partial_text
                         elapsed_sec = round(len(accumulated) / 16000.0, 1)
                         # If user is in a brief pause (> 400ms), show pausing indicator
-                        pause_indicator = f" {DIM}⏳ (pausing... or press Enter){RESET}" if vad.silence_count >= 4 else ""
+                        pause_indicator = f" {DIM}(pause detected - press Enter to lock in){RESET}" if vad.silence_count >= 4 else ""
                         sys.stdout.write(
-                            f"{CLEAR_LINE}{YELLOW_BOLD}🎙️  [LIVE {elapsed_sec:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}{pause_indicator}"
+                            f"{CLEAR_LINE}{YELLOW_BOLD}[Live {elapsed_sec:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}{pause_indicator}"
                         )
                         sys.stdout.flush()
                     last_transcribe_time = now
@@ -492,7 +492,7 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
 
                 # Reject short acoustic transients (< 0.50s like coughs or clicks)
                 if total_duration < 0.50:
-                    sys.stdout.write(f"{CLEAR_LINE}{DIM}🎧 Listening...{RESET}\r")
+                    sys.stdout.write(f"{CLEAR_LINE}{DIM}[Listening...]{RESET}\r")
                     sys.stdout.flush()
                     current_speech_chunks = []
                     last_partial_text = ""
@@ -504,7 +504,7 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                     final_text = last_partial_text
 
                 if final_text.strip():
-                    sys.stdout.write(f"{CLEAR_LINE}{WHITE_BOLD}🗣️  Spoken:{RESET} \"{final_text}\"\n")
+                    sys.stdout.write(f"{CLEAR_LINE}{WHITE_BOLD}[Spoken]:{RESET} \"{final_text}\"\n")
                     sys.stdout.flush()
 
                     # Trigger Qwen2.5-1.5B SLM LaTeX translation
@@ -512,9 +512,9 @@ def run_live_microphone(slm: QwenMathTranslator, pause_sec: float = 1.5):
                     latex_output = slm.translate(final_text)
                     slm_ms = (time.monotonic() - t_slm_start) * 1000.0
 
-                    print(f"{GREEN_BOLD}✨ LaTeX: {RESET}{GREEN_BOLD}{latex_output}{RESET}")
-                    print(f"{DIM}⚡ Latency: ASR: {final_asr_ms:.1f}ms | SLM: {slm_ms:.1f}ms | Total Audio: {total_duration:.2f}s{RESET}\n")
-                    print(f"{DIM}🎧 Listening...{RESET}\n")
+                    print(f"{GREEN_BOLD}[LaTeX]: {RESET}{GREEN_BOLD}{latex_output}{RESET}")
+                    print(f"{DIM}[Latency]: ASR: {final_asr_ms:.1f}ms | SLM: {slm_ms:.1f}ms | Audio: {total_duration:.2f}s{RESET}\n")
+                    print(f"{DIM}[Listening...]{RESET}\n")
 
                 current_speech_chunks = []
                 last_partial_text = ""
@@ -561,8 +561,8 @@ def run_file_simulation(audio_path: str, slm: QwenMathTranslator):
 
     total_sec = len(filtered_audio) / 16000.0
     print("\n" + "=" * 70)
-    print(f"🎬 SIMULATING LIVE MICROPHONE STREAMING FROM: {p.name}")
-    print(f"⏱️  Duration: {total_sec:.2f}s | Sample Rate: 16 kHz")
+    print(f"SIMULATING LIVE STREAMING FROM: {p.name}")
+    print(f"Duration: {total_sec:.2f}s | Sample Rate: 16 kHz")
     print("=" * 70 + "\n")
 
     chunk_samples = 1600  # 100ms chunks
@@ -584,7 +584,7 @@ def run_file_simulation(audio_path: str, slm: QwenMathTranslator):
                 last_partial_text = partial_text
                 elapsed = round(len(acc) / 16000.0, 1)
                 sys.stdout.write(
-                    f"{CLEAR_LINE}{YELLOW_BOLD}🎙️  [LIVE {elapsed:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}"
+                    f"{CLEAR_LINE}{YELLOW_BOLD}[Live {elapsed:.1f}s]:{RESET} {CYAN_BOLD}{partial_text}{RESET}"
                 )
                 sys.stdout.flush()
 
@@ -594,7 +594,7 @@ def run_file_simulation(audio_path: str, slm: QwenMathTranslator):
     if not final_text:
         final_text = last_partial_text
 
-    sys.stdout.write(f"{CLEAR_LINE}{WHITE_BOLD}🗣️  Final Spoken Transcript:{RESET} \"{final_text}\"\n")
+    sys.stdout.write(f"{CLEAR_LINE}{WHITE_BOLD}[Spoken Transcript]:{RESET} \"{final_text}\"\n")
     sys.stdout.flush()
 
     print(f"\n{YELLOW_BOLD}[SLM]{RESET} Formatting with Qwen2.5-1.5B (CUDA SM87)...")
@@ -603,8 +603,8 @@ def run_file_simulation(audio_path: str, slm: QwenMathTranslator):
     slm_ms = (time.monotonic() - t_slm_start) * 1000.0
 
     print("\n" + "=" * 70)
-    print(f"{GREEN_BOLD}✨ FINAL LATEX OUTPUT:{RESET} {GREEN_BOLD}{latex_output}{RESET}")
-    print(f"{DIM}⚡ Latency Profile: Final ASR: {final_asr_ms:.1f}ms | SLM: {slm_ms:.1f}ms | Total Audio: {total_sec:.2f}s{RESET}")
+    print(f"{GREEN_BOLD}[Final LaTeX]:{RESET} {GREEN_BOLD}{latex_output}{RESET}")
+    print(f"{DIM}[Latency Profile]: Final ASR: {final_asr_ms:.1f}ms | SLM: {slm_ms:.1f}ms | Audio: {total_sec:.2f}s{RESET}")
     print("=" * 70 + "\n")
 
 

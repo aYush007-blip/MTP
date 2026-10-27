@@ -244,9 +244,9 @@ def main():
     latency_ms = (time.monotonic() - t0) * 1000.0
 
     print("\n" + "=" * 60)
-    print(f"🎙️  Input:   {args.text}")
-    print(f"✨ Output:  {result}")
-    print(f"⚡ Latency: {latency_ms:.1f} ms")
+    print(f"[Input]:   {args.text}")
+    print(f"[Output]:  {result}")
+    print(f"[Latency]: {latency_ms:.1f} ms")
     print("=" * 60 + "\n")
 
 
