@@ -215,21 +215,22 @@ flowchart TD
 
 ---
 
-### Decision 8: WebSocket Communication & KaTeX Streaming Protocol
-* **Context:** The browser interface needs real-time display of transcriptions, audio levels, and status indicators without page refreshes.
+### Decision 8: WebSocket Communication, High-Pass Hum Filtering, & Instant Key Shortcuts
+* **Context:** The browser interface needs real-time display of transcriptions, live audio levels, and status indicators without page refreshes, while avoiding PMIC over-current throttling on the Jetson Orin Nano.
 * **Decision:**
-  - Standardized JSON packet schema over WebSocket on `ws://localhost:8000/ws`:
-    ```json
-    {
-      "type": "transcription",
-      "timestamp": "2026-10-15T16:20:00.123",
-      "raw_transcript": "ax plus by plus cz equals d",
-      "processed_text": "$ax + by + cz = d$",
-      "engine": "qwen2.5-1.5b",
-      "latency_ms": 284.5
-    }
-    ```
-  - Frontend (`app.js`) uses client-side KaTeX auto-render on the DOM node without blocking the UI event loop.
+  - Standardized real-time JSON packets over WebSocket (`ws://localhost:8000/ws`):
+    - **Live Telemetry Packets (120ms tick):**
+      `{"type": "telemetry", "is_recording": true, "elapsed_sec": 3.1, "rms": 0.045}`
+    - **Bidirectional Actions:**
+      `{"action": "start_hw_mic"}`, `{"action": "transcribe_now", "engine": "slm"}`
+    - **Transcription Broadcast:**
+      `{"type": "transcription_result", "raw_transcript": "...", "processed_text": "...", "engine": "qwen2.5-1.5b", "asr_time_ms": 285.4, "router_time_ms": 260.1, "total_time_ms": 545.5}`
+  - Audio capture uses `HighPassHumFilter` (120 Hz cascaded filter) to strip 50/100 Hz AC hum before ASR.
+  - Upgraded GUI pipeline to use `whisper-server` (`ggml-small.en.bin`, Flash Attention CUDA SM87, mathematical prompting) instead of cold-start CLI subprocesses.
+  - Added global keyboard shortcuts in the GUI:
+    - `<Enter>`: Instantly locks in and transcribes recorded audio spoken up to that moment.
+    - `<Space>`: Toggles hardware microphone recording on and off.
+  - Eliminated all decorative emojis across the GUI in favor of high-contrast, professional metadata badges (`[AUDIO]`, `[LATEX]`, `[SLM]`, `[T5]`, `[HW]`, `[WEB]`).
 
 ---
 

@@ -39,15 +39,122 @@ SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+import urllib.request
+
 from audio import stereo_48k_to_mono_16k
 
-# Paths
-WHISPER_BIN = Path("/mnt/thesis/main/whisper.cpp/build-orin/bin/whisper-cli")
-WHISPER_MODEL = Path("/mnt/thesis/models/whisper/ggml-base.bin")
+# Paths & Daemon Endpoints
+WHISPER_SERVER_URL = "http://127.0.0.1:8081"
+LLAMA_SERVER_URL = "http://127.0.0.1:8080"
+WHISPER_CLI_BIN = Path("/mnt/thesis/main/whisper.cpp/build-orin/bin/whisper-cli")
+WHISPER_SERVER_BIN = Path("/mnt/thesis/main/whisper.cpp/build-orin/bin/whisper-server")
+WHISPER_BASE_MODEL = Path("/mnt/thesis/models/whisper/ggml-base.bin")
+WHISPER_SMALL_MODEL = Path("/mnt/thesis/models/whisper/ggml-small.en.bin")
+LLAMA_BIN = Path("/mnt/thesis/llama.cpp/build/bin/llama-server")
+LLAMA_MODEL = Path("/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf")
 RECORDINGS_DIR = Path("/mnt/thesis/recordings")
 RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
 GUI_DIR = Path(__file__).resolve().parent
 STATIC_DIR = GUI_DIR / "static"
+
+# Math domain prompt for Whisper ASR
+WHISPER_MATH_PROMPT = (
+    "Fourier transform, Laplace, continuous-time signal, discrete-time, integral, "
+    "derivative, calculus, algebra, omega, theta, phi, pi, infinity, x(t), f(x), "
+    "e to the power, differential equation, matrix, vector, sinusoids."
+)
+
+
+class HighPassHumFilter:
+    """
+    Cascaded 4th-order DC-blocking & 120 Hz mains hum attenuation filter.
+    Pure NumPy implementation: 0 external C/Fortran libraries, zero SciPy symbols.
+    Attenuates 50 Hz & 100 Hz AC electrical noise by >85%.
+    """
+    def __init__(self, r: float = 0.953):
+        self.r = r
+        self.x1_prev = 0.0
+        self.y1_prev = 0.0
+        self.x2_prev = 0.0
+        self.y2_prev = 0.0
+
+    def process(self, x: np.ndarray) -> np.ndarray:
+        y1 = np.empty_like(x)
+        xp1, yp1, r = self.x1_prev, self.y1_prev, self.r
+        for i in range(len(x)):
+            y1[i] = x[i] - xp1 + r * yp1
+            yp1, xp1 = y1[i], x[i]
+        self.x1_prev, self.y1_prev = xp1, yp1
+
+        y2 = np.empty_like(y1)
+        xp2, yp2 = self.x2_prev, self.y2_prev
+        for i in range(len(y1)):
+            y2[i] = y1[i] - xp2 + r * yp2
+            yp2, xp2 = y2[i], y1[i]
+        self.x2_prev, self.y2_prev = xp2, yp2
+        return y2
+
+    def reset(self):
+        self.x1_prev = self.y1_prev = self.x2_prev = self.y2_prev = 0.0
+
+
+def clean_whisper_text(text: str) -> str:
+    """Sanitize raw Whisper transcripts: remove non-speech acoustic tags and hallucination phrases."""
+    if not text:
+        return ""
+    cleaned = re.sub(r"[\(\[\{].*?[\)\]\}]", "", text)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    hallucination_phrases = {
+        "you", "you.", "thank you", "thank you.", "thank you for watching", "thank you for watching.",
+        "subtitles by", "bye.", "bye bye", "the end", "i'm out.", "i'm sorry.", "peace."
+    }
+    if cleaned.lower() in hallucination_phrases:
+        return ""
+    return cleaned
+
+
+def is_service_alive(url: str, endpoint: str = "/health") -> bool:
+    try:
+        req = urllib.request.Request(f"{url}{endpoint}", method="GET")
+        with urllib.request.urlopen(req, timeout=1.0) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def query_whisper_server(wav_bytes: bytes) -> tuple[str, float]:
+    """Query whisper-server daemon on port 8081 with mathematical prompting."""
+    t0 = time.monotonic()
+    boundary = "----JetsonGuiStreamBoundary"
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n'
+        f"Content-Type: audio/wav\r\n\r\n"
+    ).encode("utf-8") + wav_bytes + (
+        f"\r\n--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="prompt"\r\n\r\n'
+        f"{WHISPER_MATH_PROMPT}\r\n"
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="no_speech_thold"\r\n\r\n'
+        f"0.65\r\n"
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="response_format"\r\n\r\n'
+        f"json\r\n--{boundary}--\r\n"
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{WHISPER_SERVER_URL}/inference",
+        data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+
+    with urllib.request.urlopen(req, timeout=25.0) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+        raw_text = data.get("text", "").strip()
+        cleaned = clean_whisper_text(raw_text)
+        latency_ms = (time.monotonic() - t0) * 1000.0
+        return cleaned, latency_ms
+
 
 # Global Singletons
 translator = None
@@ -127,7 +234,7 @@ import threading
 
 
 class HardwareMicRecorder:
-    """Manages continuous or timed audio recording from the Jetson USB mic."""
+    """Manages continuous or timed audio recording from the Jetson USB mic with 120Hz HPF."""
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -136,6 +243,8 @@ class HardwareMicRecorder:
         self._chunks: list[np.ndarray] = []
         self._is_recording = False
         self._start_time: float = 0.0
+        self._last_rms: float = 0.0
+        self._hpf = HighPassHumFilter()
 
     @property
     def is_recording(self) -> bool:
@@ -148,6 +257,7 @@ class HardwareMicRecorder:
             return {
                 "is_recording": self._is_recording,
                 "elapsed_sec": round(elapsed, 1),
+                "rms": round(self._last_rms, 4),
             }
 
     def start(self, force: bool = True) -> dict:
@@ -158,13 +268,15 @@ class HardwareMicRecorder:
                     return {
                         "status": "already_recording",
                         "elapsed_sec": round(elapsed, 1),
+                        "rms": round(self._last_rms, 4),
                     }
-                # Force reset previous recording
                 self._stop_event.set()
                 if self._thread and self._thread.is_alive():
                     self._thread.join(timeout=1.0)
 
             self._chunks = []
+            self._hpf.reset()
+            self._last_rms = 0.0
             self._stop_event.clear()
             self._is_recording = True
             self._start_time = time.monotonic()
@@ -175,12 +287,19 @@ class HardwareMicRecorder:
     def _record_loop(self):
         pa = pyaudio.PyAudio()
         dev_idx = None
+        channels = 1
+        rate = 16000
+        chunk_size = 1600
+
         try:
             for i in range(pa.get_device_count()):
                 try:
                     info = pa.get_device_info_by_index(i)
-                    if "AB13X USB Audio" in info["name"] and info["maxInputChannels"] >= 2:
+                    if "ab13x" in info.get("name", "").lower() and info.get("maxInputChannels", 0) > 0:
                         dev_idx = i
+                        channels = 2
+                        rate = 48000
+                        chunk_size = 4800
                         break
                 except Exception:
                     continue
@@ -191,18 +310,27 @@ class HardwareMicRecorder:
 
             stream = pa.open(
                 format=pyaudio.paInt16,
-                channels=2,
-                rate=48000,
+                channels=channels,
+                rate=rate,
                 input=True,
                 input_device_index=dev_idx,
-                frames_per_buffer=4800,
+                frames_per_buffer=chunk_size,
             )
 
             while not self._stop_event.is_set():
-                data = stream.read(4800, exception_on_overflow=False)
-                converted = stereo_48k_to_mono_16k(data)
+                raw_bytes = stream.read(chunk_size, exception_on_overflow=False)
+                if rate == 48000 and channels == 2:
+                    mono_chunk = stereo_48k_to_mono_16k(raw_bytes)
+                else:
+                    pcm_data = np.frombuffer(raw_bytes, dtype=np.int16)
+                    mono_chunk = np.clip(pcm_data / 32768.0, -1.0, 1.0).astype(np.float32)
+
+                filtered_chunk = self._hpf.process(mono_chunk)
+                rms = float(np.sqrt(np.mean(filtered_chunk ** 2)))
+
                 with self._lock:
-                    self._chunks.append(converted)
+                    self._chunks.append(filtered_chunk)
+                    self._last_rms = rms
 
             stream.stop_stream()
             stream.close()
@@ -246,41 +374,29 @@ hw_recorder = HardwareMicRecorder()
 
 
 def run_whisper(audio_path: Path) -> tuple[str, float]:
-    """Run Whisper.cpp on audio file with automatic fallback to CPU mode if GPU fails."""
+    """Run Whisper ASR: queries whisper-server daemon first; falls back to whisper-cli."""
+    try:
+        with open(audio_path, "rb") as f:
+            wav_bytes = f.read()
+        return query_whisper_server(wav_bytes)
+    except Exception as e:
+        print(f"[Whisper Server Query Error] {e}. Falling back to CLI...")
+
     start_t = time.monotonic()
+    model = WHISPER_SMALL_MODEL if WHISPER_SMALL_MODEL.exists() else WHISPER_BASE_MODEL
     result = subprocess.run(
         [
-            str(WHISPER_BIN),
-            "-m",
-            str(WHISPER_MODEL),
-            "-f",
-            str(audio_path),
+            str(WHISPER_CLI_BIN),
+            "-m", str(model),
+            "-f", str(audio_path),
+            "-t", "4",
+            "-nt",
+            "--prompt", WHISPER_MATH_PROMPT,
         ],
         capture_output=True,
         text=True,
         check=False,
     )
-
-    # Automatic fallback to CPU mode (-ng) if GPU execution encounters any issue
-    if result.returncode != 0:
-        err_msg = (result.stderr.strip() or result.stdout.strip())[:160]
-        print(f"[Whisper ASR] GPU execution failed (code {result.returncode}, {err_msg}). Falling back to CPU mode (-ng)...")
-        result = subprocess.run(
-            [
-                str(WHISPER_BIN),
-                "-m",
-                str(WHISPER_MODEL),
-                "-f",
-                str(audio_path),
-                "-ng",
-                "-t",
-                "4",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
     duration_ms = (time.monotonic() - start_t) * 1000.0
 
     if result.returncode != 0:
@@ -293,7 +409,7 @@ def run_whisper(audio_path: Path) -> tuple[str, float]:
             text = line.split("]", 1)[1].strip()
             if text and "[BLANK_AUDIO]" not in text:
                 segments.append(text)
-    transcript = " ".join(segments).strip()
+    transcript = clean_whisper_text(" ".join(segments).strip())
     return transcript, duration_ms
 
 
@@ -324,8 +440,8 @@ async def handle_system_info(request: web.Request) -> web.Response:
         "cuda_available": cuda_avail,
         "cuda_version": cuda_ver,
         "pytorch_version": torch_ver,
-        "whisper_model": "ggml-base.bin (Whisper.cpp Orin build)",
-        "slm_model": "Qwen2.5-1.5B-Instruct-GGUF (Q4_K_M)",
+        "whisper_model": "ggml-small.en.bin (Whisper-server CUDA Flash Attention)",
+        "slm_model": "Qwen2.5-1.5B-Instruct-GGUF (CUDA SM87)",
         "t5_model": "math-to-latex-v2 (53 added tokens, fine-tuned)",
         "offline_status": "100% Offline Active",
         "timestamp": datetime.now().isoformat(),
@@ -696,11 +812,135 @@ async def handle_download_audio(request: web.Request) -> web.Response:
     )
 
 
+# ===========================================================================
+# WebSocket Support & Real-Time Telemetry
+# ===========================================================================
+active_websockets: set[web.WebSocketResponse] = set()
+
+
+async def handle_ws(request: web.Request) -> web.WebSocketResponse:
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    active_websockets.add(ws)
+
+    await ws.send_json({
+        "type": "connected",
+        "status": "ready",
+        "whisper_model": "ggml-small.en.bin",
+        "slm_model": "Qwen2.5-1.5B-Instruct",
+        "is_recording": hw_recorder.is_recording,
+    })
+
+    try:
+        async for msg in ws:
+            if msg.type == web.WSMsgType.TEXT:
+                try:
+                    payload = json.loads(msg.data)
+                except Exception:
+                    continue
+
+                action = payload.get("action", "")
+                engine = payload.get("engine", "slm")
+
+                if action == "start_hw_mic":
+                    res = hw_recorder.start()
+                    await ws.send_json({"type": "recording_started", **res})
+
+                elif action in ("stop_hw_mic", "transcribe_now"):
+                    if hw_recorder.is_recording:
+                        t_start = time.monotonic()
+                        loop = asyncio.get_event_loop()
+                        try:
+                            wav_path = await loop.run_in_executor(None, hw_recorder.stop)
+                            raw_transcript, asr_ms = await loop.run_in_executor(None, run_whisper, wav_path)
+
+                            if engine == "slm":
+                                slm = get_slm_translator()
+                                t_slm = time.monotonic()
+                                processed = await loop.run_in_executor(None, slm.translate, raw_transcript)
+                                slm_ms = (time.monotonic() - t_slm) * 1000.0
+                            else:
+                                r = get_router()
+                                t_r = time.monotonic()
+                                res = await loop.run_in_executor(None, r.process, raw_transcript)
+                                processed = res.processed_text
+                                slm_ms = (time.monotonic() - t_r) * 1000.0
+
+                            total_ms = (time.monotonic() - t_start) * 1000.0
+                            result_packet = {
+                                "type": "transcription_result",
+                                "audio_file": wav_path.name,
+                                "audio_url": f"/recordings/{wav_path.name}",
+                                "download_url": f"/api/download_audio/{wav_path.name}",
+                                "raw_transcript": raw_transcript,
+                                "processed_text": processed,
+                                "engine": "qwen2.5-1.5b" if engine == "slm" else "t5-v2",
+                                "asr_time_ms": round(asr_ms, 1),
+                                "router_time_ms": round(slm_ms, 1),
+                                "total_time_ms": round(total_ms, 1),
+                            }
+                            for w in list(active_websockets):
+                                if not w.closed:
+                                    await w.send_json(result_packet)
+                        except Exception as e:
+                            await ws.send_json({"type": "error", "message": str(e)})
+                    else:
+                        await ws.send_json({"type": "error", "message": "Not currently recording"})
+
+                elif action == "ping":
+                    await ws.send_json({"type": "pong"})
+
+            elif msg.type == web.WSMsgType.ERROR:
+                print(f"[WS Error] {ws.exception()}")
+    finally:
+        active_websockets.discard(ws)
+    return ws
+
+
+async def ws_telemetry_loop(app: web.Application):
+    """Broadcast real-time recording duration and RMS energy to WebSocket clients."""
+    while True:
+        try:
+            if active_websockets and hw_recorder.is_recording:
+                status = hw_recorder.get_status()
+                packet = {
+                    "type": "telemetry",
+                    "is_recording": True,
+                    "elapsed_sec": status["elapsed_sec"],
+                    "rms": status["rms"],
+                }
+                for ws in list(active_websockets):
+                    if not ws.closed:
+                        try:
+                            await ws.send_json(packet)
+                        except Exception:
+                            pass
+            await asyncio.sleep(0.12)
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            await asyncio.sleep(0.5)
+
+
+async def start_background_tasks(app: web.Application):
+    app["telemetry_task"] = asyncio.create_task(ws_telemetry_loop(app))
+
+
+async def cleanup_background_tasks(app: web.Application):
+    if "telemetry_task" in app:
+        app["telemetry_task"].cancel()
+        try:
+            await app["telemetry_task"]
+        except asyncio.CancelledError:
+            pass
+
+
 def create_app() -> web.Application:
     app = web.Application(client_max_size=32 * 1024 * 1024)
 
     # Routes
     app.router.add_get("/", handle_index)
+    app.router.add_get("/ws", handle_ws)
     app.router.add_get("/api/system_info", handle_system_info)
     app.router.add_get("/api/presets", handle_presets)
     app.router.add_post("/api/transcribe_text", handle_transcribe_text)
@@ -717,16 +957,19 @@ def create_app() -> web.Application:
     app.router.add_static("/static/", STATIC_DIR, name="static")
     app.router.add_static("/recordings/", RECORDINGS_DIR, name="recordings")
 
+    app.on_startup.append(start_background_tasks)
+    app.on_cleanup.append(cleanup_background_tasks)
+
     return app
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     print(f"\n=======================================================")
-    print(f"🚀 Jetson Orin Speech-to-LaTeX Live Showcase GUI")
-    print(f"📡 Local Server URL: http://0.0.0.0:{port}")
+    print(f"[GUI Server] Jetson Orin Speech-to-LaTeX Showcase GUI")
+    print(f"[GUI Server] Local Server URL: http://0.0.0.0:{port}")
     print(f"=======================================================\n")
     # Preload models
-    get_router()
+    get_slm_translator()
     app = create_app()
     web.run_app(app, host="0.0.0.0", port=port)

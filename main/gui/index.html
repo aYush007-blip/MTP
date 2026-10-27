@@ -38,7 +38,7 @@
       <section class="glass-card" aria-label="Audio Input Section">
         <div class="card-header">
           <div class="card-title">
-            <span>🎙️</span>
+            <span class="card-badge">[AUDIO]</span>
             <h2>Audio Input</h2>
           </div>
           <!-- Live Recording Duration Indicator -->
@@ -62,8 +62,7 @@
           <div class="player-row">
             <audio id="audioPlayback" controls></audio>
             <button id="btnDownloadAudioPlayer" class="btn-tool" type="button" title="Download recorded WAV file">
-              <span>⬇</span>
-              <span>WAV</span>
+              <span>Download WAV</span>
             </button>
           </div>
         </div>
@@ -76,43 +75,45 @@
           </div>
           <div class="engine-toggle-group" id="engineToggleGroup">
             <button type="button" class="btn-engine-toggle active" id="btnEngineSlm" data-engine="slm" title="Unified Qwen2.5-1.5B edge language model (Recommended)">
-              <span class="engine-icon">🧠</span>
-              <span class="engine-text">Qwen2.5-1.5B <span class="engine-badge-tag active-tag">SLM</span></span>
+              <span class="engine-badge-tag active-tag">[SLM]</span>
+              <span class="engine-text">Qwen2.5-1.5B</span>
             </button>
             <button type="button" class="btn-engine-toggle" id="btnEngineT5" data-engine="t5-v2" title="Phase 1 Heuristic Regex Router + T5-Small">
-              <span class="engine-icon">⚡</span>
-              <span class="engine-text">T5-Small <span class="engine-badge-tag">Phase 1</span></span>
+              <span class="engine-badge-tag">[T5]</span>
+              <span class="engine-text">T5-Small</span>
             </button>
           </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Hint -->
+        <div class="keyboard-hint-pill">
+          <span>Press <kbd>Enter</kbd> to transcribe immediately &bull; <kbd>Space</kbd> to toggle microphone</span>
         </div>
 
         <!-- Primary Controls -->
         <div class="controls-stack">
           <!-- Hardware Mic Row -->
           <div class="controls-row">
-            <button id="btnRecordHw" class="btn-hw-record" type="button" title="Start recording from hardware microphone">
-              <span id="hwRecordIcon">⚡</span>
+            <button id="btnRecordHw" class="btn-hw-record" type="button" title="Start recording from hardware microphone (or press Space)">
+              <span id="hwRecordIcon" class="btn-tag">[HW]</span>
               <span id="hwRecordLabel">Hardware Mic</span>
             </button>
-            <button id="btnStopHw" class="btn-stop-record" type="button" disabled title="Stop recording and transcribe">
-              <span>⏹</span>
-              <span>Stop</span>
+            <button id="btnStopHw" class="btn-stop-record" type="button" disabled title="Transcribe recorded audio immediately (or press Enter)">
+              <span>Transcribe [Enter]</span>
             </button>
           </div>
 
           <!-- Browser Mic & Upload Row -->
           <div class="controls-row">
             <button id="btnRecord" class="btn-primary" type="button" title="Record via browser microphone">
-              <span id="recordIcon">🎙️</span>
+              <span id="recordIcon" class="btn-tag">[WEB]</span>
               <span id="recordLabel">Browser Mic</span>
             </button>
             <button id="btnStopBrowser" class="btn-stop-record" type="button" disabled title="Stop browser recording and transcribe">
-              <span>⏹</span>
-              <span>Stop</span>
+              <span>Transcribe [Enter]</span>
             </button>
             <button id="btnUpload" class="btn-secondary" type="button" title="Upload WAV audio file">
-              <span>📁</span>
-              <span>Upload</span>
+              <span>Upload WAV</span>
             </button>
             <input type="file" id="fileInput" accept="audio/*" style="display: none;">
           </div>
@@ -139,7 +140,7 @@
       <section class="glass-card" aria-label="Transcription Output Section">
         <div class="card-header">
           <div class="card-title">
-            <span>📐</span>
+            <span class="card-badge">[LATEX]</span>
             <h2>Output</h2>
           </div>
           <div class="output-header-actions">
@@ -148,15 +149,12 @@
             </div>
             <div class="action-buttons-group">
               <button class="btn-tool" id="btnCopyLatex" type="button" title="Copy LaTeX formula to clipboard">
-                <span>📋</span>
                 <span>Copy</span>
               </button>
               <button class="btn-tool" id="btnDownloadOutputAudio" type="button" disabled title="Download audio WAV file">
-                <span>⬇</span>
                 <span>WAV</span>
               </button>
               <button class="btn-tool" id="btnDownloadOutputJson" type="button" disabled title="Download model output JSON for learning/dataset">
-                <span>💾</span>
                 <span>JSON</span>
               </button>
             </div>
@@ -223,7 +221,7 @@
         </div>
         <div class="history-actions">
           <button id="btnExportSessionJson" class="btn-secondary compact-btn" title="Export entire session history as JSON dataset">
-            <span>💾 Export All (JSON)</span>
+            <span>Export All (JSON)</span>
           </button>
           <button id="btnClearHistory" class="btn-secondary compact-btn" title="Clear session history list">
             <span>Clear</span>

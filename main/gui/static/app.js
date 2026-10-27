@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     btnRecordHw.classList.add("recording");
     btnRecordHw.disabled = true;
-    hwRecordIcon.textContent = "⏺";
+    hwRecordIcon.textContent = "[REC]";
     hwRecordLabel.textContent = "Recording...";
     btnStopHw.disabled = false;
     btnStopHw.classList.add("btn-stop-active");
@@ -283,7 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnUpload.disabled = true;
 
     visualizerDot.style.background = "#ef4444";
-    visualizerLabel.textContent = "Hardware mic active (click Stop to transcribe)...";
+    visualizerLabel.textContent = "Hardware mic active (Press Enter to transcribe)...";
 
     startLiveTimer("REC");
     cancelAnimationFrame(animFrameId);
@@ -344,7 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
     isHardwareRecording = false;
     btnRecordHw.classList.remove("recording");
     btnRecordHw.disabled = false;
-    hwRecordIcon.textContent = "⚡";
+    hwRecordIcon.textContent = "[HW]";
     hwRecordLabel.textContent = "Hardware Mic";
     btnStopHw.disabled = true;
     btnStopHw.classList.remove("btn-stop-active");
@@ -381,7 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function startBrowserRecording() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("Browser microphone not available. Use '⚡ Hardware Mic' to capture audio directly.");
+      alert("Browser microphone not available. Use Hardware Mic to capture audio directly.");
       return;
     }
 
@@ -420,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btnRecord.classList.add("recording");
       btnRecord.disabled = true;
       recordLabel.textContent = "Recording...";
-      recordIcon.textContent = "⏺";
+      recordIcon.textContent = "[REC]";
 
       if (btnStopBrowser) {
         btnStopBrowser.disabled = false;
@@ -432,7 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btnUpload.disabled = true;
 
       visualizerDot.style.background = "#ef4444";
-      visualizerLabel.textContent = "Browser mic active (click Stop to transcribe)...";
+      visualizerLabel.textContent = "Browser mic active (Press Enter to transcribe)...";
       startLiveTimer("REC");
 
       cancelAnimationFrame(animFrameId);
@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnRecord.classList.remove("recording");
     btnRecord.disabled = false;
     recordLabel.textContent = "Browser Mic";
-    recordIcon.textContent = "🎙️";
+    recordIcon.textContent = "[WEB]";
 
     if (btnStopBrowser) {
       btnStopBrowser.disabled = true;
@@ -950,7 +950,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const timeStr = new Date().toLocaleTimeString();
 
     const audioAction = record.audio_file
-      ? `<button class="btn-history-dl" onclick="window.downloadAudioItem('${record.audio_file}')" title="Download audio">⬇ WAV</button>`
+      ? `<button class="btn-history-dl" onclick="window.downloadAudioItem('${record.audio_file}')" title="Download audio">WAV</button>`
       : "";
 
     item.innerHTML = `
@@ -974,6 +974,87 @@ document.addEventListener("DOMContentLoaded", () => {
   window.downloadAudioItem = (filename) => {
     downloadAudioFile(filename, `/recordings/${filename}`);
   };
+
+  // -------------------------------------------------------------------------
+  // WebSocket Client: Live Telemetry & Instant Transcribe
+  // -------------------------------------------------------------------------
+  let ws = null;
+  let wsReconnectTimer = null;
+
+  function initWebSocket() {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    try {
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("[WS] Connected to Jetson Speech-to-LaTeX server");
+        clearTimeout(wsReconnectTimer);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "telemetry" && isHardwareRecording) {
+            visualizerDot.style.background = "#ef4444";
+            visualizerLabel.textContent = `Recording ${msg.elapsed_sec.toFixed(1)}s (Press Enter to transcribe)...`;
+            if (recordingTimerText) {
+              const mm = String(Math.floor(msg.elapsed_sec / 60)).padStart(2, "0");
+              const ss = String(Math.floor(msg.elapsed_sec % 60)).padStart(2, "0");
+              recordingTimerText.textContent = `REC ${mm}:${ss}`;
+            }
+          } else if (msg.type === "transcription_result") {
+            setAudioSource(msg.audio_url, msg.audio_file);
+            renderOutput(msg);
+            resetHardwareUi();
+            loadRecordingsList();
+          }
+        } catch (e) {
+          console.error("[WS Message Error]", e);
+        }
+      };
+
+      ws.onclose = () => {
+        ws = null;
+        clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = setTimeout(initWebSocket, 2500);
+      };
+
+      ws.onerror = (err) => {
+        console.warn("[WS Error]", err);
+      };
+    } catch (e) {
+      console.warn("[WS Init Warning]", e);
+    }
+  }
+
+  initWebSocket();
+
+  // -------------------------------------------------------------------------
+  // Global Keyboard Shortcuts: Enter (Transcribe) & Space (Toggle Mic)
+  // -------------------------------------------------------------------------
+  window.addEventListener("keydown", (e) => {
+    // If focused on an input or textarea, let normal typing occur
+    if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (isHardwareRecording) {
+        stopHardwareRecording();
+      } else if (isBrowserRecording) {
+        stopBrowserRecording();
+      }
+    } else if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      if (isHardwareRecording) {
+        stopHardwareRecording();
+      } else if (!isBrowserRecording) {
+        startHardwareRecording();
+      }
+    }
+  });
 
   btnClearHistory.addEventListener("click", () => {
     sessionHistoryRecords.length = 0;
