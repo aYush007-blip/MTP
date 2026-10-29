@@ -461,12 +461,17 @@ def to_inline_speech(text: str) -> str:
     """
     if not text:
         return ""
-    s = re.sub(r"\\begin\{equation\*?\}(.*?)\\end\{equation\*?\}", r"$\1$", text, flags=re.DOTALL)
+    # Strip accidental \text{...} wrappers around non-math speech
+    s = re.sub(r"\$\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$\$", r"\1", text)
+    s = re.sub(r"\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$", r"\1", s)
+    s = re.sub(r"\\begin\{equation\*?\}(.*?)\\end\{equation\*?\}", r"$\1$", s, flags=re.DOTALL)
     s = re.sub(r"\\begin\{align\*?\}(.*?)\\end\{align\*?\}", r"$\1$", s, flags=re.DOTALL)
     s = re.sub(r"\\\[(.*?)\\\]", r"$\1$", s, flags=re.DOTALL)
     s = re.sub(r"\$\$(.*?)\$\$", r"$\1$", s, flags=re.DOTALL)
+    s = re.sub(r"\\\((.*?)\\\)", r"$\1$", s, flags=re.DOTALL)
+    s = re.sub(r"\$\s*\$", "", s)
     s = re.sub(r"\n+", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
+    s = re.sub(r"[ \t]+", " ", s).strip()
     return s
 
 

@@ -20,15 +20,49 @@ from typing import Optional
 import urllib.request
 
 SYSTEM_PROMPT = (
-    "You are an expert lecture transcriber and mathematical typesetter.\n"
-    "Your task is to take a spoken lecture transcript and convert it into a natural, continuous transcript where spoken text and mathematical expressions flow together in the exact order spoken: text + inline LaTeX code (for any math terms or formulas) + text.\n"
-    "Rules:\n"
-    "1. Do not separate spoken prose and LaTeX into separate sections, bullet points, or isolated blocks.\n"
-    "2. Format all mathematical variables, expressions, and equations as clean inline LaTeX ($...$).\n"
-    "3. Convert spoken math into proper LaTeX notation (e.g. 'f of t' -> '$f(t)$', 's equals sigma plus j omega' -> '$s = \\sigma + j\\omega$', 'integral from zero to infinity of f of t times e to the minus s t dt' -> '$\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$', 'dy by dt' -> '$\\frac{dy}{dt}$').\n"
-    "4. Preserve 100% of the spoken words and explanations. Do not summarize or omit anything.\n"
-    "5. Output ONLY the formatted lecture transcript."
+    "You are a verbatim lecture typesetter. Your job is to output the EXACT spoken words in the EXACT order spoken, converting ONLY mathematical terms, variables, and formulas into inline LaTeX ($...$).\n\n"
+    "STRICT RULES:\n"
+    "1. NEVER delete, omit, summarize, or paraphrase any spoken words or explanations. Every single spoken word must appear in the output.\n"
+    "2. NEVER invent, solve, derive, or add mathematical equations, proofs, or steps that were not spoken by the speaker.\n"
+    "3. NEVER wrap non-math words, conversational phrases, numbers, or counting in LaTeX or \\text{}. For example, 'Four, two, one, zero. Okay, here is the short lecture.' must remain as plain text.\n"
+    "4. Use ONLY inline math ($...$). NEVER use display math ($$...$$ or \\( ... \\)).\n"
+    "5. Output ONLY the resulting transcript. Do not output preamble, notes, or explanations."
 )
+
+FEW_SHOT_MESSAGES = [
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nFour, three, two, one. Okay, here is the short lecture. Good evening."
+    },
+    {
+        "role": "assistant",
+        "content": "Four, three, two, one. Okay, here is the short lecture. Good evening."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nToday we are looking at the Laplace transform. It takes a time function, f of t, and turns it into a function of a complex variable, s. The definition is the integral from zero to infinity of f of t times e to the minus s t dt."
+    },
+    {
+        "role": "assistant",
+        "content": "Today we are looking at the Laplace transform. It takes a time function, $f(t)$, and turns it into a function of a complex variable, $s$. The definition is the integral from zero to infinity of $\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nFor instance, if dy by dt plus two y equals one with y of zero equals zero, applying the transform gives sy of s plus two y of s equals one over s."
+    },
+    {
+        "role": "assistant",
+        "content": "For instance, if $\\frac{dy}{dt} + 2y = 1$ with $y(0) = 0$, applying the transform gives $s y(s) + 2 y(s) = \\frac{1}{s}$."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nThat is the kind of result we use over and over in circuits, control, and signal processing."
+    },
+    {
+        "role": "assistant",
+        "content": "That is the kind of result we use over and over in circuits, control, and signal processing."
+    }
+]
 
 DEFAULT_GGUF_PATH = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
 DEFAULT_HF_PATH = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct"
@@ -128,11 +162,11 @@ class QwenMathTranslator:
         return cls._instance
 
     def _build_chatml_prompt(self, spoken_text: str) -> str:
-        return (
-            f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
-            f"<|im_start|>user\nSpoken transcript:\n{spoken_text}<|im_end|>\n"
-            f"<|im_start|>assistant\n"
-        )
+        prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
+        for msg in FEW_SHOT_MESSAGES:
+            prompt += f"<|im_start|>{msg['role']}\n{msg['content']}<|im_end|>\n"
+        prompt += f"<|im_start|>user\nSpoken transcript:\n{spoken_text}<|im_end|>\n<|im_start|>assistant\n"
+        return prompt
 
     def _clean_response(self, text: str) -> str:
         s = text.strip()
@@ -141,15 +175,26 @@ class QwenMathTranslator:
         s = re.sub(r"\s*```$", "", s)
         # Remove conversational meta prefixes
         s = re.sub(r"^(?:Transcribed(?:\s+result)?|Output|Text|Transcription):\s*", "", s, flags=re.IGNORECASE)
+        # Unpack accidental \text{...} wrappers around non-math speech
+        s = re.sub(r"\$\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$\$", r"\1", s)
+        s = re.sub(r"\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$", r"\1", s)
+        # Convert any display math delimiters $$...$$ or \[...\] or \(...\) to inline $...$
+        s = re.sub(r"\$\$([^$]+)\$\$", r"$\1$", s)
+        s = re.sub(r"\\\[(.*?)\\\]", r"$\1$", s, flags=re.DOTALL)
+        s = re.sub(r"\\\((.*?)\\\)", r"$\1$", s, flags=re.DOTALL)
+        # Collapse empty $ $
+        s = re.sub(r"\$\s*\$", "", s)
+        # Collapse multiple spaces
+        s = re.sub(r"[ \t]+", " ", s)
         return s.strip()
 
     def translate_server(self, spoken_text: str, max_new_tokens: int = 128) -> str:
         """Call llama-server via OpenAI-compatible REST API."""
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(FEW_SHOT_MESSAGES)
+        messages.append({"role": "user", "content": f"Spoken transcript:\n{spoken_text}"})
         payload = {
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Spoken transcript:\n{spoken_text}"},
-            ],
+            "messages": messages,
             "max_tokens": max_new_tokens,
             "temperature": 0.0,
             "repeat_penalty": 1.1,
@@ -194,10 +239,9 @@ class QwenMathTranslator:
         """Execute translation via HuggingFace PyTorch pipeline."""
         import torch
 
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Spoken transcript:\n{spoken_text}"},
-        ]
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(FEW_SHOT_MESSAGES)
+        messages.append({"role": "user", "content": f"Spoken transcript:\n{spoken_text}"})
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
 
