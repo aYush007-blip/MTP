@@ -12,9 +12,11 @@ import re
 import subprocess
 import time
 import wave
+import zipfile
 from datetime import datetime
 from pathlib import Path
 import sys
+from typing import Optional, Dict, Any, List, Tuple
 
 # Auto-bootstrap to repo .venv if running under system python
 _venv_python = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
@@ -62,6 +64,8 @@ LLAMA_BIN = Path("/mnt/thesis/llama.cpp/build/bin/llama-server")
 LLAMA_MODEL = Path("/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf")
 RECORDINGS_DIR = Path("/mnt/thesis/recordings")
 RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+LIVE_TESTS_DIR = Path("/mnt/thesis/live_tests")
+LIVE_TESTS_DIR.mkdir(parents=True, exist_ok=True)
 GUI_DIR = Path(__file__).resolve().parent
 STATIC_DIR = GUI_DIR / "static"
 
@@ -318,6 +322,332 @@ def ensure_16k_mono_wav(src_path: Path, dst_path: Path) -> Path:
 
 import threading
 
+active_websockets: set[web.WebSocketResponse] = set()
+main_event_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
+def broadcast_ws_message(msg_dict: dict):
+    """Safely broadcast JSON payload to all active WebSocket clients."""
+    if not active_websockets:
+        return
+    msg_str = json.dumps(msg_dict)
+    for ws in list(active_websockets):
+        if not ws.closed:
+            try:
+                if main_event_loop and main_event_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(ws.send_str(msg_str), main_event_loop)
+            except Exception:
+                pass
+
+
+# ===========================================================================
+# Audio Hardware Device Enumeration & Control (PulseAudio / ALSA)
+# ===========================================================================
+
+def get_pulse_audio_devices() -> dict:
+    """Retrieve available PulseAudio and ALSA audio sources (microphones) and sinks (earphones/speakers)."""
+    inputs = []
+    outputs = []
+    default_source = ""
+    default_sink = ""
+
+    try:
+        res = subprocess.run(["pactl", "get-default-source"], capture_output=True, text=True, timeout=2)
+        if res.returncode == 0:
+            default_source = res.stdout.strip()
+    except Exception:
+        pass
+
+    try:
+        res = subprocess.run(["pactl", "get-default-sink"], capture_output=True, text=True, timeout=2)
+        if res.returncode == 0:
+            default_sink = res.stdout.strip()
+    except Exception:
+        pass
+
+    try:
+        res = subprocess.run(["pactl", "list", "sources"], capture_output=True, text=True, timeout=3)
+        if res.returncode == 0:
+            cur_source = {}
+            for line in res.stdout.splitlines():
+                line = line.strip()
+                if line.startswith("Name:"):
+                    name = line.split(":", 1)[1].strip()
+                    cur_source = {"id": name}
+                elif line.startswith("Description:") and cur_source:
+                    desc = line.split(":", 1)[1].strip()
+                    cur_source["name"] = desc
+                    if not cur_source["id"].endswith(".monitor"):
+                        is_ab13x = "ab13x" in cur_source["id"].lower() or "ab13x" in desc.lower()
+                        cur_source["is_earphones"] = is_ab13x
+                        cur_source["is_default"] = (cur_source["id"] == default_source)
+                        inputs.append(cur_source)
+                    cur_source = {}
+    except Exception as e:
+        print(f"[Audio Devices] Error listing sources: {e}")
+
+    try:
+        res = subprocess.run(["pactl", "list", "sinks"], capture_output=True, text=True, timeout=3)
+        if res.returncode == 0:
+            cur_sink = {}
+            for line in res.stdout.splitlines():
+                line = line.strip()
+                if line.startswith("Name:"):
+                    name = line.split(":", 1)[1].strip()
+                    cur_sink = {"id": name}
+                elif line.startswith("Description:") and cur_sink:
+                    desc = line.split(":", 1)[1].strip()
+                    cur_sink["name"] = desc
+                    is_ab13x = "ab13x" in cur_sink["id"].lower() or "ab13x" in desc.lower()
+                    cur_sink["is_earphones"] = is_ab13x
+                    cur_sink["is_default"] = (cur_sink["id"] == default_sink)
+                    outputs.append(cur_sink)
+                    cur_sink = {}
+    except Exception as e:
+        print(f"[Audio Devices] Error listing sinks: {e}")
+
+    return {
+        "sources": inputs,
+        "sinks": outputs,
+        "default_source": default_source,
+        "default_sink": default_sink,
+    }
+
+
+def set_pulse_default_device(source_id: Optional[str] = None, sink_id: Optional[str] = None) -> bool:
+    """Set the system-wide active PulseAudio input (mic) and output (earphones) device."""
+    success = True
+    if source_id:
+        try:
+            r = subprocess.run(["pactl", "set-default-source", source_id], capture_output=True, timeout=2)
+            if r.returncode != 0:
+                success = False
+        except Exception:
+            success = False
+    if sink_id:
+        try:
+            r = subprocess.run(["pactl", "set-default-sink", sink_id], capture_output=True, timeout=2)
+            if r.returncode != 0:
+                success = False
+        except Exception:
+            success = False
+    return success
+
+
+# ===========================================================================
+# Live Tests & Session Manager (SRT, VTT, Markdown, LaTeX, TXT, ZIP)
+# ===========================================================================
+
+def format_srt_timestamp(seconds: float) -> str:
+    millis = int(round((seconds - int(seconds)) * 1000))
+    secs = int(seconds) % 60
+    mins = (int(seconds) // 60) % 60
+    hours = int(seconds) // 3600
+    return f"{hours:02d}:{mins:02d}:{secs:02d},{millis:03d}"
+
+
+def format_vtt_timestamp(seconds: float) -> str:
+    millis = int(round((seconds - int(seconds)) * 1000))
+    secs = int(seconds) % 60
+    mins = (int(seconds) // 60) % 60
+    hours = int(seconds) // 3600
+    return f"{hours:02d}:{mins:02d}:{secs:02d}.{millis:03d}"
+
+
+class LiveTestSession:
+    """Manages an active testing or lecture session, saving all WAVs, JSONs, SRT, MD, and TEX."""
+
+    def __init__(self, base_dir: Path = LIVE_TESTS_DIR):
+        self.base_dir = base_dir
+        self.lock = threading.Lock()
+        self.session_id = datetime.now().strftime("session_%Y%m%d_%H%M%S")
+        self.session_dir = self.base_dir / self.session_id
+        self.recordings_dir = self.session_dir / "audio"
+        self.metadata_dir = self.session_dir / "metadata"
+        self.recordings_dir.mkdir(parents=True, exist_ok=True)
+        self.metadata_dir.mkdir(parents=True, exist_ok=True)
+        self.start_epoch = time.time()
+        self.items: list[dict] = []
+        self._init_files()
+
+    def _init_files(self):
+        md_file = self.session_dir / "lecture_notes.md"
+        if not md_file.exists():
+            md_file.write_text(
+                f"# Live Test & Lecture Transcription Notes\n\n"
+                f"- **Session ID:** `{self.session_id}`\n"
+                f"- **Started:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"- **Platform:** NVIDIA Jetson Orin Nano (8GB) | 100% Offline Edge\n"
+                f"- **Models:** Whisper small.en (CUDA Flash Attention) + Qwen2.5-1.5B (CUDA SM87)\n\n"
+                f"---\n\n## Transcribed Lecture Content\n\n",
+                encoding="utf-8"
+            )
+
+        tex_file = self.session_dir / "lecture_paper.tex"
+        if not tex_file.exists():
+            tex_file.write_text(
+                "\\documentclass[11pt,a4paper]{article}\n"
+                "\\usepackage[utf8]{inputenc}\n"
+                "\\usepackage{amsmath,amssymb,amsfonts}\n"
+                "\\usepackage{geometry}\n"
+                "\\geometry{margin=1in}\n"
+                f"\\title{{Lecture Notes and Mathematical Formulas}}\n"
+                f"\\author{{Jetson Edge Speech-to-LaTeX}}\n"
+                f"\\date{{{datetime.now().strftime('%B %d, %Y')}}}\n"
+                "\\begin{document}\n"
+                "\\maketitle\n\n"
+                "\\section{Lecture Transcript}\n\n",
+                encoding="utf-8"
+            )
+
+        txt_file = self.session_dir / "lecture_transcript.txt"
+        if not txt_file.exists():
+            txt_file.write_text(
+                f"=======================================================\n"
+                f" Live Test & Lecture Transcript - {self.session_id}\n"
+                f" Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"=======================================================\n\n",
+                encoding="utf-8"
+            )
+
+        srt_file = self.session_dir / "lecture_subtitles.srt"
+        if not srt_file.exists():
+            srt_file.write_text("", encoding="utf-8")
+
+        vtt_file = self.session_dir / "lecture_subtitles.vtt"
+        if not vtt_file.exists():
+            vtt_file.write_text("WEBVTT - Jetson Speech-to-LaTeX Lecture Subtitles\n\n", encoding="utf-8")
+
+    def record_utterance(self, wav_bytes: bytes, raw_transcript: str, processed_latex: str, duration_sec: float, start_offset: Optional[float] = None) -> dict:
+        with self.lock:
+            idx = len(self.items) + 1
+            if start_offset is None:
+                start_offset = max(0.0, time.time() - self.start_epoch - duration_sec)
+            end_offset = start_offset + duration_sec
+
+            wav_name = f"utterance_{idx:03d}.wav"
+            wav_path = self.recordings_dir / wav_name
+            wav_path.write_bytes(wav_bytes)
+
+            item = {
+                "index": idx,
+                "timestamp": datetime.now().isoformat(),
+                "start_sec": round(start_offset, 2),
+                "end_sec": round(end_offset, 2),
+                "duration_sec": round(duration_sec, 2),
+                "start_formatted": format_srt_timestamp(start_offset),
+                "end_formatted": format_srt_timestamp(end_offset),
+                "raw_transcript": raw_transcript,
+                "processed_latex": processed_latex,
+                "wav_file": wav_name,
+                "wav_path": str(wav_path),
+            }
+            self.items.append(item)
+
+            # 1. Save utterance JSON
+            json_name = f"utterance_{idx:03d}.json"
+            (self.metadata_dir / json_name).write_text(json.dumps(item, indent=2), encoding="utf-8")
+
+            # 2. Append to SRT
+            srt_block = (
+                f"{idx}\n"
+                f"{format_srt_timestamp(start_offset)} --> {format_srt_timestamp(end_offset)}\n"
+                f"{processed_latex}\n\n"
+            )
+            with open(self.session_dir / "lecture_subtitles.srt", "a", encoding="utf-8") as f:
+                f.write(srt_block)
+
+            # 3. Append to VTT
+            vtt_block = (
+                f"{idx}\n"
+                f"{format_vtt_timestamp(start_offset)} --> {format_vtt_timestamp(end_offset)}\n"
+                f"{processed_latex}\n\n"
+            )
+            with open(self.session_dir / "lecture_subtitles.vtt", "a", encoding="utf-8") as f:
+                f.write(vtt_block)
+
+            # 4. Append to Markdown
+            time_tag = f"[{int(start_offset//60):02d}:{int(start_offset%60):02d}]"
+            md_block = f"### {time_tag} Utterance {idx}\n- **Spoken:** {raw_transcript}\n- **LaTeX:** {processed_latex}\n\n"
+            with open(self.session_dir / "lecture_notes.md", "a", encoding="utf-8") as f:
+                f.write(md_block)
+
+            # 5. Append to LaTeX
+            tex_content = processed_latex.replace("\\[", "\\begin{equation}\n").replace("\\]", "\n\\end{equation}\n")
+            tex_block = f"% Utterance {idx} ({time_tag})\n{tex_content}\n\n"
+            with open(self.session_dir / "lecture_paper.tex", "a", encoding="utf-8") as f:
+                f.write(tex_block)
+
+            # 6. Append to Plain Text
+            txt_block = f"{time_tag} {processed_latex}\n"
+            with open(self.session_dir / "lecture_transcript.txt", "a", encoding="utf-8") as f:
+                f.write(txt_block)
+
+            # 7. Update Session Manifest
+            manifest = {
+                "session_id": self.session_id,
+                "total_utterances": len(self.items),
+                "started": datetime.fromtimestamp(self.start_epoch).isoformat(),
+                "last_update": datetime.now().isoformat(),
+                "utterances": self.items,
+            }
+            (self.session_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+            return item
+
+    def get_summary(self) -> dict:
+        with self.lock:
+            elapsed = time.time() - self.start_epoch
+            return {
+                "session_id": self.session_id,
+                "total_utterances": len(self.items),
+                "elapsed_sec": round(elapsed, 1),
+                "elapsed_formatted": f"{int(elapsed//3600):02d}:{int((elapsed%3600)//60):02d}:{int(elapsed%60):02d}",
+                "session_dir": str(self.session_dir),
+                "items": list(self.items),
+            }
+
+    def create_zip_archive(self) -> bytes:
+        with self.lock:
+            # Ensure LaTeX document finishes cleanly
+            tex_file = self.session_dir / "lecture_paper.tex"
+            tex_content = tex_file.read_text(encoding="utf-8") if tex_file.exists() else ""
+            if "\\end{document}" not in tex_content:
+                tex_content += "\n\\end{document}\n"
+                tex_file.write_text(tex_content, encoding="utf-8")
+
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for file_path in self.session_dir.rglob("*"):
+                    if file_path.is_file():
+                        arcname = file_path.relative_to(self.session_dir)
+                        zf.write(file_path, arcname)
+            zip_buf.seek(0)
+            return zip_buf.getvalue()
+
+
+_active_session: Optional[LiveTestSession] = None
+_session_lock = threading.Lock()
+
+
+def get_active_session() -> LiveTestSession:
+    global _active_session
+    with _session_lock:
+        if _active_session is None:
+            _active_session = LiveTestSession()
+        return _active_session
+
+
+def reset_active_session() -> LiveTestSession:
+    global _active_session
+    with _session_lock:
+        _active_session = LiveTestSession()
+        return _active_session
+
+
+# ===========================================================================
+# Hardware Microphone Recorder & Continuous Lecture Manager
+# ===========================================================================
 
 class HardwareMicRecorder:
     """Manages continuous or timed audio recording from the Jetson USB mic with 120Hz HPF."""
@@ -331,6 +661,8 @@ class HardwareMicRecorder:
         self._start_time: float = 0.0
         self._last_rms: float = 0.0
         self._hpf = HighPassHumFilter()
+        self.selected_device_name: Optional[str] = None
+        self.selected_device_index: Optional[int] = None
 
     @property
     def is_recording(self) -> bool:
@@ -344,6 +676,7 @@ class HardwareMicRecorder:
                 "is_recording": self._is_recording,
                 "elapsed_sec": round(elapsed, 1),
                 "rms": round(self._last_rms, 4),
+                "selected_device": self.selected_device_name or "Default (AB13X Earphones)",
             }
 
     def start(self, force: bool = True) -> dict:
@@ -372,23 +705,25 @@ class HardwareMicRecorder:
 
     def _record_loop(self):
         pa = pyaudio.PyAudio()
-        dev_idx = None
+        dev_idx = self.selected_device_index
         channels = 1
         rate = 16000
         chunk_size = 1600
 
         try:
-            for i in range(pa.get_device_count()):
-                try:
-                    info = pa.get_device_info_by_index(i)
-                    if "ab13x" in info.get("name", "").lower() and info.get("maxInputChannels", 0) > 0:
-                        dev_idx = i
-                        channels = 2
-                        rate = 48000
-                        chunk_size = 4800
-                        break
-                except Exception:
-                    continue
+            if dev_idx is None:
+                for i in range(pa.get_device_count()):
+                    try:
+                        info = pa.get_device_info_by_index(i)
+                        name_low = info.get("name", "").lower()
+                        if "ab13x" in name_low and info.get("maxInputChannels", 0) > 0:
+                            dev_idx = i
+                            channels = 2
+                            rate = 48000
+                            chunk_size = 4800
+                            break
+                    except Exception:
+                        continue
 
             if dev_idx is None:
                 default_info = pa.get_default_input_device_info()
@@ -457,6 +792,201 @@ class HardwareMicRecorder:
 
 
 hw_recorder = HardwareMicRecorder()
+
+
+class ContinuousLectureManager:
+    """Manages continuous 1-hour lecture recording with automated pause detection and live streaming."""
+
+    def __init__(self, recorder: HardwareMicRecorder):
+        self.recorder = recorder
+        self.is_running = False
+        self.thread: Optional[threading.Thread] = None
+        self.stop_event = threading.Event()
+        self.lock = threading.Lock()
+        self.start_epoch = 0.0
+        self.utterance_count = 0
+        self.hpf = HighPassHumFilter()
+
+    def get_status(self) -> dict:
+        with self.lock:
+            elapsed = time.time() - self.start_epoch if self.is_running else 0.0
+            return {
+                "is_running": self.is_running,
+                "elapsed_sec": round(elapsed, 1),
+                "elapsed_formatted": f"{int(elapsed//3600):02d}:{int((elapsed%3600)//60):02d}:{int(elapsed%60):02d}",
+                "utterance_count": self.utterance_count,
+            }
+
+    def start(self) -> dict:
+        with self.lock:
+            if self.is_running:
+                return {"status": "already_running", "start_time": self.start_epoch}
+            self.stop_event.clear()
+            self.is_running = True
+            self.start_epoch = time.time()
+            self.utterance_count = 0
+            self.hpf.reset()
+            self.thread = threading.Thread(target=self._lecture_loop, daemon=True)
+            self.thread.start()
+            return {"status": "started", "start_time": self.start_epoch}
+
+    def stop(self) -> dict:
+        with self.lock:
+            if not self.is_running:
+                return {"status": "not_running"}
+            self.is_running = False
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=3.0)
+        return self.get_status()
+
+    def _lecture_loop(self):
+        pa = pyaudio.PyAudio()
+        dev_idx = self.recorder.selected_device_index
+        channels = 1
+        rate = 16000
+        chunk_size = 1600
+
+        try:
+            if dev_idx is None:
+                for i in range(pa.get_device_count()):
+                    try:
+                        info = pa.get_device_info_by_index(i)
+                        name_low = info.get("name", "").lower()
+                        if "ab13x" in name_low and info.get("maxInputChannels", 0) > 0:
+                            dev_idx = i
+                            channels = 2
+                            rate = 48000
+                            chunk_size = 4800
+                            break
+                    except Exception:
+                        continue
+
+            if dev_idx is None:
+                default_info = pa.get_default_input_device_info()
+                dev_idx = default_info["index"]
+
+            stream = pa.open(
+                format=pyaudio.paInt16,
+                channels=channels,
+                rate=rate,
+                input=True,
+                input_device_index=dev_idx,
+                frames_per_buffer=chunk_size,
+            )
+
+            speech_buffer: list[np.ndarray] = []
+            silence_chunks = 0
+            is_in_speech = False
+            speech_start_sec = 0.0
+            speech_thold = 0.025
+
+            while not self.stop_event.is_set():
+                raw_bytes = stream.read(chunk_size, exception_on_overflow=False)
+                if rate == 48000 and channels == 2:
+                    mono_chunk = stereo_48k_to_mono_16k(raw_bytes)
+                else:
+                    pcm_data = np.frombuffer(raw_bytes, dtype=np.int16)
+                    mono_chunk = np.clip(pcm_data / 32768.0, -1.0, 1.0).astype(np.float32)
+
+                filtered_chunk = self.hpf.process(mono_chunk)
+                rms = float(np.sqrt(np.mean(filtered_chunk ** 2)))
+                cur_offset = time.time() - self.start_epoch
+
+                if rms >= speech_thold:
+                    if not is_in_speech:
+                        is_in_speech = True
+                        speech_start_sec = max(0.0, cur_offset - 0.2)
+                    speech_buffer.append(filtered_chunk)
+                    silence_chunks = 0
+                elif is_in_speech:
+                    speech_buffer.append(filtered_chunk)
+                    silence_chunks += 1
+
+                    if silence_chunks >= 12 or len(speech_buffer) >= 180:
+                        if len(speech_buffer) >= 15:
+                            audio_arr = np.concatenate(speech_buffer)
+                            audio_int16 = np.clip(audio_arr * 32767, -32768, 32767).astype(np.int16)
+
+                            wav_buf = io.BytesIO()
+                            with wave.open(wav_buf, "wb") as wf:
+                                wf.setnchannels(1)
+                                wf.setsampwidth(2)
+                                wf.setframerate(16000)
+                                wf.writeframes(audio_int16.tobytes())
+
+                            self._process_and_broadcast_chunk(
+                                wav_buf.getvalue(), len(audio_arr) / 16000.0, speech_start_sec
+                            )
+
+                        speech_buffer = []
+                        silence_chunks = 0
+                        is_in_speech = False
+
+            if is_in_speech and len(speech_buffer) >= 15:
+                audio_arr = np.concatenate(speech_buffer)
+                audio_int16 = np.clip(audio_arr * 32767, -32768, 32767).astype(np.int16)
+                wav_buf = io.BytesIO()
+                with wave.open(wav_buf, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(16000)
+                    wf.writeframes(audio_int16.tobytes())
+                self._process_and_broadcast_chunk(
+                    wav_buf.getvalue(), len(audio_arr) / 16000.0, speech_start_sec
+                )
+
+            stream.stop_stream()
+            stream.close()
+        except Exception as e:
+            print(f"[Continuous Lecture Loop Error] {e}")
+        finally:
+            pa.terminate()
+
+    def _process_and_broadcast_chunk(self, wav_bytes: bytes, duration_sec: float, start_offset: float):
+        try:
+            raw_text, asr_ms = query_whisper_server(wav_bytes)
+            if not raw_text.strip():
+                return
+
+            slm = get_slm_translator()
+            t0 = time.monotonic()
+            latex_text = slm.translate(raw_text)
+            slm_ms = (time.monotonic() - t0) * 1000.0
+
+            session = get_active_session()
+            item = session.record_utterance(
+                wav_bytes=wav_bytes,
+                raw_transcript=raw_text,
+                processed_latex=latex_text,
+                duration_sec=duration_sec,
+                start_offset=start_offset,
+            )
+
+            with self.lock:
+                self.utterance_count += 1
+
+            packet = {
+                "type": "lecture_chunk",
+                "index": item["index"],
+                "start_time": format_srt_timestamp(item["start_sec"]),
+                "end_time": format_srt_timestamp(item["end_sec"]),
+                "start_sec": item["start_sec"],
+                "end_sec": item["end_sec"],
+                "duration_sec": item["duration_sec"],
+                "raw_transcript": raw_text,
+                "processed_text": latex_text,
+                "asr_time_ms": round(asr_ms, 1),
+                "router_time_ms": round(slm_ms, 1),
+                "audio_url": f"/live_tests/{session.session_id}/audio/{item['wav_file']}",
+            }
+            broadcast_ws_message(packet)
+        except Exception as e:
+            print(f"[Process Chunk Error] {e}")
+
+
+lecture_mgr = ContinuousLectureManager(hw_recorder)
+
 
 
 def run_whisper(audio_path: Path) -> tuple[str, float]:
@@ -691,6 +1221,25 @@ async def run_pipeline_on_file(wav_path: Path, t_total_start: float, engine: str
             processed_text = slm.translate(raw_transcript)
             slm_ms = (time.monotonic() - t_slm_start) * 1000.0
             total_ms = (time.monotonic() - t_total_start) * 1000.0
+
+            # Record into active LiveTestSession
+            live_item = None
+            try:
+                duration_sec = 0.0
+                try:
+                    with wave.open(str(wav_path), "rb") as wf:
+                        duration_sec = wf.getnframes() / float(wf.getframerate())
+                except Exception:
+                    duration_sec = asr_ms / 1000.0
+                live_item = get_active_session().record_utterance(
+                    wav_bytes=wav_path.read_bytes(),
+                    raw_transcript=raw_transcript,
+                    processed_latex=processed_text,
+                    duration_sec=duration_sec,
+                )
+            except Exception as e:
+                print(f"[Live Tests Log Error] {e}")
+
             return web.json_response({
                 "audio_file": wav_path.name,
                 "audio_url": f"/recordings/{wav_path.name}",
@@ -703,6 +1252,7 @@ async def run_pipeline_on_file(wav_path: Path, t_total_start: float, engine: str
                 "asr_time_ms": asr_ms,
                 "router_time_ms": slm_ms,
                 "total_time_ms": total_ms,
+                "live_test": live_item,
             })
         except Exception as e:
             print(f"[SLM Pipeline Error] {e}. Falling back to router...")
@@ -716,6 +1266,19 @@ async def run_pipeline_on_file(wav_path: Path, t_total_start: float, engine: str
     except Exception as e:
         print(f"[Pipeline Error] {e}")
         return web.json_response({"error": f"Math routing error: {str(e)}"}, status=500)
+
+    # Record into active LiveTestSession
+    live_item = None
+    try:
+        duration_sec = asr_ms / 1000.0
+        live_item = get_active_session().record_utterance(
+            wav_bytes=wav_path.read_bytes(),
+            raw_transcript=raw_transcript,
+            processed_latex=result.processed_text,
+            duration_sec=duration_sec,
+        )
+    except Exception as e:
+        print(f"[Live Tests Log Error] {e}")
 
     spans_data = [
         {
@@ -738,6 +1301,7 @@ async def run_pipeline_on_file(wav_path: Path, t_total_start: float, engine: str
         "asr_time_ms": round(asr_ms, 1),
         "router_time_ms": round(router_ms, 1),
         "total_time_ms": round(total_ms, 1),
+        "live_test": live_item,
     })
 
 
@@ -891,8 +1455,6 @@ async def handle_download_audio(request: web.Request) -> web.Response:
 # ===========================================================================
 # WebSocket Support & Real-Time Telemetry
 # ===========================================================================
-active_websockets: set[web.WebSocketResponse] = set()
-
 
 async def handle_ws(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
@@ -905,6 +1467,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
         "whisper_model": "ggml-small.en.bin",
         "slm_model": "Qwen2.5-1.5B-Instruct",
         "is_recording": hw_recorder.is_recording,
+        "is_lecture_running": lecture_mgr.is_running,
     })
 
     try:
@@ -943,6 +1506,25 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                                 slm_ms = (time.monotonic() - t_r) * 1000.0
 
                             total_ms = (time.monotonic() - t_start) * 1000.0
+
+                            # Record into LiveTestSession
+                            live_item = None
+                            try:
+                                duration_sec = 0.0
+                                try:
+                                    with wave.open(str(wav_path), "rb") as wf:
+                                        duration_sec = wf.getnframes() / float(wf.getframerate())
+                                except Exception:
+                                    duration_sec = asr_ms / 1000.0
+                                live_item = get_active_session().record_utterance(
+                                    wav_bytes=wav_path.read_bytes(),
+                                    raw_transcript=raw_transcript,
+                                    processed_latex=processed,
+                                    duration_sec=duration_sec,
+                                )
+                            except Exception as e:
+                                print(f"[Live Tests WS Log Error] {e}")
+
                             result_packet = {
                                 "type": "transcription_result",
                                 "audio_file": wav_path.name,
@@ -950,10 +1532,11 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                                 "download_url": f"/api/download_audio/{wav_path.name}",
                                 "raw_transcript": raw_transcript,
                                 "processed_text": processed,
-                                "engine": "qwen2.5-1.5b" if engine == "slm" else "t5-v2",
+                                "engine": "qwen2.5-1.5b" if engine != "t5" else "t5-v2",
                                 "asr_time_ms": round(asr_ms, 1),
                                 "router_time_ms": round(slm_ms, 1),
                                 "total_time_ms": round(total_ms, 1),
+                                "live_test": live_item,
                             }
                             for w in list(active_websockets):
                                 if not w.closed:
@@ -962,6 +1545,14 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                             await ws.send_json({"type": "error", "message": str(e)})
                     else:
                         await ws.send_json({"type": "error", "message": "Not currently recording"})
+
+                elif action == "start_lecture":
+                    res = lecture_mgr.start()
+                    await ws.send_json({"type": "lecture_started", **res})
+
+                elif action == "stop_lecture":
+                    res = lecture_mgr.stop()
+                    await ws.send_json({"type": "lecture_stopped", **res})
 
                 elif action == "ping":
                     await ws.send_json({"type": "pong"})
@@ -977,20 +1568,38 @@ async def ws_telemetry_loop(app: web.Application):
     """Broadcast real-time recording duration and RMS energy to WebSocket clients."""
     while True:
         try:
-            if active_websockets and hw_recorder.is_recording:
-                status = hw_recorder.get_status()
-                packet = {
-                    "type": "telemetry",
-                    "is_recording": True,
-                    "elapsed_sec": status["elapsed_sec"],
-                    "rms": status["rms"],
-                }
-                for ws in list(active_websockets):
-                    if not ws.closed:
-                        try:
-                            await ws.send_json(packet)
-                        except Exception:
-                            pass
+            if active_websockets:
+                if hw_recorder.is_recording:
+                    status = hw_recorder.get_status()
+                    packet = {
+                        "type": "telemetry",
+                        "is_recording": True,
+                        "elapsed_sec": status["elapsed_sec"],
+                        "rms": status["rms"],
+                    }
+                    for ws in list(active_websockets):
+                        if not ws.closed:
+                            try:
+                                await ws.send_json(packet)
+                            except Exception:
+                                pass
+
+                if lecture_mgr.is_running:
+                    l_status = lecture_mgr.get_status()
+                    packet = {
+                        "type": "lecture_telemetry",
+                        "is_lecture_running": True,
+                        "elapsed_sec": l_status["elapsed_sec"],
+                        "elapsed_formatted": l_status["elapsed_formatted"],
+                        "utterance_count": l_status["utterance_count"],
+                    }
+                    for ws in list(active_websockets):
+                        if not ws.closed:
+                            try:
+                                await ws.send_json(packet)
+                            except Exception:
+                                pass
+
             await asyncio.sleep(0.12)
         except asyncio.CancelledError:
             break
@@ -998,10 +1607,153 @@ async def ws_telemetry_loop(app: web.Application):
             await asyncio.sleep(0.5)
 
 
+# ===========================================================================
+# Audio Devices & Export HTTP Handlers
+# ===========================================================================
+
+async def handle_audio_devices(request: web.Request) -> web.Response:
+    """Return available PulseAudio/ALSA input microphones and output earphones devices."""
+    loop = asyncio.get_event_loop()
+    devs = await loop.run_in_executor(None, get_pulse_audio_devices)
+    devs["active_mic_name"] = hw_recorder.selected_device_name or "Default (AB13X USB Earphones Mic)"
+    return web.json_response(devs)
+
+
+async def handle_select_audio_device(request: web.Request) -> web.Response:
+    """Select the active microphone input or earphones output device."""
+    data = await request.json()
+    source_id = data.get("source_id")
+    sink_id = data.get("sink_id")
+    device_name = data.get("device_name")
+    device_index = data.get("device_index")
+
+    loop = asyncio.get_event_loop()
+    ok = await loop.run_in_executor(None, set_pulse_default_device, source_id, sink_id)
+
+    if device_name:
+        hw_recorder.selected_device_name = device_name
+    if device_index is not None:
+        try:
+            hw_recorder.selected_device_index = int(device_index)
+        except Exception:
+            pass
+
+    return web.json_response({"status": "ok" if ok else "warning", "source": source_id, "sink": sink_id})
+
+
+async def handle_live_tests_summary(request: web.Request) -> web.Response:
+    """Return summary and history of utterances in current live test session."""
+    session = get_active_session()
+    return web.json_response(session.get_summary())
+
+
+async def handle_live_tests_new_session(request: web.Request) -> web.Response:
+    """Start a fresh new live test or lecture session."""
+    new_sess = reset_active_session()
+    return web.json_response({"status": "created", **new_sess.get_summary()})
+
+
+async def handle_export_srt(request: web.Request) -> web.Response:
+    """Export current session as SubRip (.srt) subtitle file."""
+    session = get_active_session()
+    srt_file = session.session_dir / "lecture_subtitles.srt"
+    content = srt_file.read_text(encoding="utf-8") if srt_file.exists() else ""
+    return web.Response(
+        text=content,
+        content_type="text/plain",
+        charset="utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{session.session_id}_subtitles.srt"'},
+    )
+
+
+async def handle_export_vtt(request: web.Request) -> web.Response:
+    """Export current session as WebVTT (.vtt) subtitle file."""
+    session = get_active_session()
+    vtt_file = session.session_dir / "lecture_subtitles.vtt"
+    content = vtt_file.read_text(encoding="utf-8") if vtt_file.exists() else "WEBVTT\n\n"
+    return web.Response(
+        text=content,
+        content_type="text/vtt",
+        charset="utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{session.session_id}_subtitles.vtt"'},
+    )
+
+
+async def handle_export_md(request: web.Request) -> web.Response:
+    """Export current session as Markdown lecture notes with LaTeX math equations."""
+    session = get_active_session()
+    md_file = session.session_dir / "lecture_notes.md"
+    content = md_file.read_text(encoding="utf-8") if md_file.exists() else "# Lecture Notes\n\n"
+    return web.Response(
+        text=content,
+        content_type="text/markdown",
+        charset="utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{session.session_id}_notes.md"'},
+    )
+
+
+async def handle_export_tex(request: web.Request) -> web.Response:
+    """Export current session as full compilable LaTeX document (.tex)."""
+    session = get_active_session()
+    tex_file = session.session_dir / "lecture_paper.tex"
+    content = tex_file.read_text(encoding="utf-8") if tex_file.exists() else ""
+    if "\\end{document}" not in content:
+        content += "\n\\end{document}\n"
+    return web.Response(
+        text=content,
+        content_type="application/x-tex",
+        charset="utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{session.session_id}_paper.tex"'},
+    )
+
+
+async def handle_export_txt(request: web.Request) -> web.Response:
+    """Export current session as clean formatted plain text (.txt)."""
+    session = get_active_session()
+    txt_file = session.session_dir / "lecture_transcript.txt"
+    content = txt_file.read_text(encoding="utf-8") if txt_file.exists() else ""
+    return web.Response(
+        text=content,
+        content_type="text/plain",
+        charset="utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{session.session_id}_transcript.txt"'},
+    )
+
+
+async def handle_export_zip(request: web.Request) -> web.Response:
+    """Export entire live test session (all WAV audio files, metadata, subtitles, and notes) as a ZIP archive."""
+    session = get_active_session()
+    loop = asyncio.get_event_loop()
+    zip_bytes = await loop.run_in_executor(None, session.create_zip_archive)
+    return web.Response(
+        body=zip_bytes,
+        content_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{session.session_id}_complete_export.zip"'},
+    )
+
+
+async def handle_lecture_start(request: web.Request) -> web.Response:
+    """Start continuous 1-hour lecture recording mode with automated incremental VAD streaming."""
+    res = lecture_mgr.start()
+    return web.json_response(res)
+
+
+async def handle_lecture_stop(request: web.Request) -> web.Response:
+    """Stop continuous lecture mode and finalize session exports."""
+    res = lecture_mgr.stop()
+    return web.json_response(res)
+
+
+async def handle_lecture_status(request: web.Request) -> web.Response:
+    """Get active continuous lecture streaming status."""
+    return web.json_response(lecture_mgr.get_status())
+
+
 async def start_background_tasks(app: web.Application):
     # Ensure background daemons on startup
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, ensure_edge_daemons)
+    global main_event_loop
+    main_event_loop = asyncio.get_event_loop()
+    await main_event_loop.run_in_executor(None, ensure_edge_daemons)
     app["telemetry_task"] = asyncio.create_task(ws_telemetry_loop(app))
 
 
@@ -1017,7 +1769,7 @@ async def cleanup_background_tasks(app: web.Application):
 def create_app() -> web.Application:
     app = web.Application(client_max_size=32 * 1024 * 1024)
 
-    # Routes
+    # Core Routes
     app.router.add_get("/", handle_index)
     app.router.add_get("/ws", handle_ws)
     app.router.add_get("/api/system_info", handle_system_info)
@@ -1032,9 +1784,29 @@ def create_app() -> web.Application:
     app.router.add_post("/api/transcribe_saved", handle_transcribe_saved)
     app.router.add_get("/api/download_audio/{filename}", handle_download_audio)
 
+    # Audio Device & Earphones Selection Routes
+    app.router.add_get("/api/audio_devices", handle_audio_devices)
+    app.router.add_post("/api/audio_devices/select", handle_select_audio_device)
+
+    # Live Tests & Session Export Routes (.srt, .vtt, .md, .tex, .txt, .zip)
+    app.router.add_get("/api/live_tests/summary", handle_live_tests_summary)
+    app.router.add_post("/api/live_tests/new_session", handle_live_tests_new_session)
+    app.router.add_get("/api/live_tests/export/srt", handle_export_srt)
+    app.router.add_get("/api/live_tests/export/vtt", handle_export_vtt)
+    app.router.add_get("/api/live_tests/export/md", handle_export_md)
+    app.router.add_get("/api/live_tests/export/tex", handle_export_tex)
+    app.router.add_get("/api/live_tests/export/txt", handle_export_txt)
+    app.router.add_get("/api/live_tests/export/zip", handle_export_zip)
+
+    # Continuous 1-Hour Lecture Mode Routes
+    app.router.add_post("/api/lecture/start", handle_lecture_start)
+    app.router.add_post("/api/lecture/stop", handle_lecture_stop)
+    app.router.add_get("/api/lecture/status", handle_lecture_status)
+
     # Static routes
     app.router.add_static("/static/", STATIC_DIR, name="static")
     app.router.add_static("/recordings/", RECORDINGS_DIR, name="recordings")
+    app.router.add_static("/live_tests/", LIVE_TESTS_DIR, name="live_tests")
 
     app.on_startup.append(start_background_tasks)
     app.on_cleanup.append(cleanup_background_tasks)

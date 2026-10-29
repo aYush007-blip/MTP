@@ -1,23 +1,29 @@
 /* ==========================================================================
    Jetson Orin Speech-to-LaTeX Minimal GUI - Frontend Controller
-   Continuous Audio Recording + LaTeX Rendering + Dataset / Learning Export
+   100% Offline Edge Audio Capture, Device Control & Multi-Format Exporters
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
-  // UI Elements - Inputs & Capture
-  const btnRecord = document.getElementById("btnRecord");
-  const btnStopBrowser = document.getElementById("btnStopBrowser");
-  const recordLabel = document.getElementById("recordLabel");
-  const recordIcon = document.getElementById("recordIcon");
+  // -------------------------------------------------------------------------
+  // UI Elements - Hardware Audio Devices & Modes
+  // -------------------------------------------------------------------------
+  const selectMicDevice = document.getElementById("selectMicDevice");
+  const selectOutputDevice = document.getElementById("selectOutputDevice");
+  const deviceStatusBadge = document.getElementById("deviceStatusBadge");
 
-  const btnRecordHw = document.getElementById("btnRecordHw");
-  const btnStopHw = document.getElementById("btnStopHw");
-  const hwRecordLabel = document.getElementById("hwRecordLabel");
-  const hwRecordIcon = document.getElementById("hwRecordIcon");
+  const btnModeUtterance = document.getElementById("btnModeUtterance");
+  const btnModeLecture = document.getElementById("btnModeLecture");
+  const keyboardHintPill = document.getElementById("keyboardHintPill");
+
+  // Primary Action Button
+  const btnToggleRecord = document.getElementById("btnToggleRecord");
+  const mainRecordIcon = document.getElementById("mainRecordIcon");
+  const mainRecordLabel = document.getElementById("mainRecordLabel");
 
   const recordingTimerBadge = document.getElementById("recordingTimerBadge");
   const recordingTimerText = document.getElementById("recordingTimerText");
 
+  // Secondary Inputs
   const btnUpload = document.getElementById("btnUpload");
   const fileInput = document.getElementById("fileInput");
   const savedRecordingsSelect = document.getElementById("savedRecordingsSelect");
@@ -25,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const directTextInput = document.getElementById("directTextInput");
   const btnSendText = document.getElementById("btnSendText");
 
-  // UI Elements - Audio Player & Downloads
+  // Audio Visualizer & Player
   const audioPlayback = document.getElementById("audioPlayback");
   const audioPlayerWrapper = document.getElementById("audioPlayerWrapper");
   const btnDownloadAudioPlayer = document.getElementById("btnDownloadAudioPlayer");
@@ -33,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const visualizerDot = document.getElementById("visualizerDot");
   const visualizerLabel = document.getElementById("visualizerLabel");
 
-  // UI Elements - Outputs & Actions
+  // Outputs & LaTeX Display
   const rawTranscriptBox = document.getElementById("rawTranscriptBox");
   const latexRenderContainer = document.getElementById("latexRenderContainer");
   const routeBadge = document.getElementById("routeBadge");
@@ -46,17 +52,51 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnDownloadOutputAudio = document.getElementById("btnDownloadOutputAudio");
   const btnDownloadOutputJson = document.getElementById("btnDownloadOutputJson");
 
+  // Latency Metrics
   const valAsrTime = document.getElementById("valAsrTime");
   const valRouterTime = document.getElementById("valRouterTime");
   const valT5Time = document.getElementById("valT5Time");
   const valTotalTime = document.getElementById("valTotalTime");
   const lblTranslationEngine = document.getElementById("lblTranslationEngine");
 
-  // UI Elements - Engine Selector
+  // Engine Selector
   const btnEngineSlm = document.getElementById("btnEngineSlm");
   const btnEngineT5 = document.getElementById("btnEngineT5");
-  let currentEngine = "slm"; // Default: Qwen2.5-1.5B (SLM)
+  let currentEngine = "slm"; // Default: Qwen2.5-1.5B (Edge SLM)
 
+  // Live Tests Session & Exports
+  const sessionPathTag = document.getElementById("sessionPathTag");
+  const sessionCountBadge = document.getElementById("sessionCountBadge");
+  const btnExportSrt = document.getElementById("btnExportSrt");
+  const btnExportVtt = document.getElementById("btnExportVtt");
+  const btnExportMd = document.getElementById("btnExportMd");
+  const btnExportTex = document.getElementById("btnExportTex");
+  const btnExportTxt = document.getElementById("btnExportTxt");
+  const btnExportZip = document.getElementById("btnExportZip");
+  const btnNewSession = document.getElementById("btnNewSession");
+  const historyList = document.getElementById("historyList");
+  const btnClearHistory = document.getElementById("btnClearHistory");
+
+  // -------------------------------------------------------------------------
+  // Application State
+  // -------------------------------------------------------------------------
+  let currentMode = "utterance"; // "utterance" | "lecture"
+  let isHardwareRecording = false;
+  let isLectureActive = false;
+
+  let animFrameId = null;
+  let timerIntervalId = null;
+  let timerStartTime = 0;
+
+  let currentOutputData = null;
+  let currentAudioUrl = null;
+  let currentAudioFilename = null;
+  let currentLatex = "";
+  const sessionHistoryRecords = [];
+
+  // -------------------------------------------------------------------------
+  // Engine Toggle
+  // -------------------------------------------------------------------------
   function setEngine(engine) {
     currentEngine = engine;
     if (engine === "slm") {
@@ -77,32 +117,121 @@ document.addEventListener("DOMContentLoaded", () => {
   btnEngineSlm?.addEventListener("click", () => setEngine("slm"));
   btnEngineT5?.addEventListener("click", () => setEngine("t5-v2"));
 
-  // UI Elements - History
-  const historyList = document.getElementById("historyList");
-  const btnClearHistory = document.getElementById("btnClearHistory");
-  const btnExportSessionJson = document.getElementById("btnExportSessionJson");
+  // -------------------------------------------------------------------------
+  // Capture Mode Selection: Utterance vs 1-Hour Lecture
+  // -------------------------------------------------------------------------
+  function setCaptureMode(mode) {
+    if (isHardwareRecording || isLectureActive) {
+      alert("Please stop current recording before switching modes.");
+      return;
+    }
+    currentMode = mode;
+    if (mode === "utterance") {
+      btnModeUtterance?.classList.add("active");
+      btnModeLecture?.classList.remove("active");
+      btnModeUtterance?.querySelector(".mode-tag")?.classList.add("active-tag");
+      btnModeLecture?.querySelector(".mode-tag")?.classList.remove("active-tag");
+      if (keyboardHintPill) {
+        keyboardHintPill.innerHTML = "<span>Press <kbd>Enter</kbd> to Start Recording &bull; Press <kbd>Enter</kbd> to Transcribe Immediately</span>";
+      }
+      updateMainRecordButton("idle", "[REC]", "Record [Enter]");
+    } else {
+      btnModeLecture?.classList.add("active");
+      btnModeUtterance?.classList.remove("active");
+      btnModeLecture?.querySelector(".mode-tag")?.classList.add("active-tag");
+      btnModeUtterance?.querySelector(".mode-tag")?.classList.remove("active-tag");
+      if (keyboardHintPill) {
+        keyboardHintPill.innerHTML = "<span>Continuous 1-Hour Mode &bull; Press <kbd>Enter</kbd> or click to Start/Stop Lecture</span>";
+      }
+      updateMainRecordButton("idle", "[PLAY]", "Start 1h Lecture [Enter]");
+    }
+  }
 
-  // State
-  let isBrowserRecording = false;
-  let isHardwareRecording = false;
-  let audioContext = null;
-  let mediaStream = null;
-  let scriptProcessor = null;
-  let recordedPcmChunks = [];
-  let animFrameId = null;
-  let timerIntervalId = null;
-  let timerStartTime = 0;
-  let hwCountdownTimerId = null;
+  btnModeUtterance?.addEventListener("click", () => setCaptureMode("utterance"));
+  btnModeLecture?.addEventListener("click", () => setCaptureMode("lecture"));
 
-  // Active Session & Export State
-  let currentOutputData = null;
-  let currentAudioUrl = null;
-  let currentAudioFilename = null;
-  let currentLatex = "";
-  const sessionHistoryRecords = [];
+  function updateMainRecordButton(stateClass, badgeText, labelText) {
+    if (!btnToggleRecord) return;
+    btnToggleRecord.className = `btn-main-record ${stateClass}`;
+    if (mainRecordIcon) mainRecordIcon.textContent = badgeText;
+    if (mainRecordLabel) mainRecordLabel.textContent = labelText;
+  }
 
   // -------------------------------------------------------------------------
-  // Live Recording Elapsed Timer Badge
+  // Jetson Hardware Audio Device Enumeration & Selection
+  // -------------------------------------------------------------------------
+  async function fetchAudioDevices() {
+    try {
+      const resp = await fetch("/api/audio_devices");
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      // Populate Mic Sources
+      if (selectMicDevice) {
+        selectMicDevice.innerHTML = "";
+        data.sources.forEach(src => {
+          const opt = document.createElement("option");
+          opt.value = src.id;
+          opt.textContent = `${src.name}${src.is_earphones ? " (Earphones Mic)" : ""}`;
+          if (src.is_default || (src.id && src.id.toLowerCase().includes("ab13x"))) {
+            opt.selected = true;
+          }
+          selectMicDevice.appendChild(opt);
+        });
+      }
+
+      // Populate Earphone/Playback Sinks
+      if (selectOutputDevice) {
+        selectOutputDevice.innerHTML = "";
+        data.sinks.forEach(sink => {
+          const opt = document.createElement("option");
+          opt.value = sink.id;
+          opt.textContent = `${sink.name}${sink.is_earphones ? " (Earphones Playback)" : ""}`;
+          if (sink.is_default || (sink.id && sink.id.toLowerCase().includes("ab13x"))) {
+            opt.selected = true;
+          }
+          selectOutputDevice.appendChild(opt);
+        });
+      }
+
+      if (deviceStatusBadge) {
+        const hasUsb = (data.sources.some(s => s.id && s.id.toLowerCase().includes("ab13x")) ||
+                        data.sinks.some(s => s.id && s.id.toLowerCase().includes("ab13x")));
+        deviceStatusBadge.textContent = hasUsb ? "AB13X Earphones Active" : "Hardware Audio Ready";
+      }
+    } catch (err) {
+      console.warn("Could not load audio devices:", err);
+      if (deviceStatusBadge) deviceStatusBadge.textContent = "ALSA Default Device";
+    }
+  }
+
+  async function handleDeviceChange(type, deviceName) {
+    if (!deviceName) return;
+    try {
+      const resp = await fetch("/api/audio_devices/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, name: deviceName }),
+      });
+      const data = await resp.json();
+      if (deviceStatusBadge) deviceStatusBadge.textContent = "Device Updated";
+      setTimeout(fetchAudioDevices, 800);
+    } catch (err) {
+      console.error("Device select error:", err);
+    }
+  }
+
+  selectMicDevice?.addEventListener("change", () => {
+    handleDeviceChange("source", selectMicDevice.value);
+  });
+  selectOutputDevice?.addEventListener("change", () => {
+    handleDeviceChange("sink", selectOutputDevice.value);
+  });
+
+  fetchAudioDevices();
+
+  // -------------------------------------------------------------------------
+  // Live Timer Badge
   // -------------------------------------------------------------------------
   function startLiveTimer(prefix = "REC") {
     timerStartTime = Date.now();
@@ -126,7 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // -------------------------------------------------------------------------
-  // Audio Visualizer Setup
+  // Audio Visualizer Setup (Canvas)
   // -------------------------------------------------------------------------
   const canvasCtx = audioCanvas.getContext("2d");
 
@@ -157,7 +286,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     canvasCtx.stroke();
 
-    if (!isBrowserRecording && !isHardwareRecording) {
+    if (!isHardwareRecording && !isLectureActive) {
       animFrameId = requestAnimationFrame(drawIdleWave);
     }
   }
@@ -170,13 +299,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const width = audioCanvas.width;
     const height = audioCanvas.height;
     const centerY = height / 2;
-    const time = Date.now() * 0.006;
+    const time = Date.now() * 0.007;
 
     canvasCtx.lineWidth = 2.5;
     const grad = canvasCtx.createLinearGradient(0, 0, width, 0);
-    grad.addColorStop(0, "#10b981");
-    grad.addColorStop(0.5, "#38bdf8");
-    grad.addColorStop(1, "#8b5cf6");
+    if (isLectureActive) {
+      grad.addColorStop(0, "#f59e0b");
+      grad.addColorStop(0.5, "#ec4899");
+      grad.addColorStop(1, "#8b5cf6");
+    } else {
+      grad.addColorStop(0, "#10b981");
+      grad.addColorStop(0.5, "#38bdf8");
+      grad.addColorStop(1, "#8b5cf6");
+    }
     canvasCtx.strokeStyle = grad;
 
     canvasCtx.beginPath();
@@ -189,132 +324,49 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     canvasCtx.stroke();
 
-    if (isHardwareRecording) {
+    if (isHardwareRecording || isLectureActive) {
       requestAnimationFrame(drawSimulatedActiveWave);
     }
   }
 
   // -------------------------------------------------------------------------
-  // 16kHz 16-bit Mono PCM WAV Encoder (Browser Audio API)
-  // -------------------------------------------------------------------------
-  function encodePcmToWavBlob(chunks, inputSampleRate, targetSampleRate = 16000) {
-    let totalLength = 0;
-    for (const c of chunks) totalLength += c.length;
-    const merged = new Float32Array(totalLength);
-    let offset = 0;
-    for (const c of chunks) {
-      merged.set(c, offset);
-      offset += c.length;
-    }
-
-    let resampled = merged;
-    if (inputSampleRate !== targetSampleRate && merged.length > 0) {
-      const ratio = inputSampleRate / targetSampleRate;
-      const newLength = Math.round(merged.length / ratio);
-      resampled = new Float32Array(newLength);
-      for (let i = 0; i < newLength; i++) {
-        const origIndex = i * ratio;
-        const indexFloor = Math.floor(origIndex);
-        const indexCeil = Math.min(merged.length - 1, Math.ceil(origIndex));
-        const fraction = origIndex - indexFloor;
-        resampled[i] = merged[indexFloor] * (1 - fraction) + merged[indexCeil] * fraction;
-      }
-    }
-
-    const pcm16 = new Int16Array(resampled.length);
-    for (let i = 0; i < resampled.length; i++) {
-      const s = Math.max(-1, Math.min(1, resampled[i]));
-      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-    }
-
-    const numChannels = 1;
-    const bitsPerSample = 16;
-    const byteRate = targetSampleRate * numChannels * (bitsPerSample / 8);
-    const blockAlign = numChannels * (bitsPerSample / 8);
-    const dataSize = pcm16.length * 2;
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
-
-    function writeString(v, off, str) {
-      for (let i = 0; i < str.length; i++) {
-        v.setUint8(off + i, str.charCodeAt(i));
-      }
-    }
-
-    writeString(view, 0, "RIFF");
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(view, 8, "WAVE");
-
-    writeString(view, 12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, targetSampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitsPerSample, true);
-
-    writeString(view, 36, "data");
-    view.setUint32(40, dataSize, true);
-
-    const pcmUint8 = new Uint8Array(pcm16.buffer);
-    new Uint8Array(buffer, 44).set(pcmUint8);
-
-    return new Blob([buffer], { type: "audio/wav" });
-  }
-
-  // -------------------------------------------------------------------------
-  // Mode 1: Jetson Onboard Hardware USB Mic (Continuous / Unlimited)
+  // Utterance Mode Recording (Single Equation / Phrase)
   // -------------------------------------------------------------------------
   async function startHardwareRecording() {
-    if (isHardwareRecording || isBrowserRecording) return;
+    if (isHardwareRecording || isLectureActive) return;
 
     isHardwareRecording = true;
-
-    btnRecordHw.classList.add("recording");
-    btnRecordHw.disabled = true;
-    hwRecordIcon.textContent = "[REC]";
-    hwRecordLabel.textContent = "Recording...";
-    btnStopHw.disabled = false;
-    btnStopHw.classList.add("btn-stop-active");
-
-    btnRecord.disabled = true;
-    if (btnStopBrowser) btnStopBrowser.disabled = true;
-    btnUpload.disabled = true;
+    updateMainRecordButton("recording", "[STOP]", "Transcribe [Enter]");
 
     visualizerDot.style.background = "#ef4444";
-    visualizerLabel.textContent = "Hardware mic active (Press Enter to transcribe)...";
+    visualizerLabel.textContent = "Earphones Mic Active (Press Enter to transcribe)...";
 
     startLiveTimer("REC");
     cancelAnimationFrame(animFrameId);
     drawSimulatedActiveWave();
 
     try {
+      const selectedSource = selectMicDevice ? selectMicDevice.value : "";
       const resp = await fetch("/api/hardware_mic/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ device: selectedSource }),
       });
-      const rawText = await resp.text();
-      let data = {};
-      try { data = JSON.parse(rawText); } catch (_) { throw new Error(rawText || `Server error ${resp.status}`); }
-      if (!resp.ok) throw new Error(data.error || "Recording failed to start");
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Failed to start recording");
     } catch (err) {
       console.error(err);
       alert("Hardware Mic Error: " + err.message);
-      resetHardwareUi();
+      resetUtteranceUi();
     }
   }
 
   async function stopHardwareRecording() {
     if (!isHardwareRecording) return;
-    clearTimeout(hwCountdownTimerId);
     stopLiveTimer();
 
-    btnStopHw.disabled = true;
-    btnStopHw.classList.remove("btn-stop-active");
-    hwRecordLabel.textContent = "Processing...";
-    visualizerLabel.textContent = "Running Whisper ASR & T5...";
+    updateMainRecordButton("idle", "[PROC]", "Transcribing...");
+    visualizerLabel.textContent = "Running Whisper ASR & SLM...";
 
     try {
       const resp = await fetch(`/api/hardware_mic/stop?engine=${currentEngine}`, {
@@ -322,9 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ engine: currentEngine }),
       });
-      const rawText = await resp.text();
-      let data = {};
-      try { data = JSON.parse(rawText); } catch (_) { throw new Error(rawText || `Server error ${resp.status}`); }
+      const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Hardware mic processing failed");
 
       setAudioSource(data.audio_url, data.audio_file);
@@ -333,197 +383,212 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error(err);
       alert("Hardware Mic Processing Error: " + err.message);
     } finally {
-      resetHardwareUi();
+      resetUtteranceUi();
       loadRecordingsList();
+      fetchLiveTestsSummary();
     }
   }
 
-  function resetHardwareUi() {
-    clearTimeout(hwCountdownTimerId);
+  function resetUtteranceUi() {
     stopLiveTimer();
     isHardwareRecording = false;
-    btnRecordHw.classList.remove("recording");
-    btnRecordHw.disabled = false;
-    hwRecordIcon.textContent = "[HW]";
-    hwRecordLabel.textContent = "Hardware Mic";
-    btnStopHw.disabled = true;
-    btnStopHw.classList.remove("btn-stop-active");
-
-    btnRecord.disabled = false;
-    if (btnStopBrowser) btnStopBrowser.disabled = true;
-    btnUpload.disabled = false;
+    updateMainRecordButton("idle", "[REC]", "Record [Enter]");
 
     visualizerDot.style.background = "#64748b";
     visualizerLabel.textContent = "Microphone Idle";
     drawIdleWave();
   }
 
-  btnRecordHw.addEventListener("click", startHardwareRecording);
-  btnStopHw.addEventListener("click", stopHardwareRecording);
+  // -------------------------------------------------------------------------
+  // Continuous 1-Hour Lecture Mode
+  // -------------------------------------------------------------------------
+  async function startLectureMode() {
+    if (isLectureActive || isHardwareRecording) return;
+
+    isLectureActive = true;
+    updateMainRecordButton("lecture-active", "[STOP]", "Stop 1h Lecture [Enter]");
+
+    visualizerDot.style.background = "#f59e0b";
+    visualizerLabel.textContent = "1-Hour Lecture Active: Streaming chunks in real-time...";
+
+    startLiveTimer("LECTURE");
+    cancelAnimationFrame(animFrameId);
+    drawSimulatedActiveWave();
+
+    try {
+      const selectedSource = selectMicDevice ? selectMicDevice.value : "";
+      const resp = await fetch("/api/lecture/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device: selectedSource, engine: currentEngine }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Failed to start lecture");
+    } catch (err) {
+      console.error(err);
+      alert("Lecture Start Error: " + err.message);
+      resetLectureUi();
+    }
+  }
+
+  async function stopLectureMode() {
+    if (!isLectureActive) return;
+    stopLiveTimer();
+
+    updateMainRecordButton("idle", "[PROC]", "Finalizing Subtitles & Documents...");
+    visualizerLabel.textContent = "Finalizing lecture audio and documents...";
+
+    try {
+      const resp = await fetch("/api/lecture/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Failed to stop lecture");
+
+      if (data.full_wav) {
+        setAudioSource(`/recordings/${data.full_wav}`, data.full_wav);
+      }
+      visualizerLabel.textContent = `Lecture completed: ${data.total_chunks || 0} utterances recorded.`;
+    } catch (err) {
+      console.error(err);
+      alert("Lecture Stop Error: " + err.message);
+    } finally {
+      resetLectureUi();
+      loadRecordingsList();
+      fetchLiveTestsSummary();
+    }
+  }
+
+  function resetLectureUi() {
+    stopLiveTimer();
+    isLectureActive = false;
+    updateMainRecordButton("idle", "[PLAY]", "Start 1h Lecture [Enter]");
+
+    visualizerDot.style.background = "#64748b";
+    visualizerLabel.textContent = "Lecture Stopped";
+    drawIdleWave();
+  }
 
   // -------------------------------------------------------------------------
-  // Mode 2: Browser Microphone Recording (Web Audio 16kHz PCM WAV)
+  // Main Primary Button Click Handler
   // -------------------------------------------------------------------------
-  btnRecord.addEventListener("click", async () => {
-    if (isHardwareRecording) return;
-    if (!isBrowserRecording) {
-      await startBrowserRecording();
+  btnToggleRecord?.addEventListener("click", () => {
+    if (currentMode === "utterance") {
+      if (!isHardwareRecording) {
+        startHardwareRecording();
+      } else {
+        stopHardwareRecording();
+      }
     } else {
-      stopBrowserRecording();
+      if (!isLectureActive) {
+        startLectureMode();
+      } else {
+        stopLectureMode();
+      }
     }
   });
 
-  if (btnStopBrowser) {
-    btnStopBrowser.addEventListener("click", () => {
-      if (isBrowserRecording) stopBrowserRecording();
-    });
-  }
-
-  async function startBrowserRecording() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("Browser microphone not available. Use Hardware Mic to capture audio directly.");
+  // -------------------------------------------------------------------------
+  // Global Enter Key Handler (Press Enter to Start / Stop)
+  // -------------------------------------------------------------------------
+  window.addEventListener("keydown", (e) => {
+    // If focused on an input or textarea, let normal typing occur
+    if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
       return;
     }
 
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      audioContext = new AudioCtx();
-      const source = audioContext.createMediaStreamSource(mediaStream);
-
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-
-      const bufferSize = 4096;
-      scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-      recordedPcmChunks = [];
-
-      scriptProcessor.onaudioprocess = (e) => {
-        if (!isBrowserRecording) return;
-        const channelData = e.inputBuffer.getChannelData(0);
-        recordedPcmChunks.push(new Float32Array(channelData));
-      };
-
-      source.connect(scriptProcessor);
-      scriptProcessor.connect(audioContext.destination);
-
-      isBrowserRecording = true;
-      btnRecord.classList.add("recording");
-      btnRecord.disabled = true;
-      recordLabel.textContent = "Recording...";
-      recordIcon.textContent = "[REC]";
-
-      if (btnStopBrowser) {
-        btnStopBrowser.disabled = false;
-        btnStopBrowser.classList.add("btn-stop-active");
-      }
-
-      btnRecordHw.disabled = true;
-      btnStopHw.disabled = true;
-      btnUpload.disabled = true;
-
-      visualizerDot.style.background = "#ef4444";
-      visualizerLabel.textContent = "Browser mic active (Press Enter to transcribe)...";
-      startLiveTimer("REC");
-
-      cancelAnimationFrame(animFrameId);
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      function renderLiveSpectrum() {
-        if (!isBrowserRecording) return;
-        analyser.getByteFrequencyData(dataArray);
-
-        canvasCtx.fillStyle = "rgba(2, 6, 23, 0.4)";
-        canvasCtx.fillRect(0, 0, audioCanvas.width, audioCanvas.height);
-
-        const barWidth = (audioCanvas.width / bufferLength) * 2.2;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const barHeight = (dataArray[i] / 255) * audioCanvas.height * 0.85;
-          const grad = canvasCtx.createLinearGradient(0, audioCanvas.height, 0, 0);
-          grad.addColorStop(0, "#06b6d4");
-          grad.addColorStop(1, "#8b5cf6");
-          canvasCtx.fillStyle = grad;
-          canvasCtx.fillRect(x, audioCanvas.height - barHeight, barWidth, barHeight);
-          x += barWidth + 2;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (currentMode === "utterance") {
+        if (!isHardwareRecording) {
+          startHardwareRecording();
+        } else {
+          stopHardwareRecording();
         }
-
-        requestAnimationFrame(renderLiveSpectrum);
+      } else {
+        if (!isLectureActive) {
+          startLectureMode();
+        } else {
+          stopLectureMode();
+        }
       }
-      renderLiveSpectrum();
+    } else if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      if (currentMode === "utterance") {
+        if (!isHardwareRecording) {
+          startHardwareRecording();
+        } else {
+          stopHardwareRecording();
+        }
+      }
+    }
+  });
 
-    } catch (err) {
-      console.error("Microphone error:", err);
-      alert("Microphone error: " + err.message);
-      resetBrowserUi();
+  // -------------------------------------------------------------------------
+  // Live Tests Session Summary & Multi-Format Exporters
+  // -------------------------------------------------------------------------
+  async function fetchLiveTestsSummary() {
+    try {
+      const resp = await fetch("/api/live_tests/summary");
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (sessionPathTag) sessionPathTag.textContent = `live_tests/${data.session_id}/`;
+      const count = data.total_utterances ?? data.utterance_count ?? 0;
+      if (sessionCountBadge) sessionCountBadge.textContent = `${count} utterance${count === 1 ? '' : 's'}`;
+    } catch (e) {
+      console.warn("Could not fetch live tests summary:", e);
     }
   }
 
-  function stopBrowserRecording() {
-    if (!isBrowserRecording) return;
-    isBrowserRecording = false;
-    stopLiveTimer();
+  fetchLiveTestsSummary();
 
-    if (scriptProcessor) {
-      scriptProcessor.disconnect();
-      scriptProcessor = null;
+  btnExportSrt?.addEventListener("click", () => {
+    window.open("/api/live_tests/export/srt", "_blank");
+  });
+  btnExportVtt?.addEventListener("click", () => {
+    window.open("/api/live_tests/export/vtt", "_blank");
+  });
+  btnExportMd?.addEventListener("click", () => {
+    window.open("/api/live_tests/export/md", "_blank");
+  });
+  btnExportTex?.addEventListener("click", () => {
+    window.open("/api/live_tests/export/tex", "_blank");
+  });
+  btnExportTxt?.addEventListener("click", () => {
+    window.open("/api/live_tests/export/txt", "_blank");
+  });
+  btnExportZip?.addEventListener("click", () => {
+    window.open("/api/live_tests/export/zip", "_blank");
+  });
+
+  btnNewSession?.addEventListener("click", async () => {
+    if (confirm("Start a new test session in live_tests? Previous outputs remain saved.")) {
+      try {
+        const resp = await fetch("/api/live_tests/new_session", { method: "POST" });
+        const data = await resp.json();
+        alert(`New session started: ${data.session_id}`);
+        sessionHistoryRecords.length = 0;
+        historyList.innerHTML = '<div class="history-empty">New test session active. Press Enter to record.</div>';
+        fetchLiveTestsSummary();
+      } catch (e) {
+        alert("Failed to start new session: " + e.message);
+      }
     }
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => track.stop());
-      mediaStream = null;
-    }
+  });
 
-    resetBrowserUi();
-    visualizerLabel.textContent = "Transcribing audio...";
-    drawIdleWave();
-
-    const inputSampleRate = audioContext ? audioContext.sampleRate : 44100;
-    const wavBlob = encodePcmToWavBlob(recordedPcmChunks, inputSampleRate, 16000);
-
-    const clientAudioUrl = URL.createObjectURL(wavBlob);
-    setAudioSource(clientAudioUrl, `client_mic_${Date.now()}.wav`);
-
-    uploadAndTranscribe(wavBlob);
-  }
-
-  function resetBrowserUi() {
-    isBrowserRecording = false;
-    btnRecord.classList.remove("recording");
-    btnRecord.disabled = false;
-    recordLabel.textContent = "Browser Mic";
-    recordIcon.textContent = "[WEB]";
-
-    if (btnStopBrowser) {
-      btnStopBrowser.disabled = true;
-      btnStopBrowser.classList.remove("btn-stop-active");
-    }
-
-    btnRecordHw.disabled = false;
-    btnStopHw.disabled = true;
-    btnUpload.disabled = false;
-
-    visualizerDot.style.background = "#64748b";
-    visualizerLabel.textContent = "Microphone Idle";
-    drawIdleWave();
-  }
+  btnClearHistory?.addEventListener("click", () => {
+    sessionHistoryRecords.length = 0;
+    historyList.innerHTML = '<div class="history-empty">History view cleared. Data remains safely saved in live_tests/.</div>';
+  });
 
   // -------------------------------------------------------------------------
   // File Upload Handling
   // -------------------------------------------------------------------------
-  btnUpload.addEventListener("click", () => fileInput.click());
+  btnUpload?.addEventListener("click", () => fileInput.click());
 
-  fileInput.addEventListener("change", async (e) => {
+  fileInput?.addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -557,17 +622,19 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Error: " + err.message);
     } finally {
       loadRecordingsList();
+      fetchLiveTestsSummary();
     }
   }
 
   // -------------------------------------------------------------------------
-  // Pre-recorded Benchmark Selector
+  // Benchmark Audio Selector
   // -------------------------------------------------------------------------
   async function loadRecordingsList() {
     try {
       const res = await fetch("/api/recordings");
       const data = await res.json();
-      savedRecordingsSelect.innerHTML = '<option value="">Select benchmark audio...</option>';
+      if (!savedRecordingsSelect) return;
+      savedRecordingsSelect.innerHTML = '<option value="">Benchmark WAV...</option>';
       data.recordings.forEach(r => {
         const opt = document.createElement("option");
         opt.value = r.filename;
@@ -580,7 +647,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   loadRecordingsList();
 
-  btnRunSaved.addEventListener("click", async () => {
+  btnRunSaved?.addEventListener("click", async () => {
     const filename = savedRecordingsSelect.value;
     if (!filename) {
       alert("Please select a benchmark recording first.");
@@ -604,14 +671,16 @@ document.addEventListener("DOMContentLoaded", () => {
       renderOutput(data);
     } catch (err) {
       alert("Error running recording: " + err.message);
+    } finally {
+      fetchLiveTestsSummary();
     }
   });
 
   // -------------------------------------------------------------------------
-  // Direct Text Input
+  // Direct Text Input Simulation
   // -------------------------------------------------------------------------
-  btnSendText.addEventListener("click", sendDirectText);
-  directTextInput.addEventListener("keydown", (e) => {
+  btnSendText?.addEventListener("click", sendDirectText);
+  directTextInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendDirectText();
   });
 
@@ -631,22 +700,23 @@ document.addEventListener("DOMContentLoaded", () => {
       try { data = JSON.parse(rawText); } catch (_) { throw new Error(rawText || `Server error ${res.status}`); }
       if (!res.ok) throw new Error(data.error || "Processing failed");
 
-      // Clear audio player for pure text run
       clearAudioSource();
       renderOutput(data);
     } catch (err) {
       alert("Error: " + err.message);
+    } finally {
+      fetchLiveTestsSummary();
     }
   }
 
   // -------------------------------------------------------------------------
-  // Audio Player State & Download Helpers
+  // Audio Player State & Helpers
   // -------------------------------------------------------------------------
   function setAudioSource(url, filename) {
     currentAudioUrl = url;
     currentAudioFilename = filename;
-    audioPlayback.src = url;
-    audioPlayerWrapper.style.display = "block";
+    if (audioPlayback) audioPlayback.src = url;
+    if (audioPlayerWrapper) audioPlayerWrapper.style.display = "block";
 
     if (btnDownloadAudioPlayer) btnDownloadAudioPlayer.disabled = false;
     if (btnDownloadOutputAudio) btnDownloadOutputAudio.disabled = false;
@@ -655,7 +725,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function clearAudioSource() {
     currentAudioUrl = null;
     currentAudioFilename = null;
-    audioPlayerWrapper.style.display = "none";
+    if (audioPlayerWrapper) audioPlayerWrapper.style.display = "none";
     if (btnDownloadAudioPlayer) btnDownloadAudioPlayer.disabled = true;
     if (btnDownloadOutputAudio) btnDownloadOutputAudio.disabled = true;
   }
@@ -671,91 +741,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.removeChild(a);
   }
 
-  if (btnDownloadAudioPlayer) {
-    btnDownloadAudioPlayer.addEventListener("click", () => {
-      downloadAudioFile(currentAudioFilename, currentAudioUrl);
-    });
-  }
-
-  if (btnDownloadOutputAudio) {
-    btnDownloadOutputAudio.addEventListener("click", () => {
-      downloadAudioFile(currentAudioFilename, currentAudioUrl);
-    });
-  }
-
-  // -------------------------------------------------------------------------
-  // Download Model Output JSON (For Model Learning / Fine-Tuning / Dataset)
-  // -------------------------------------------------------------------------
-  function downloadLearningSampleJson() {
-    if (!currentOutputData) {
-      alert("No output data available yet to download.");
-      return;
-    }
-
-    const payload = {
-      timestamp: new Date().toISOString(),
-      audio_file: currentOutputData.audio_file || currentAudioFilename || null,
-      audio_url: currentOutputData.audio_url || currentAudioUrl || null,
-      raw_transcript: currentOutputData.raw_transcript || currentOutputData.raw_text || "",
-      route_type: currentOutputData.route_type || "",
-      processed_text: currentOutputData.processed_text || "",
-      spans: currentOutputData.spans || [],
-      latency_ms: {
-        asr: currentOutputData.asr_time_ms || 0,
-        router: currentOutputData.router_time_ms || 0,
-        t5: currentOutputData.route_type === "PURE_ENGLISH" ? 0 : (currentOutputData.router_time_ms || 0),
-        total: currentOutputData.total_time_ms || 0,
-      },
-      device: "NVIDIA Jetson Orin Nano (8GB)",
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    a.download = `learning_sample_${ts}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  if (btnDownloadOutputJson) {
-    btnDownloadOutputJson.addEventListener("click", downloadLearningSampleJson);
-  }
-
-  // -------------------------------------------------------------------------
-  // Export Full Session Dataset (JSONL / JSON)
-  // -------------------------------------------------------------------------
-  function exportFullSessionDataset() {
-    if (sessionHistoryRecords.length === 0) {
-      alert("No utterances recorded in this session yet.");
-      return;
-    }
-
-    const exportBundle = {
-      export_timestamp: new Date().toISOString(),
-      total_utterances: sessionHistoryRecords.length,
-      device: "NVIDIA Jetson Orin Nano (8GB)",
-      samples: sessionHistoryRecords,
-    };
-
-    const blob = new Blob([JSON.stringify(exportBundle, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    a.download = `speech_latex_dataset_${ts}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  if (btnExportSessionJson) {
-    btnExportSessionJson.addEventListener("click", exportFullSessionDataset);
-  }
+  btnDownloadAudioPlayer?.addEventListener("click", () => {
+    downloadAudioFile(currentAudioFilename, currentAudioUrl);
+  });
+  btnDownloadOutputAudio?.addEventListener("click", () => {
+    downloadAudioFile(currentAudioFilename, currentAudioUrl);
+  });
 
   // -------------------------------------------------------------------------
   // KaTeX Visual LaTeX Renderer
@@ -848,33 +839,41 @@ document.addEventListener("DOMContentLoaded", () => {
     currentOutputData = data;
 
     // 1. Raw Whisper Transcript
-    rawTranscriptBox.textContent = data.raw_transcript || data.raw_text || "(empty)";
+    if (rawTranscriptBox) {
+      rawTranscriptBox.textContent = data.raw_transcript || data.raw_text || "(empty)";
+    }
 
     // 2. Route Badge
-    const isSlm = data.engine === "qwen2.5-1.5b" || data.route_type === "slm_direct";
-    if (isSlm) {
-      routeBadge.className = "route-badge MIXED";
-      routeBadge.textContent = "SLM (Qwen2.5-1.5B)";
-    } else {
-      routeBadge.className = `route-badge ${data.route_type || "PURE_ENGLISH"}`;
-      routeBadge.textContent = data.route_type || "IDLE";
+    const isSlm = data.engine === "qwen2.5-1.5b" || data.route_type === "slm_direct" || currentEngine === "slm";
+    if (routeBadge) {
+      if (isSlm) {
+        routeBadge.className = "route-badge MIXED";
+        routeBadge.textContent = "SLM (Qwen2.5-1.5B)";
+      } else {
+        routeBadge.className = `route-badge ${data.route_type || "PURE_ENGLISH"}`;
+        routeBadge.textContent = data.route_type || "IDLE";
+      }
     }
 
     // 3. Latency Metrics
-    valAsrTime.textContent = (data.asr_time_ms || 0) + " ms";
-    valRouterTime.textContent = (data.router_time_ms || 0) + " ms";
+    if (valAsrTime) valAsrTime.textContent = (data.asr_time_ms || 0) + " ms";
+    if (valRouterTime) valRouterTime.textContent = (data.router_time_ms || 0) + " ms";
     if (lblTranslationEngine) {
       lblTranslationEngine.textContent = isSlm ? "SLM (Qwen)" : "T5-v2";
     }
-    valT5Time.textContent = (data.route_type === "PURE_ENGLISH" ? "0 ms" : (data.router_time_ms || 0) + " ms");
-    valTotalTime.textContent = (data.total_time_ms || 0) + " ms";
+    if (valT5Time) {
+      valT5Time.textContent = (data.route_type === "PURE_ENGLISH" ? "0 ms" : (data.router_time_ms || 0) + " ms");
+    }
+    if (valTotalTime) valTotalTime.textContent = (data.total_time_ms || 0) + " ms";
 
     // 4. Render Visual LaTeX Typography
     const processed = data.processed_text || "";
     currentLatex = processed;
-    latexRenderContainer.innerHTML = renderLatexToVisualHtml(processed, data.route_type);
+    if (latexRenderContainer) {
+      latexRenderContainer.innerHTML = renderLatexToVisualHtml(processed, data.route_type);
+    }
 
-    // 5. Underlying LaTeX Code Box
+    // 5. LaTeX Code Box
     if (latexCodeCard && latexCodeBox) {
       if (data.route_type !== "PURE_ENGLISH" && (processed.includes("$") || processed.includes("\\") || processed.includes("="))) {
         latexCodeCard.style.display = "block";
@@ -884,7 +883,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // 6. Math Spans Breakdown
+    // 6. Math Spans
     if (spansCard && spansBox) {
       if (data.spans && data.spans.length > 0) {
         spansCard.style.display = "block";
@@ -906,24 +905,21 @@ document.addEventListener("DOMContentLoaded", () => {
     recordSessionSample(data);
   }
 
-  // -------------------------------------------------------------------------
   // Copy LaTeX
-  // -------------------------------------------------------------------------
-  btnCopyLatex.addEventListener("click", () => {
+  btnCopyLatex?.addEventListener("click", () => {
     if (!currentLatex) return;
     navigator.clipboard.writeText(currentLatex).then(() => {
       const originalText = btnCopyLatex.innerHTML;
-      btnCopyLatex.innerHTML = "<span>✓</span><span>Copied</span>";
+      btnCopyLatex.innerHTML = "<span>Copied</span>";
       setTimeout(() => btnCopyLatex.innerHTML = originalText, 1400);
     });
   });
 
   // -------------------------------------------------------------------------
-  // History Log Management
+  // History Record Management
   // -------------------------------------------------------------------------
   function recordSessionSample(data) {
     const isSlm = data.engine === "qwen2.5-1.5b" || data.route_type === "slm_direct" || currentEngine === "slm";
-    const engineLabel = isSlm ? "Qwen-1.5B (SLM)" : "T5-v2";
     const record = {
       timestamp: new Date().toISOString(),
       engine: isSlm ? "slm" : "t5-v2",
@@ -949,34 +945,32 @@ document.addEventListener("DOMContentLoaded", () => {
     item.className = "history-item";
     const timeStr = new Date().toLocaleTimeString();
 
-    const audioAction = record.audio_file
-      ? `<button class="btn-history-dl" onclick="window.downloadAudioItem('${record.audio_file}')" title="Download audio">WAV</button>`
-      : "";
-
     item.innerHTML = `
       <div class="history-item-left">
-        <div class="history-raw">"${escapeHtml(record.raw_transcript)}"</div>
-        <div class="history-processed">${escapeHtml(record.processed_text)}</div>
+        <div class="history-raw">${escapeHtml(data.raw_transcript || data.raw_text || "")}</div>
+        <div class="history-processed">${renderLatexToVisualHtml(data.processed_text || "", data.route_type)}</div>
       </div>
       <div class="history-meta">
         <div class="history-badge-row">
-          <span class="route-badge ${record.route_type}">${engineLabel}</span>
-          ${audioAction}
+          <span class="route-badge ${data.route_type || 'PURE_ENGLISH'}">${isSlm ? 'SLM' : (data.route_type || 'MIXED')}</span>
+          ${data.audio_file ? `<button class="btn-history-dl" data-file="${data.audio_file}">WAV</button>` : ''}
         </div>
-        <div class="history-time-meta">${record.latency_ms.total} ms • ${timeStr}</div>
+        <div class="history-time-meta">${timeStr} &bull; ${data.total_time_ms || 0} ms</div>
       </div>
     `;
+
+    const dlBtn = item.querySelector(".btn-history-dl");
+    if (dlBtn) {
+      dlBtn.addEventListener("click", () => {
+        downloadAudioFile(dlBtn.getAttribute("data-file"), null);
+      });
+    }
 
     historyList.prepend(item);
   }
 
-  // Window helper for inline history audio download
-  window.downloadAudioItem = (filename) => {
-    downloadAudioFile(filename, `/recordings/${filename}`);
-  };
-
   // -------------------------------------------------------------------------
-  // WebSocket Client: Live Telemetry & Instant Transcribe
+  // WebSocket Connection (Real-time Telemetry & Continuous Lecture Streaming)
   // -------------------------------------------------------------------------
   let ws = null;
   let wsReconnectTimer = null;
@@ -995,6 +989,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
+
           if (msg.type === "telemetry" && isHardwareRecording) {
             visualizerDot.style.background = "#ef4444";
             visualizerLabel.textContent = `Recording ${msg.elapsed_sec.toFixed(1)}s (Press Enter to transcribe)...`;
@@ -1006,8 +1001,23 @@ document.addEventListener("DOMContentLoaded", () => {
           } else if (msg.type === "transcription_result") {
             setAudioSource(msg.audio_url, msg.audio_file);
             renderOutput(msg);
-            resetHardwareUi();
+            resetUtteranceUi();
             loadRecordingsList();
+            fetchLiveTestsSummary();
+          } else if (msg.type === "lecture_chunk") {
+            // Real-time chunk from continuous 1-hour lecture mode
+            visualizerLabel.textContent = `[${msg.start_sec.toFixed(1)}s - ${msg.end_sec.toFixed(1)}s] Chunk #${msg.chunk_index} transcribed`;
+            const simulatedData = {
+              raw_transcript: msg.text,
+              processed_text: msg.latex,
+              route_type: "MIXED",
+              engine: "qwen2.5-1.5b",
+              asr_time_ms: Math.round(msg.asr_time_ms || 250),
+              router_time_ms: Math.round(msg.router_time_ms || 150),
+              total_time_ms: Math.round((msg.asr_time_ms || 250) + (msg.router_time_ms || 150)),
+            };
+            renderOutput(simulatedData);
+            fetchLiveTestsSummary();
           }
         } catch (e) {
           console.error("[WS Message Error]", e);
@@ -1029,35 +1039,4 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   initWebSocket();
-
-  // -------------------------------------------------------------------------
-  // Global Keyboard Shortcuts: Enter (Transcribe) & Space (Toggle Mic)
-  // -------------------------------------------------------------------------
-  window.addEventListener("keydown", (e) => {
-    // If focused on an input or textarea, let normal typing occur
-    if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
-      return;
-    }
-
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (isHardwareRecording) {
-        stopHardwareRecording();
-      } else if (isBrowserRecording) {
-        stopBrowserRecording();
-      }
-    } else if (e.key === " " || e.code === "Space") {
-      e.preventDefault();
-      if (isHardwareRecording) {
-        stopHardwareRecording();
-      } else if (!isBrowserRecording) {
-        startHardwareRecording();
-      }
-    }
-  });
-
-  btnClearHistory.addEventListener("click", () => {
-    sessionHistoryRecords.length = 0;
-    historyList.innerHTML = '<div class="history-empty">Session history cleared.</div>';
-  });
 });

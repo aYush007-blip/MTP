@@ -45,6 +45,7 @@ bin/
 recordings/
 gui_tests/
 transcripts/
+live_tests/session_*/
 logs/
 .Trash-*/
 

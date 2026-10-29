@@ -80,53 +80,72 @@
           </div>
         </div>
 
+        <!-- Jetson Hardware Audio Device Configuration -->
+        <div class="device-selector-panel">
+          <div class="device-selector-header">
+            <span class="device-selector-title">JETSON HARDWARE AUDIO</span>
+            <span class="device-status-badge" id="deviceStatusBadge">Earphones Connected</span>
+          </div>
+          <div class="device-selectors-grid">
+            <div class="device-select-group">
+              <label for="selectMicDevice">Microphone Input</label>
+              <select id="selectMicDevice" class="device-select" title="Microphone connected to Jetson">
+                <option value="">Scanning Jetson microphones...</option>
+              </select>
+            </div>
+            <div class="device-select-group">
+              <label for="selectOutputDevice">Earphones / Playback Output</label>
+              <select id="selectOutputDevice" class="device-select" title="Output device connected to Jetson">
+                <option value="">Scanning Jetson playback devices...</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode Toggle: Utterance Mode vs 1-Hour Lecture Mode -->
+        <div class="mode-toggle-container">
+          <span class="mode-label">CAPTURE MODE</span>
+          <div class="mode-toggle-group">
+            <button type="button" class="btn-mode-toggle active" id="btnModeUtterance" data-mode="utterance" title="Single phrase/equation: Press Enter to record, Press Enter to transcribe immediately">
+              <span class="mode-tag active-tag">[UTTERANCE]</span>
+              <span>Fast Math</span>
+            </button>
+            <button type="button" class="btn-mode-toggle" id="btnModeLecture" data-mode="lecture" title="Continuous 1-hour lecture streaming: Real-time chunking, VAD pauses, live subtitles">
+              <span class="mode-tag">[LECTURE]</span>
+              <span>1-Hour Continuous</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Keyboard Shortcuts Hint -->
-        <div class="keyboard-hint-pill">
-          <span>Press <kbd>Enter</kbd> to transcribe immediately &bull; <kbd>Space</kbd> to toggle microphone</span>
+        <div class="keyboard-hint-pill" id="keyboardHintPill">
+          <span>Press <kbd>Enter</kbd> to Start Recording &bull; Press <kbd>Enter</kbd> to Transcribe Immediately</span>
         </div>
 
-        <!-- Primary Controls -->
-        <div class="controls-stack">
-          <!-- Hardware Mic Row -->
-          <div class="controls-row">
-            <button id="btnRecordHw" class="btn-hw-record" type="button" title="Start recording from hardware microphone (or press Space)">
-              <span id="hwRecordIcon" class="btn-tag">[HW]</span>
-              <span id="hwRecordLabel">Hardware Mic</span>
-            </button>
-            <button id="btnStopHw" class="btn-stop-record" type="button" disabled title="Transcribe recorded audio immediately (or press Enter)">
-              <span>Transcribe [Enter]</span>
-            </button>
-          </div>
-
-          <!-- Browser Mic & Upload Row -->
-          <div class="controls-row">
-            <button id="btnRecord" class="btn-primary" type="button" title="Record via browser microphone">
-              <span id="recordIcon" class="btn-tag">[WEB]</span>
-              <span id="recordLabel">Browser Mic</span>
-            </button>
-            <button id="btnStopBrowser" class="btn-stop-record" type="button" disabled title="Stop browser recording and transcribe">
-              <span>Transcribe [Enter]</span>
-            </button>
-            <button id="btnUpload" class="btn-secondary" type="button" title="Upload WAV audio file">
-              <span>Upload WAV</span>
-            </button>
-            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
-          </div>
+        <!-- Primary Hardware Record / Transcribe Action Button -->
+        <div class="primary-action-container">
+          <button id="btnToggleRecord" class="btn-main-record idle" type="button" title="Press Enter or click to record">
+            <span id="mainRecordIcon" class="main-record-badge">[REC]</span>
+            <span id="mainRecordLabel">Record [Enter]</span>
+          </button>
         </div>
 
-        <!-- Pre-recorded Utterances -->
-        <div class="sub-input-section">
-          <div class="sub-input-row">
-            <select id="savedRecordingsSelect" class="compact-select" title="Benchmark audio files">
-              <option value="">Select benchmark audio...</option>
-            </select>
-            <button id="btnRunSaved" class="btn-secondary compact-btn" type="button">Run</button>
-          </div>
+        <!-- Secondary Actions Row: Upload WAV & Benchmark -->
+        <div class="secondary-controls-row">
+          <button id="btnUpload" class="btn-secondary" type="button" title="Upload WAV audio file for offline processing">
+            <span>Upload WAV</span>
+          </button>
+          <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+
+          <select id="savedRecordingsSelect" class="compact-select" title="Benchmark audio files">
+            <option value="">Benchmark WAV...</option>
+          </select>
+          <button id="btnRunSaved" class="btn-secondary compact-btn" type="button">Run</button>
         </div>
 
         <!-- Direct Text Simulation -->
         <div class="text-input-group">
-          <input type="text" id="directTextInput" placeholder="Type spoken math or English (e.g. 'v equals i times r')...">
+          <input type="text" id="directTextInput" placeholder="Type spoken math or English (e.g. 'f of x equals sine of x')...">
           <button id="btnSendText" class="btn-icon" type="button">Analyze</button>
         </div>
       </section>
@@ -208,23 +227,46 @@
       </section>
     </main>
 
-    <!-- Session History Section -->
+    <!-- Live Tests & Lecture Output Section -->
     <section class="history-section">
       <div class="section-header">
         <div class="history-header-left">
-          <h2>Session History</h2>
+          <h2>Live Tests &amp; Lecture Outputs</h2>
+          <span class="session-path-tag" id="sessionPathTag">live_tests/</span>
+          <span class="session-count-badge" id="sessionCountBadge">0 utterances</span>
         </div>
         <div class="history-actions">
-          <button id="btnExportSessionJson" class="btn-secondary compact-btn" title="Export entire session history as JSON dataset">
-            <span>Export All (JSON)</span>
+          <!-- Formatted Document & Subtitle Export Buttons -->
+          <div class="export-btn-group">
+            <button id="btnExportSrt" class="btn-export" title="Export timestamped SubRip Subtitles (.srt)">
+              <span class="export-tag">[SRT]</span> Subtitles
+            </button>
+            <button id="btnExportVtt" class="btn-export" title="Export WebVTT Subtitles (.vtt)">
+              <span class="export-tag">[VTT]</span> WebVTT
+            </button>
+            <button id="btnExportMd" class="btn-export" title="Export Lecture Notes with LaTeX formulas (.md)">
+              <span class="export-tag">[MD]</span> Notes
+            </button>
+            <button id="btnExportTex" class="btn-export" title="Export Compilable LaTeX Paper (.tex)">
+              <span class="export-tag">[TEX]</span> LaTeX
+            </button>
+            <button id="btnExportTxt" class="btn-export" title="Export Plaintext Transcript (.txt)">
+              <span class="export-tag">[TXT]</span> Text
+            </button>
+            <button id="btnExportZip" class="btn-export-zip" title="Export entire test session with WAVs, Subtitles, LaTeX, and JSON (.zip)">
+              <span class="export-tag">[ZIP]</span> Export All
+            </button>
+          </div>
+          <button id="btnNewSession" class="btn-secondary compact-btn" title="Start a fresh live test session in live_tests/">
+            <span>+ New Session</span>
           </button>
-          <button id="btnClearHistory" class="btn-secondary compact-btn" title="Clear session history list">
-            <span>Clear</span>
+          <button id="btnClearHistory" class="btn-secondary compact-btn" title="Clear displayed history list">
+            <span>Clear View</span>
           </button>
         </div>
       </div>
       <div class="history-list" id="historyList">
-        <div class="history-empty">No session history yet. Speak or type to begin.</div>
+        <div class="history-empty">No live test utterances recorded yet. Press Enter to record.</div>
       </div>
     </section>
   </div>
