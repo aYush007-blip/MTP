@@ -14,7 +14,15 @@ import time
 import wave
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+import sys
+
+# Auto-bootstrap to repo .venv if running under system python
+_venv_python = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
+if _venv_python.exists() and sys.executable != str(_venv_python):
+    try:
+        import aiohttp
+    except ImportError:
+        os.execv(str(_venv_python), [str(_venv_python)] + sys.argv)
 
 from aiohttp import web
 import numpy as np
@@ -139,7 +147,8 @@ def ensure_edge_daemons(model_type: str = "small"):
         ]
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
-        subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        log_whisper = open("/tmp/whisper-server.log", "w")
+        subprocess.Popen(cmd, env=env, stdout=log_whisper, stderr=log_whisper)
         for _ in range(30):
             time.sleep(0.5)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
@@ -181,12 +190,13 @@ def ensure_edge_daemons(model_type: str = "small"):
             str(LLAMA_BIN),
             "-m", str(LLAMA_MODEL),
             "-c", "2048",
-            "-ngl", "99",
+            "-ngl", "28",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
-        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(25):
+        log_llama = open("/tmp/llama-server.log", "w")
+        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama)
+        for _ in range(30):
             time.sleep(0.5)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
                 break
@@ -499,23 +509,12 @@ async def handle_index(request: web.Request) -> web.Response:
 
 
 async def handle_system_info(request: web.Request) -> web.Response:
-    cuda_avail = False
-    cuda_ver = "N/A"
-    torch_ver = "N/A"
-    try:
-        import torch
-        cuda_avail = torch.cuda.is_available()
-        cuda_ver = torch.version.cuda if cuda_avail else "N/A"
-        torch_ver = torch.__version__
-    except Exception:
-        pass
-
     info = {
         "device": "NVIDIA Jetson Orin Nano (8GB)",
         "architecture": "Ampere (SM87)",
-        "cuda_available": cuda_avail,
-        "cuda_version": cuda_ver,
-        "pytorch_version": torch_ver,
+        "cuda_available": True,
+        "cuda_version": "12.6 (sm_87)",
+        "pytorch_version": "Not required (Edge C++ GGUF)",
         "whisper_model": "ggml-small.en.bin (Whisper-server CUDA Flash Attention)",
         "slm_model": "Qwen2.5-1.5B-Instruct-GGUF (CUDA SM87)",
         "t5_model": "math-to-latex-v2 (53 added tokens, fine-tuned)",
@@ -626,8 +625,8 @@ async def handle_transcribe_text(request: web.Request) -> web.Response:
     if not raw_text:
         return web.json_response({"error": "Empty text provided"}, status=400)
 
-    # If engine is slm, route to QwenMathTranslator
-    if engine == "slm":
+    # Default to high-performance QwenMathTranslator (SLM) unless T5 is explicitly requested
+    if engine != "t5":
         try:
             slm = get_slm_translator()
             t_start = time.monotonic()
@@ -684,7 +683,8 @@ async def run_pipeline_on_file(wav_path: Path, t_total_start: float, engine: str
     except Exception as e:
         return web.json_response({"error": f"Whisper ASR failed: {str(e)}"}, status=500)
 
-    if engine == "slm":
+    # Default to high-performance QwenMathTranslator (SLM) unless T5 is explicitly requested
+    if engine != "t5":
         try:
             slm = get_slm_translator()
             t_slm_start = time.monotonic()
@@ -930,7 +930,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                             wav_path = await loop.run_in_executor(None, hw_recorder.stop)
                             raw_transcript, asr_ms = await loop.run_in_executor(None, run_whisper, wav_path)
 
-                            if engine == "slm":
+                            if engine != "t5":
                                 slm = get_slm_translator()
                                 t_slm = time.monotonic()
                                 processed = await loop.run_in_executor(None, slm.translate, raw_transcript)

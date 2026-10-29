@@ -177,7 +177,7 @@ class QwenMathTranslator:
             "-n", str(max_new_tokens),
             "--temp", "0.0",
             "--repeat-penalty", "1.1",
-            "-ngl", "99" if self.device == "cuda" else "0",
+            "-ngl", "28" if self.device == "cuda" else "0",
             "-c", "2048",
             "--no-display-prompt",
             "-b", "512",

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Speech to LaTeX
+Comment=Offline Jetson Orin Speech-to-LaTeX Showcase
+Exec=/mnt/thesis/run_gui.sh
+Icon=utilities-terminal
+Path=/mnt/thesis/main
+Terminal=true
+Categories=Utility;AudioVideo;
+StartupNotify=true

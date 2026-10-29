@@ -162,8 +162,9 @@ def ensure_edge_daemons(model_type: str = "small"):
         ]
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
-        subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(25):
+        log_whisper = open("/tmp/whisper-server.log", "w")
+        subprocess.Popen(cmd, env=env, stdout=log_whisper, stderr=log_whisper)
+        for _ in range(30):
             time.sleep(0.5)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
                 break
@@ -205,12 +206,13 @@ def ensure_edge_daemons(model_type: str = "small"):
             LLAMA_BIN,
             "-m", LLAMA_MODEL,
             "-c", "2048",
-            "-ngl", "99",
+            "-ngl", "28",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
-        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(20):
+        log_llama = open("/tmp/llama-server.log", "w")
+        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama)
+        for _ in range(30):
             time.sleep(0.5)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
                 break

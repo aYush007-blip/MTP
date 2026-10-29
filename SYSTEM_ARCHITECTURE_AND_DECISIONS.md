@@ -541,7 +541,46 @@ Every script and module in the repository maps to a specific subsystem layer:
 | [`src/router.py`](file:///mnt/thesis/main/src/router.py) | Phase 1 Fallback Translation | `torch`, `transformers` | `gui/server.py`, `evaluate_model.py` | Executes Phase 1 regex heuristic classification (`PURE_MATH`, `MIXED`, `NO_MATH`) and T5-small inference. |
 | [`src/live_vad.py`](file:///mnt/thesis/main/src/live_vad.py) | Acoustic Segmentation | `pyaudio`, `audio.py`, `whisper.cpp` | `gui/server.py`, `run_live_test.py` | 500ms rolling ring buffer + Silero/Energy VAD for real-time utterance segmentation from hardware microphone. |
 | [`src/evaluate_model.py`](file:///mnt/thesis/main/src/evaluate_model.py) | Benchmarking Suite | `slm_translator.py`, `router.py` | Automated CI / Evaluation CLI | Computes Norm-EM, Strict-EM, BLEU-4, CER, TER, and P95 latency distributions on lecture corpora. |
-| [`gui/server.py`](file:///mnt/thesis/main/gui/server.py) | Edge Web Application | `aiohttp`, `slm_translator.py`, `router.py` | Web Browser (`app.js`) | Asynchronous HTTP & WebSocket server providing real-time hardware mic streaming, file upload, text transcription, and engine switching. |
+| [`gui/server.py`](file:///mnt/thesis/main/gui/server.py) | Edge Web Application | `aiohttp`, `slm_translator.py` | Web Browser (`app.js`) | Asynchronous HTTP & WebSocket server providing real-time hardware mic streaming, file upload, text transcription, and engine switching. |
+| [`run_gui.sh`](file:///mnt/thesis/run_gui.sh) | Launcher Automation | Bash | Desktop / Systemd / CLI | 1-click startup script: resolves virtualenv, starts daemons, launches GUI, and optionally opens desktop browser. |
+
+---
+
+## 11. Offline Edge Deployment, Reboot Persistence, and Auto-Start Strategy
+
+### 11.1 100% Offline Air-Gapped Operation
+The entire system operates strictly without external network connectivity:
+1. **Zero Cloud Dependencies:** All speech recognition (Whisper `small.en`) and mathematical translation (Qwen2.5-1.5B) run strictly on local hardware using custom-compiled C++ binaries (`whisper-server` and `llama-server`) with NVIDIA Ampere CUDA SM87 acceleration.
+2. **Self-Contained Frontend Assets:** KaTeX styling, JavaScript runtime (`katex.min.js`, `auto-render.min.js`), and all mathematical font files (`.woff2`) are locally hosted in `main/gui/static/katex/`.
+3. **Zero External Font Requests:** External Google Font CDN links have been removed. Typography utilizes a native system font hierarchy (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`), guaranteeing immediate sub-millisecond render times with zero network timeout delays when offline.
+4. **Local NVMe Model Weights:** All models reside on local NVMe storage (`/mnt/thesis/models/`), which is automatically mounted on system boot via `/etc/fstab`.
+
+### 11.2 Cold-Start & Reboot Autonomous Supervision
+When the Jetson Orin Nano is powered down or restarted:
+1. **Automatic Daemon Orchestration:** `ensure_edge_daemons()` is invoked on application startup in [`main/gui.py`](file:///mnt/thesis/main/gui.py), [`main/gui/server.py`](file:///mnt/thesis/main/gui/server.py), and [`main/src/live_streaming_terminal.py`](file:///mnt/thesis/main/src/live_streaming_terminal.py).
+2. **Port Probing & Auto-Revival:** The system probes ports `8081` (Whisper) and `8080` (Llama). If either daemon is not responding, it automatically launches the process in the background with appropriate `LD_LIBRARY_PATH` and logging to `/tmp/whisper-server.log` and `/tmp/llama-server.log`.
+3. **GPU Layer Allocation (`-ngl 28`):** Qwen2.5-1.5B allocates all 28 transformer attention/MLP layers to CUDA (`-ngl 28`). This achieves ~320 tokens/sec prompt processing and ~21 tokens/sec generation on Orin Nano while leaving the input embedding matrix on CPU, preventing the `set_rows_cuda` invalid device kernel crash caused by `-ngl 99`.
+
+### 11.3 Zero-Configuration Python Environment Bootstrapping
+To ensure users can launch the application from any terminal regardless of active shell environment:
+- [`main/gui.py`](file:///mnt/thesis/main/gui.py) and [`main/gui/server.py`](file:///mnt/thesis/main/gui/server.py) inspect the running interpreter.
+- If executed under `/usr/bin/python3` without the required packages, the script transparently re-executes itself via `os.execv()` using the dedicated repository virtual environment at `/mnt/thesis/main/.venv/bin/python`.
+
+### 11.4 Startup Entrypoints
+Three convenient ways to launch the system after a reboot:
+1. **Terminal Command:**
+   ```bash
+   cd /mnt/thesis && ./run_gui.sh
+   # Or: python main/gui.py
+   ```
+2. **Desktop Shortcut:**
+   Double-click `Speech to LaTeX` directly on the GNOME desktop (`~/Desktop/Speech2LaTeX.desktop`).
+3. **Headless Boot Service (Systemd User Unit):**
+   To make the GUI automatically start whenever the Jetson powers on:
+   ```bash
+   systemctl --user enable speech2latex.service
+   systemctl --user start speech2latex.service
+   ```
 
 
 

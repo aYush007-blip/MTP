@@ -1,0 +1,14 @@
+[Unit]
+Description=Jetson Orin Speech-to-LaTeX Showcase Service
+After=network.target sound.target
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/thesis/main
+ExecStart=/mnt/thesis/run_gui.sh
+Restart=on-failure
+RestartSec=5s
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
