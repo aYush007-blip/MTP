@@ -239,7 +239,7 @@ def query_whisper_server(wav_bytes: bytes) -> tuple[str, float]:
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
 
-    with urllib.request.urlopen(req, timeout=25.0) as resp:
+    with urllib.request.urlopen(req, timeout=90.0) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         raw_text = data.get("text", "").strip()
         cleaned = clean_whisper_text(raw_text)
