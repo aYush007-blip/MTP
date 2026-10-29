@@ -152,7 +152,7 @@ def ensure_edge_daemons(model_type: str = "small"):
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
         log_whisper = open("/tmp/whisper-server.log", "w")
-        subprocess.Popen(cmd, env=env, stdout=log_whisper, stderr=log_whisper)
+        subprocess.Popen(cmd, env=env, stdout=log_whisper, stderr=log_whisper, start_new_session=True)
         for _ in range(30):
             time.sleep(0.5)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
@@ -199,7 +199,7 @@ def ensure_edge_daemons(model_type: str = "small"):
             "--host", "127.0.0.1"
         ]
         log_llama = open("/tmp/llama-server.log", "w")
-        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama)
+        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama, start_new_session=True)
         for _ in range(30):
             time.sleep(0.5)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):

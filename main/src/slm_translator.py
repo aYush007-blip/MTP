@@ -162,7 +162,7 @@ class QwenMathTranslator:
             data=data_bytes,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             resp_data = json.loads(resp.read().decode("utf-8"))
             content = resp_data["choices"][0]["message"]["content"]
             return self._clean_response(content)
@@ -216,11 +216,16 @@ class QwenMathTranslator:
         response = self.tokenizer.decode(response_tokens, skip_special_tokens=True).strip()
         return self._clean_response(response)
 
-    def translate(self, spoken_text: str, max_new_tokens: int = 128) -> str:
+    def translate(self, spoken_text: str, max_new_tokens: Optional[int] = None) -> str:
         """Translate spoken lecture transcript into clean prose + LaTeX notation."""
         text = spoken_text.strip()
         if not text:
             return ""
+
+        if max_new_tokens is None:
+            # Scaled token budget: minimum 256 tokens, up to 1536 tokens for long lectures
+            word_count = len(text.split())
+            max_new_tokens = min(1536, max(256, word_count * 4))
 
         if self.backend == "server" or self._is_server_alive():
             return self.translate_server(text, max_new_tokens=max_new_tokens)
