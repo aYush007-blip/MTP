@@ -195,6 +195,7 @@ def ensure_edge_daemons(model_type: str = "small"):
             "-m", str(LLAMA_MODEL),
             "-c", "2048",
             "-ngl", "28",
+            "-t", "2",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
@@ -454,6 +455,21 @@ def format_vtt_timestamp(seconds: float) -> str:
     return f"{hours:02d}:{mins:02d}:{secs:02d}.{millis:03d}"
 
 
+def to_inline_speech(text: str) -> str:
+    """Format speech and math into natural sequential flowing transcript:
+    timestamp + text + inline latex code ($...$) + text...
+    """
+    if not text:
+        return ""
+    s = re.sub(r"\\begin\{equation\*?\}(.*?)\\end\{equation\*?\}", r"$\1$", text, flags=re.DOTALL)
+    s = re.sub(r"\\begin\{align\*?\}(.*?)\\end\{align\*?\}", r"$\1$", s, flags=re.DOTALL)
+    s = re.sub(r"\\\[(.*?)\\\]", r"$\1$", s, flags=re.DOTALL)
+    s = re.sub(r"\$\$(.*?)\$\$", r"$\1$", s, flags=re.DOTALL)
+    s = re.sub(r"\n+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
 class LiveTestSession:
     """Manages an active testing or lecture session, saving all WAVs, JSONs, SRT, MD, and TEX."""
 
@@ -548,11 +564,13 @@ class LiveTestSession:
             json_name = f"utterance_{idx:03d}.json"
             (self.metadata_dir / json_name).write_text(json.dumps(item, indent=2), encoding="utf-8")
 
+            inline_speech = to_inline_speech(processed_latex)
+
             # 2. Append to SRT
             srt_block = (
                 f"{idx}\n"
                 f"{format_srt_timestamp(start_offset)} --> {format_srt_timestamp(end_offset)}\n"
-                f"{processed_latex}\n\n"
+                f"{inline_speech}\n\n"
             )
             with open(self.session_dir / "lecture_subtitles.srt", "a", encoding="utf-8") as f:
                 f.write(srt_block)
@@ -561,25 +579,24 @@ class LiveTestSession:
             vtt_block = (
                 f"{idx}\n"
                 f"{format_vtt_timestamp(start_offset)} --> {format_vtt_timestamp(end_offset)}\n"
-                f"{processed_latex}\n\n"
+                f"{inline_speech}\n\n"
             )
             with open(self.session_dir / "lecture_subtitles.vtt", "a", encoding="utf-8") as f:
                 f.write(vtt_block)
 
-            # 4. Append to Markdown
+            # 4. Append to Markdown (Sequential: timestamp + text + latex code + text...)
             time_tag = f"[{int(start_offset//60):02d}:{int(start_offset%60):02d}]"
-            md_block = f"### {time_tag} Utterance {idx}\n- **Spoken:** {raw_transcript}\n- **LaTeX:** {processed_latex}\n\n"
+            md_block = f"**{time_tag}** {inline_speech}\n\n"
             with open(self.session_dir / "lecture_notes.md", "a", encoding="utf-8") as f:
                 f.write(md_block)
 
             # 5. Append to LaTeX
-            tex_content = processed_latex.replace("\\[", "\\begin{equation}\n").replace("\\]", "\n\\end{equation}\n")
-            tex_block = f"% Utterance {idx} ({time_tag})\n{tex_content}\n\n"
+            tex_block = f"% {time_tag}\n{inline_speech}\n\n"
             with open(self.session_dir / "lecture_paper.tex", "a", encoding="utf-8") as f:
                 f.write(tex_block)
 
             # 6. Append to Plain Text
-            txt_block = f"{time_tag} {processed_latex}\n"
+            txt_block = f"{time_tag} {inline_speech}\n"
             with open(self.session_dir / "lecture_transcript.txt", "a", encoding="utf-8") as f:
                 f.write(txt_block)
 
@@ -1767,11 +1784,14 @@ async def cleanup_background_tasks(app: web.Application):
 
 
 @web.middleware
-async def no_cache_middleware(request: web.Request, handler) -> web.Response:
+async def no_cache_middleware(request: web.Request, handler) -> web.StreamResponse:
+    if request.path == "/ws":
+        return await handler(request)
     response = await handler(request)
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
+    if isinstance(response, web.Response):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     return response
 
 

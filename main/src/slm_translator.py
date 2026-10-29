@@ -20,15 +20,14 @@ from typing import Optional
 import urllib.request
 
 SYSTEM_PROMPT = (
-    "You are an expert speech-to-LaTeX transcriber for university-level mathematics and engineering lectures.\n"
-    "Your task: Given a raw spoken transcript from a microphone, produce the clean final text where all mathematical "
-    "expressions, variables, formulas, equations, and calculus notation are formatted in standard LaTeX notation (enclosed in $...$).\n"
+    "You are an expert lecture transcriber and mathematical typesetter.\n"
+    "Your task is to take a spoken lecture transcript and convert it into a natural, continuous transcript where spoken text and mathematical expressions flow together in the exact order spoken: text + inline LaTeX code (for any math terms or formulas) + text.\n"
     "Rules:\n"
-    "1. Convert spoken math into concise, correct LaTeX (e.g. 'v equals i times r' -> '$V = IR$', 'ax plus by plus cz equals d' -> '$ax + by + cz = d$').\n"
-    "2. If an utterance is conversational or descriptive English without formulas (e.g. 'The voltage across a resistor depends on current'), keep it in plain English.\n"
-    "3. If an utterance mixes English with math (e.g. 'We know that x plus y equals ten so we can solve for y'), keep the English words and enclose the math formula in $...$ (e.g. 'We know that $x + y = 10$ so we can solve for $y$.').\n"
-    "4. Fix phonetic ASR misunderstandings (e.g. 'meter respect to' -> 'with respect to', 'quote' -> '=', 'side of x' -> '\\sin(x)').\n"
-    "5. Output ONLY the transcribed result. Do not output any explanation, notes, or preamble."
+    "1. Do not separate spoken prose and LaTeX into separate sections, bullet points, or isolated blocks.\n"
+    "2. Format all mathematical variables, expressions, and equations as clean inline LaTeX ($...$).\n"
+    "3. Convert spoken math into proper LaTeX notation (e.g. 'f of t' -> '$f(t)$', 's equals sigma plus j omega' -> '$s = \\sigma + j\\omega$', 'integral from zero to infinity of f of t times e to the minus s t dt' -> '$\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$', 'dy by dt' -> '$\\frac{dy}{dt}$').\n"
+    "4. Preserve 100% of the spoken words and explanations. Do not summarize or omit anything.\n"
+    "5. Output ONLY the formatted lecture transcript."
 )
 
 DEFAULT_GGUF_PATH = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
@@ -222,10 +221,34 @@ class QwenMathTranslator:
         if not text:
             return ""
 
+        words = text.split()
+        # For long continuous lecture transcripts (>45 words), chunk by sentence to:
+        # 1. Prevent over-current throttling (micro-burst compute with power recovery)
+        # 2. Maintain 100% mathematical precision without truncation
+        # 3. Maintain exact sequential spoken order (text + latex + text...)
+        if len(words) > 45 and max_new_tokens is None:
+            sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+            if len(sentences) > 1:
+                chunks = []
+                for i in range(0, len(sentences), 2):
+                    chunks.append(" ".join(sentences[i:i+2]))
+                results = []
+                for ch in chunks:
+                    ch_words = len(ch.split())
+                    ch_tokens = min(512, max(180, ch_words * 4))
+                    if self.backend == "server" or self._is_server_alive():
+                        translated = self.translate_server(ch, max_new_tokens=ch_tokens)
+                    elif self.backend == "llama_cli" or (self.model_path and self.model_path.suffix == ".gguf"):
+                        translated = self.translate_cli(ch, max_new_tokens=ch_tokens)
+                    else:
+                        translated = self.translate_transformers(ch, max_new_tokens=ch_tokens)
+                    results.append(translated)
+                    time.sleep(0.05)  # brief power-rail recovery to prevent VDD_IN current spike
+                return " ".join(results)
+
         if max_new_tokens is None:
             # Scaled token budget: minimum 256 tokens, up to 1536 tokens for long lectures
-            word_count = len(text.split())
-            max_new_tokens = min(1536, max(256, word_count * 4))
+            max_new_tokens = min(1536, max(256, len(words) * 4))
 
         if self.backend == "server" or self._is_server_alive():
             return self.translate_server(text, max_new_tokens=max_new_tokens)
