@@ -12,7 +12,7 @@
   <script src="/static/katex/auto-render.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 
@@ -84,36 +84,23 @@
         <div class="device-selector-panel">
           <div class="device-selector-header">
             <span class="device-selector-title">JETSON HARDWARE AUDIO</span>
-            <span class="device-status-badge" id="deviceStatusBadge">Earphones Connected</span>
+            <span class="device-status-badge" id="deviceStatusBadge">AB13X Earphones Active</span>
           </div>
           <div class="device-selectors-grid">
             <div class="device-select-group">
               <label for="selectMicDevice">Microphone Input</label>
               <select id="selectMicDevice" class="device-select" title="Microphone connected to Jetson">
-                <option value="">Scanning Jetson microphones...</option>
+                <option value="alsa_input.usb-Generic_AB13X_USB_Audio_20210726905926-00.analog-stereo" selected>AB13X USB Audio (Earphones Mic)</option>
+                <option value="alsa_input.platform-sound.analog-stereo">Built-in Audio Analog Stereo</option>
               </select>
             </div>
             <div class="device-select-group">
               <label for="selectOutputDevice">Earphones / Playback Output</label>
               <select id="selectOutputDevice" class="device-select" title="Output device connected to Jetson">
-                <option value="">Scanning Jetson playback devices...</option>
+                <option value="alsa_output.usb-Generic_AB13X_USB_Audio_20210726905926-00.iec958-stereo" selected>AB13X USB Audio Digital Stereo (Earphones)</option>
+                <option value="alsa_output.platform-sound.analog-stereo">Built-in Audio Analog Stereo</option>
               </select>
             </div>
-          </div>
-        </div>
-
-        <!-- Mode Toggle: Utterance Mode vs 1-Hour Lecture Mode -->
-        <div class="mode-toggle-container">
-          <span class="mode-label">CAPTURE MODE</span>
-          <div class="mode-toggle-group">
-            <button type="button" class="btn-mode-toggle active" id="btnModeUtterance" data-mode="utterance" title="Single phrase/equation: Press Enter to record, Press Enter to transcribe immediately">
-              <span class="mode-tag active-tag">[UTTERANCE]</span>
-              <span>Fast Math</span>
-            </button>
-            <button type="button" class="btn-mode-toggle" id="btnModeLecture" data-mode="lecture" title="Continuous 1-hour lecture streaming: Real-time chunking, VAD pauses, live subtitles">
-              <span class="mode-tag">[LECTURE]</span>
-              <span>1-Hour Continuous</span>
-            </button>
           </div>
         </div>
 
@@ -272,6 +259,6 @@
   </div>
 
   <!-- Custom App JavaScript -->
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

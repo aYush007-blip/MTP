@@ -5,20 +5,17 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------------------------------------
-  // UI Elements - Hardware Audio Devices & Modes
+  // UI Elements - Hardware Audio Devices
   // -------------------------------------------------------------------------
   const selectMicDevice = document.getElementById("selectMicDevice");
   const selectOutputDevice = document.getElementById("selectOutputDevice");
   const deviceStatusBadge = document.getElementById("deviceStatusBadge");
 
-  const btnModeUtterance = document.getElementById("btnModeUtterance");
-  const btnModeLecture = document.getElementById("btnModeLecture");
-  const keyboardHintPill = document.getElementById("keyboardHintPill");
-
-  // Primary Action Button
+  // Primary Action Button & Timers
   const btnToggleRecord = document.getElementById("btnToggleRecord");
   const mainRecordIcon = document.getElementById("mainRecordIcon");
   const mainRecordLabel = document.getElementById("mainRecordLabel");
+  const keyboardHintPill = document.getElementById("keyboardHintPill");
 
   const recordingTimerBadge = document.getElementById("recordingTimerBadge");
   const recordingTimerText = document.getElementById("recordingTimerText");
@@ -80,10 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------------------------------------
   // Application State
   // -------------------------------------------------------------------------
-  let currentMode = "utterance"; // "utterance" | "lecture"
   let isHardwareRecording = false;
-  let isLectureActive = false;
-
   let animFrameId = null;
   let timerIntervalId = null;
   let timerStartTime = 0;
@@ -117,39 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
   btnEngineSlm?.addEventListener("click", () => setEngine("slm"));
   btnEngineT5?.addEventListener("click", () => setEngine("t5-v2"));
 
-  // -------------------------------------------------------------------------
-  // Capture Mode Selection: Utterance vs 1-Hour Lecture
-  // -------------------------------------------------------------------------
-  function setCaptureMode(mode) {
-    if (isHardwareRecording || isLectureActive) {
-      alert("Please stop current recording before switching modes.");
-      return;
-    }
-    currentMode = mode;
-    if (mode === "utterance") {
-      btnModeUtterance?.classList.add("active");
-      btnModeLecture?.classList.remove("active");
-      btnModeUtterance?.querySelector(".mode-tag")?.classList.add("active-tag");
-      btnModeLecture?.querySelector(".mode-tag")?.classList.remove("active-tag");
-      if (keyboardHintPill) {
-        keyboardHintPill.innerHTML = "<span>Press <kbd>Enter</kbd> to Start Recording &bull; Press <kbd>Enter</kbd> to Transcribe Immediately</span>";
-      }
-      updateMainRecordButton("idle", "[REC]", "Record [Enter]");
-    } else {
-      btnModeLecture?.classList.add("active");
-      btnModeUtterance?.classList.remove("active");
-      btnModeLecture?.querySelector(".mode-tag")?.classList.add("active-tag");
-      btnModeUtterance?.querySelector(".mode-tag")?.classList.remove("active-tag");
-      if (keyboardHintPill) {
-        keyboardHintPill.innerHTML = "<span>Continuous 1-Hour Mode &bull; Press <kbd>Enter</kbd> or click to Start/Stop Lecture</span>";
-      }
-      updateMainRecordButton("idle", "[PLAY]", "Start 1h Lecture [Enter]");
-    }
-  }
-
-  btnModeUtterance?.addEventListener("click", () => setCaptureMode("utterance"));
-  btnModeLecture?.addEventListener("click", () => setCaptureMode("lecture"));
-
   function updateMainRecordButton(stateClass, badgeText, labelText) {
     if (!btnToggleRecord) return;
     btnToggleRecord.className = `btn-main-record ${stateClass}`;
@@ -167,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await resp.json();
 
       // Populate Mic Sources
-      if (selectMicDevice) {
+      if (selectMicDevice && Array.isArray(data.sources) && data.sources.length > 0) {
         selectMicDevice.innerHTML = "";
         data.sources.forEach(src => {
           const opt = document.createElement("option");
@@ -181,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Populate Earphone/Playback Sinks
-      if (selectOutputDevice) {
+      if (selectOutputDevice && Array.isArray(data.sinks) && data.sinks.length > 0) {
         selectOutputDevice.innerHTML = "";
         data.sinks.forEach(sink => {
           const opt = document.createElement("option");
@@ -195,27 +156,25 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (deviceStatusBadge) {
-        const hasUsb = (data.sources.some(s => s.id && s.id.toLowerCase().includes("ab13x")) ||
-                        data.sinks.some(s => s.id && s.id.toLowerCase().includes("ab13x")));
+        const hasUsb = (data.sources?.some(s => s.id && s.id.toLowerCase().includes("ab13x")) ||
+                        data.sinks?.some(s => s.id && s.id.toLowerCase().includes("ab13x")));
         deviceStatusBadge.textContent = hasUsb ? "AB13X Earphones Active" : "Hardware Audio Ready";
       }
     } catch (err) {
-      console.warn("Could not load audio devices:", err);
-      if (deviceStatusBadge) deviceStatusBadge.textContent = "ALSA Default Device";
+      console.warn("Could not reload audio devices (using pre-populated defaults):", err);
+      if (deviceStatusBadge) deviceStatusBadge.textContent = "AB13X Earphones Ready";
     }
   }
 
   async function handleDeviceChange(type, deviceName) {
     if (!deviceName) return;
     try {
-      const resp = await fetch("/api/audio_devices/select", {
+      await fetch("/api/audio_devices/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, name: deviceName }),
       });
-      const data = await resp.json();
       if (deviceStatusBadge) deviceStatusBadge.textContent = "Device Updated";
-      setTimeout(fetchAudioDevices, 800);
     } catch (err) {
       console.error("Device select error:", err);
     }
@@ -228,6 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
     handleDeviceChange("sink", selectOutputDevice.value);
   });
 
+  // Call on load
   fetchAudioDevices();
 
   // -------------------------------------------------------------------------
@@ -257,7 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------------------------------------
   // Audio Visualizer Setup (Canvas)
   // -------------------------------------------------------------------------
-  const canvasCtx = audioCanvas.getContext("2d");
+  const canvasCtx = audioCanvas?.getContext("2d");
 
   function resizeCanvas() {
     if (audioCanvas && audioCanvas.parentElement) {
@@ -269,6 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
   resizeCanvas();
 
   function drawIdleWave() {
+    if (!canvasCtx || !audioCanvas) return;
     canvasCtx.clearRect(0, 0, audioCanvas.width, audioCanvas.height);
     const width = audioCanvas.width;
     const height = audioCanvas.height;
@@ -286,13 +247,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     canvasCtx.stroke();
 
-    if (!isHardwareRecording && !isLectureActive) {
+    if (!isHardwareRecording) {
       animFrameId = requestAnimationFrame(drawIdleWave);
     }
   }
   drawIdleWave();
 
   function drawSimulatedActiveWave() {
+    if (!canvasCtx || !audioCanvas) return;
     canvasCtx.fillStyle = "rgba(2, 6, 23, 0.35)";
     canvasCtx.fillRect(0, 0, audioCanvas.width, audioCanvas.height);
 
@@ -303,15 +265,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     canvasCtx.lineWidth = 2.5;
     const grad = canvasCtx.createLinearGradient(0, 0, width, 0);
-    if (isLectureActive) {
-      grad.addColorStop(0, "#f59e0b");
-      grad.addColorStop(0.5, "#ec4899");
-      grad.addColorStop(1, "#8b5cf6");
-    } else {
-      grad.addColorStop(0, "#10b981");
-      grad.addColorStop(0.5, "#38bdf8");
-      grad.addColorStop(1, "#8b5cf6");
-    }
+    grad.addColorStop(0, "#10b981");
+    grad.addColorStop(0.5, "#38bdf8");
+    grad.addColorStop(1, "#8b5cf6");
     canvasCtx.strokeStyle = grad;
 
     canvasCtx.beginPath();
@@ -324,22 +280,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     canvasCtx.stroke();
 
-    if (isHardwareRecording || isLectureActive) {
+    if (isHardwareRecording) {
       requestAnimationFrame(drawSimulatedActiveWave);
     }
   }
 
   // -------------------------------------------------------------------------
-  // Utterance Mode Recording (Single Equation / Phrase)
+  // Unified Hardware Microphone Recording (Press Enter to Start & Stop)
   // -------------------------------------------------------------------------
   async function startHardwareRecording() {
-    if (isHardwareRecording || isLectureActive) return;
+    if (isHardwareRecording) return;
 
     isHardwareRecording = true;
     updateMainRecordButton("recording", "[STOP]", "Transcribe [Enter]");
 
-    visualizerDot.style.background = "#ef4444";
-    visualizerLabel.textContent = "Earphones Mic Active (Press Enter to transcribe)...";
+    if (visualizerDot) visualizerDot.style.background = "#ef4444";
+    if (visualizerLabel) visualizerLabel.textContent = "Earphones Mic Active (Press Enter to transcribe)...";
 
     startLiveTimer("REC");
     cancelAnimationFrame(animFrameId);
@@ -357,7 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       console.error(err);
       alert("Hardware Mic Error: " + err.message);
-      resetUtteranceUi();
+      resetHardwareUi();
     }
   }
 
@@ -366,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
     stopLiveTimer();
 
     updateMainRecordButton("idle", "[PROC]", "Transcribing...");
-    visualizerLabel.textContent = "Running Whisper ASR & SLM...";
+    if (visualizerLabel) visualizerLabel.textContent = "Running Whisper ASR & SLM...";
 
     try {
       const resp = await fetch(`/api/hardware_mic/stop?engine=${currentEngine}`, {
@@ -383,91 +339,19 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error(err);
       alert("Hardware Mic Processing Error: " + err.message);
     } finally {
-      resetUtteranceUi();
+      resetHardwareUi();
       loadRecordingsList();
       fetchLiveTestsSummary();
     }
   }
 
-  function resetUtteranceUi() {
+  function resetHardwareUi() {
     stopLiveTimer();
     isHardwareRecording = false;
     updateMainRecordButton("idle", "[REC]", "Record [Enter]");
 
-    visualizerDot.style.background = "#64748b";
-    visualizerLabel.textContent = "Microphone Idle";
-    drawIdleWave();
-  }
-
-  // -------------------------------------------------------------------------
-  // Continuous 1-Hour Lecture Mode
-  // -------------------------------------------------------------------------
-  async function startLectureMode() {
-    if (isLectureActive || isHardwareRecording) return;
-
-    isLectureActive = true;
-    updateMainRecordButton("lecture-active", "[STOP]", "Stop 1h Lecture [Enter]");
-
-    visualizerDot.style.background = "#f59e0b";
-    visualizerLabel.textContent = "1-Hour Lecture Active: Streaming chunks in real-time...";
-
-    startLiveTimer("LECTURE");
-    cancelAnimationFrame(animFrameId);
-    drawSimulatedActiveWave();
-
-    try {
-      const selectedSource = selectMicDevice ? selectMicDevice.value : "";
-      const resp = await fetch("/api/lecture/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ device: selectedSource, engine: currentEngine }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Failed to start lecture");
-    } catch (err) {
-      console.error(err);
-      alert("Lecture Start Error: " + err.message);
-      resetLectureUi();
-    }
-  }
-
-  async function stopLectureMode() {
-    if (!isLectureActive) return;
-    stopLiveTimer();
-
-    updateMainRecordButton("idle", "[PROC]", "Finalizing Subtitles & Documents...");
-    visualizerLabel.textContent = "Finalizing lecture audio and documents...";
-
-    try {
-      const resp = await fetch("/api/lecture/stop", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Failed to stop lecture");
-
-      if (data.full_wav) {
-        setAudioSource(`/recordings/${data.full_wav}`, data.full_wav);
-      }
-      visualizerLabel.textContent = `Lecture completed: ${data.total_chunks || 0} utterances recorded.`;
-    } catch (err) {
-      console.error(err);
-      alert("Lecture Stop Error: " + err.message);
-    } finally {
-      resetLectureUi();
-      loadRecordingsList();
-      fetchLiveTestsSummary();
-    }
-  }
-
-  function resetLectureUi() {
-    stopLiveTimer();
-    isLectureActive = false;
-    updateMainRecordButton("idle", "[PLAY]", "Start 1h Lecture [Enter]");
-
-    visualizerDot.style.background = "#64748b";
-    visualizerLabel.textContent = "Lecture Stopped";
+    if (visualizerDot) visualizerDot.style.background = "#64748b";
+    if (visualizerLabel) visualizerLabel.textContent = "Microphone Idle";
     drawIdleWave();
   }
 
@@ -475,18 +359,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Main Primary Button Click Handler
   // -------------------------------------------------------------------------
   btnToggleRecord?.addEventListener("click", () => {
-    if (currentMode === "utterance") {
-      if (!isHardwareRecording) {
-        startHardwareRecording();
-      } else {
-        stopHardwareRecording();
-      }
+    if (!isHardwareRecording) {
+      startHardwareRecording();
     } else {
-      if (!isLectureActive) {
-        startLectureMode();
-      } else {
-        stopLectureMode();
-      }
+      stopHardwareRecording();
     }
   });
 
@@ -501,27 +377,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (e.key === "Enter") {
       e.preventDefault();
-      if (currentMode === "utterance") {
-        if (!isHardwareRecording) {
-          startHardwareRecording();
-        } else {
-          stopHardwareRecording();
-        }
+      if (!isHardwareRecording) {
+        startHardwareRecording();
       } else {
-        if (!isLectureActive) {
-          startLectureMode();
-        } else {
-          stopLectureMode();
-        }
+        stopHardwareRecording();
       }
     } else if (e.key === " " || e.code === "Space") {
       e.preventDefault();
-      if (currentMode === "utterance") {
-        if (!isHardwareRecording) {
-          startHardwareRecording();
-        } else {
-          stopHardwareRecording();
-        }
+      if (!isHardwareRecording) {
+        startHardwareRecording();
+      } else {
+        stopHardwareRecording();
       }
     }
   });
@@ -570,7 +436,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await resp.json();
         alert(`New session started: ${data.session_id}`);
         sessionHistoryRecords.length = 0;
-        historyList.innerHTML = '<div class="history-empty">New test session active. Press Enter to record.</div>';
+        if (historyList) historyList.innerHTML = '<div class="history-empty">New test session active. Press Enter to record.</div>';
         fetchLiveTestsSummary();
       } catch (e) {
         alert("Failed to start new session: " + e.message);
@@ -580,13 +446,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btnClearHistory?.addEventListener("click", () => {
     sessionHistoryRecords.length = 0;
-    historyList.innerHTML = '<div class="history-empty">History view cleared. Data remains safely saved in live_tests/.</div>';
+    if (historyList) historyList.innerHTML = '<div class="history-empty">History view cleared. Data remains safely saved in live_tests/.</div>';
   });
 
   // -------------------------------------------------------------------------
   // File Upload Handling
   // -------------------------------------------------------------------------
-  btnUpload?.addEventListener("click", () => fileInput.click());
+  btnUpload?.addEventListener("click", () => fileInput?.click());
 
   fileInput?.addEventListener("change", async (e) => {
     const file = e.target.files[0];
@@ -595,7 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const audioUrl = URL.createObjectURL(file);
     setAudioSource(audioUrl, file.name);
 
-    visualizerLabel.textContent = `Processing ${file.name}...`;
+    if (visualizerLabel) visualizerLabel.textContent = `Processing ${file.name}...`;
     await uploadAndTranscribe(file);
   });
 
@@ -648,14 +514,14 @@ document.addEventListener("DOMContentLoaded", () => {
   loadRecordingsList();
 
   btnRunSaved?.addEventListener("click", async () => {
-    const filename = savedRecordingsSelect.value;
+    const filename = savedRecordingsSelect?.value;
     if (!filename) {
       alert("Please select a benchmark recording first.");
       return;
     }
 
     setAudioSource(`/recordings/${filename}`, filename);
-    visualizerLabel.textContent = `Processing ${filename}...`;
+    if (visualizerLabel) visualizerLabel.textContent = `Processing ${filename}...`;
 
     try {
       const res = await fetch("/api/transcribe_saved", {
@@ -685,10 +551,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   async function sendDirectText() {
-    const text = directTextInput.value.trim();
+    const text = directTextInput?.value.trim();
     if (!text) return;
 
-    visualizerLabel.textContent = "Analyzing input text...";
+    if (visualizerLabel) visualizerLabel.textContent = "Analyzing input text...";
     try {
       const res = await fetch("/api/transcribe_text", {
         method: "POST",
@@ -937,7 +803,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     sessionHistoryRecords.unshift(record);
 
-    if (historyList.children.length === 1 && historyList.children[0].classList.contains("history-empty")) {
+    if (historyList && historyList.children.length === 1 && historyList.children[0].classList.contains("history-empty")) {
       historyList.innerHTML = "";
     }
 
@@ -966,11 +832,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    historyList.prepend(item);
+    if (historyList) historyList.prepend(item);
   }
 
   // -------------------------------------------------------------------------
-  // WebSocket Connection (Real-time Telemetry & Continuous Lecture Streaming)
+  // WebSocket Connection (Real-time Telemetry)
   // -------------------------------------------------------------------------
   let ws = null;
   let wsReconnectTimer = null;
@@ -991,8 +857,8 @@ document.addEventListener("DOMContentLoaded", () => {
           const msg = JSON.parse(event.data);
 
           if (msg.type === "telemetry" && isHardwareRecording) {
-            visualizerDot.style.background = "#ef4444";
-            visualizerLabel.textContent = `Recording ${msg.elapsed_sec.toFixed(1)}s (Press Enter to transcribe)...`;
+            if (visualizerDot) visualizerDot.style.background = "#ef4444";
+            if (visualizerLabel) visualizerLabel.textContent = `Recording ${msg.elapsed_sec.toFixed(1)}s (Press Enter to transcribe)...`;
             if (recordingTimerText) {
               const mm = String(Math.floor(msg.elapsed_sec / 60)).padStart(2, "0");
               const ss = String(Math.floor(msg.elapsed_sec % 60)).padStart(2, "0");
@@ -1001,22 +867,8 @@ document.addEventListener("DOMContentLoaded", () => {
           } else if (msg.type === "transcription_result") {
             setAudioSource(msg.audio_url, msg.audio_file);
             renderOutput(msg);
-            resetUtteranceUi();
+            resetHardwareUi();
             loadRecordingsList();
-            fetchLiveTestsSummary();
-          } else if (msg.type === "lecture_chunk") {
-            // Real-time chunk from continuous 1-hour lecture mode
-            visualizerLabel.textContent = `[${msg.start_sec.toFixed(1)}s - ${msg.end_sec.toFixed(1)}s] Chunk #${msg.chunk_index} transcribed`;
-            const simulatedData = {
-              raw_transcript: msg.text,
-              processed_text: msg.latex,
-              route_type: "MIXED",
-              engine: "qwen2.5-1.5b",
-              asr_time_ms: Math.round(msg.asr_time_ms || 250),
-              router_time_ms: Math.round(msg.router_time_ms || 150),
-              total_time_ms: Math.round((msg.asr_time_ms || 250) + (msg.router_time_ms || 150)),
-            };
-            renderOutput(simulatedData);
             fetchLiveTestsSummary();
           }
         } catch (e) {

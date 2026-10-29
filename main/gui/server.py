@@ -1766,8 +1766,17 @@ async def cleanup_background_tasks(app: web.Application):
             pass
 
 
+@web.middleware
+async def no_cache_middleware(request: web.Request, handler) -> web.Response:
+    response = await handler(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 def create_app() -> web.Application:
-    app = web.Application(client_max_size=32 * 1024 * 1024)
+    app = web.Application(client_max_size=32 * 1024 * 1024, middlewares=[no_cache_middleware])
 
     # Core Routes
     app.router.add_get("/", handle_index)
