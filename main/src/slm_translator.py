@@ -20,11 +20,17 @@ from typing import Optional
 import urllib.request
 
 SYSTEM_PROMPT = (
-    "You are a verbatim lecture typesetter. Your job is to output the EXACT spoken words in the EXACT order spoken, converting ONLY mathematical terms, variables, and formulas into inline LaTeX ($...$).\n\n"
+    "You are an expert lecture transcriber and mathematical typesetter.\n"
+    "Your task is to take a spoken lecture transcript and convert it into a natural, continuous transcript where spoken mathematical formulas and expressions are converted into standard inline LaTeX ($...$).\n\n"
     "STRICT RULES:\n"
-    "1. NEVER delete, omit, summarize, or paraphrase any spoken words or explanations. Every single spoken word must appear in the output.\n"
-    "2. NEVER invent, solve, derive, or add mathematical equations, proofs, or steps that were not spoken by the speaker.\n"
-    "3. NEVER wrap non-math words, conversational phrases, numbers, or counting in LaTeX or \\text{}. For example, 'Four, two, one, zero. Okay, here is the short lecture.' must remain as plain text.\n"
+    "1. When mathematical operators, definitions, or equations are spoken in words (e.g. summations, integrals, fractions, derivatives, signals), convert the complete spoken mathematical phrase into its standard LaTeX formula:\n"
+    "   - 'the integral from zero to infinity of f of t times e to the minus s t dt' -> '$\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$'\n"
+    "   - 'the sum over all integers n of x of n times z to the power minus n' -> '$\\sum_{n=-\\infty}^{\\infty} x[n] z^{-n}$'\n"
+    "   - 'sum from n equals 0 to infinity of a to the n' -> '$\\sum_{n=0}^{\\infty} a^n$'\n"
+    "   - 'dy by dt plus two y equals one' -> '$\\frac{dy}{dt} + 2y = 1$'\n"
+    "   - 'x of n' -> '$x[n]$', 'x of t' -> '$x(t)$', 'f of t' -> '$f(t)$', 'z-plane' -> '$z$-plane'\n"
+    "2. Preserve 100% of the spoken conversational explanations, surrounding context, and English words. Do not summarize or omit explanations.\n"
+    "3. NEVER wrap non-math words, conversational phrases, numbers, or counting in LaTeX or \\text{}. (e.g. 'Five, four, three, two, one, zero. Let us get technical.' must remain as plain text).\n"
     "4. Use ONLY inline math ($...$). NEVER use display math ($$...$$ or \\( ... \\)).\n"
     "5. Output ONLY the resulting transcript. Do not output preamble, notes, or explanations."
 )
@@ -32,11 +38,11 @@ SYSTEM_PROMPT = (
 FEW_SHOT_MESSAGES = [
     {
         "role": "user",
-        "content": "Spoken transcript:\nFour, three, two, one. Okay, here is the short lecture. Good evening."
+        "content": "Spoken transcript:\nFive, four, three, two, one, zero. Let us get technical. The bilateral Z-transform of a discrete signal, x of n, is the sum over all integers n of x of n times z to the power minus n."
     },
     {
         "role": "assistant",
-        "content": "Four, three, two, one. Okay, here is the short lecture. Good evening."
+        "content": "Five, four, three, two, one, zero. Let us get technical. The bilateral Z-transform of a discrete signal, $x[n]$, is $\\sum_{n=-\\infty}^{\\infty} x[n] z^{-n}$."
     },
     {
         "role": "user",
@@ -44,7 +50,7 @@ FEW_SHOT_MESSAGES = [
     },
     {
         "role": "assistant",
-        "content": "Today we are looking at the Laplace transform. It takes a time function, $f(t)$, and turns it into a function of a complex variable, $s$. The definition is the integral from zero to infinity of $\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$."
+        "content": "Today we are looking at the Laplace transform. It takes a time function, $f(t)$, and turns it into a function of a complex variable, $s$. The definition is $\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$."
     },
     {
         "role": "user",
@@ -184,6 +190,8 @@ class QwenMathTranslator:
         s = re.sub(r"\\\((.*?)\\\)", r"$\1$", s, flags=re.DOTALL)
         # Collapse empty $ $
         s = re.sub(r"\$\s*\$", "", s)
+        # Fix unbracketed or dropped variable symbol before [n]$
+        s = re.sub(r"(?<![a-zA-Z\$])\[([a-zA-Z0-9]+)\]\$", r"$x[\1]$", s)
         # Collapse multiple spaces
         s = re.sub(r"[ \t]+", " ", s)
         return s.strip()
