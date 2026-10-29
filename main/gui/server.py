@@ -122,8 +122,84 @@ def is_service_alive(url: str, endpoint: str = "/health") -> bool:
         return False
 
 
+def ensure_edge_daemons(model_type: str = "small"):
+    """Ensure both whisper-server and llama-server daemons are running on the Jetson."""
+    model_path = str(WHISPER_SMALL_MODEL if model_type == "small" and WHISPER_SMALL_MODEL.exists() else WHISPER_BASE_MODEL)
+
+    # 1. Check if whisper-server is alive (Port 8081)
+    if not is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
+        print(f"[Init] Starting whisper-server daemon with {Path(model_path).name} (Port 8081, Flash Attention)...")
+        cmd = [
+            str(WHISPER_SERVER_BIN),
+            "-m", model_path,
+            "--port", "8081",
+            "--host", "127.0.0.1",
+            "-fa", "-nt", "-bo", "1", "-bs", "1", "-t", "4",
+            "-sns", "-nth", "0.65"
+        ]
+        env = os.environ.copy()
+        env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
+        subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(30):
+            time.sleep(0.5)
+            if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
+                break
+        print(f"[Ready] whisper-server ready ({Path(model_path).name}) on {WHISPER_SERVER_URL}")
+    else:
+        # Check if loaded model matches
+        current_model_file = Path("/tmp/whisper_current_model.txt")
+        needs_reload = True
+        if current_model_file.exists():
+            try:
+                if current_model_file.read_text().strip() == model_path:
+                    needs_reload = False
+            except Exception:
+                pass
+
+        if needs_reload:
+            try:
+                boundary = "----ModelLoadBoundary"
+                body = (
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="model"\r\n\r\n'
+                    f"{model_path}\r\n--{boundary}--\r\n"
+                ).encode("utf-8")
+                req = urllib.request.Request(
+                    f"{WHISPER_SERVER_URL}/load",
+                    data=body,
+                    headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                )
+                with urllib.request.urlopen(req, timeout=10.0) as resp:
+                    current_model_file.write_text(model_path)
+            except Exception:
+                pass
+
+    # 2. Check if llama-server is alive (Port 8080)
+    if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
+        print(f"[Init] Starting llama-server daemon on port 8080 (CUDA SM87)...")
+        cmd = [
+            str(LLAMA_BIN),
+            "-m", str(LLAMA_MODEL),
+            "-c", "2048",
+            "-ngl", "99",
+            "--port", "8080",
+            "--host", "127.0.0.1"
+        ]
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(25):
+            time.sleep(0.5)
+            if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
+                break
+        print(f"[Ready] llama-server (Qwen2.5-1.5B) ready on {LLAMA_SERVER_URL}")
+
+
 def query_whisper_server(wav_bytes: bytes) -> tuple[str, float]:
     """Query whisper-server daemon on port 8081 with mathematical prompting."""
+    # Auto-revive daemon if not reachable
+    if not is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
+        print("[Whisper ASR] whisper-server is offline. Auto-starting daemon...")
+        ensure_edge_daemons()
+
     t0 = time.monotonic()
     boundary = "----JetsonGuiStreamBoundary"
     body = (
@@ -923,6 +999,9 @@ async def ws_telemetry_loop(app: web.Application):
 
 
 async def start_background_tasks(app: web.Application):
+    # Ensure background daemons on startup
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, ensure_edge_daemons)
     app["telemetry_task"] = asyncio.create_task(ws_telemetry_loop(app))
 
 
@@ -969,7 +1048,8 @@ if __name__ == "__main__":
     print(f"[GUI Server] Jetson Orin Speech-to-LaTeX Showcase GUI")
     print(f"[GUI Server] Local Server URL: http://0.0.0.0:{port}")
     print(f"=======================================================\n")
-    # Preload models
+    # Ensure edge GPU daemons (whisper-server on 8081, llama-server on 8080)
+    ensure_edge_daemons()
     get_slm_translator()
     app = create_app()
     web.run_app(app, host="0.0.0.0", port=port)
