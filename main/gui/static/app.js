@@ -124,93 +124,134 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------------------------------------
   // Jetson Hardware Audio Device Enumeration & Selection
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // Jetson Hardware Audio Device Enumeration & Selection
+  // -------------------------------------------------------------------------
   let isScanningAudio = false;
 
   async function fetchAudioDevices(silent = false) {
     if (isScanningAudio && silent) return;
     isScanningAudio = true;
+
     const btnRefresh = document.getElementById("btnRefreshAudioDevices");
+    const lblScanAudio = document.getElementById("lblScanAudio");
+
     if (btnRefresh && !silent) {
       btnRefresh.classList.add("spinning");
+      btnRefresh.disabled = true;
+      if (lblScanAudio) lblScanAudio.textContent = "Scanning...";
+    }
+    if (deviceStatusBadge && !silent) {
+      deviceStatusBadge.textContent = "Scanning Hardware Audio...";
+      deviceStatusBadge.style.color = "var(--text-muted)";
+      deviceStatusBadge.style.borderColor = "var(--bg-card-border)";
     }
 
     try {
-      const resp = await fetch("/api/audio_devices");
+      const url = silent ? "/api/audio_devices" : "/api/audio_devices?rescan=true";
+      const resp = await fetch(url);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
 
-      // Smart populate Mic Sources
+      const usbSource = data.sources?.find(s => s.is_earphones || (s.id && (s.id.toLowerCase().includes("ab13x") || s.id.toLowerCase().includes("usb"))));
+      const usbSink = data.sinks?.find(s => s.is_earphones || (s.id && (s.id.toLowerCase().includes("ab13x") || s.id.toLowerCase().includes("usb"))));
+
+      // Populate Mic Sources
       if (selectMicDevice && Array.isArray(data.sources) && data.sources.length > 0) {
         const curVal = selectMicDevice.value;
-        const curSig = Array.from(selectMicDevice.options).map(o => o.value).join("|");
-        const newSig = data.sources.map(s => s.id).join("|");
+        selectMicDevice.innerHTML = "";
+        let selectedSet = false;
 
-        if (curSig !== newSig || selectMicDevice.options.length === 0) {
-          selectMicDevice.innerHTML = "";
-          let selectedSet = false;
-          data.sources.forEach(src => {
-            const opt = document.createElement("option");
-            opt.value = src.id;
-            opt.textContent = `${src.name}${src.is_earphones ? " (Earphones Mic)" : ""}`;
-            // Preserve user selection if present, else prefer earphones or default
-            if (curVal && curVal === src.id) {
-              opt.selected = true;
-              selectedSet = true;
-            } else if (!selectedSet && (src.is_default || (src.id && src.id.toLowerCase().includes("ab13x")))) {
-              opt.selected = true;
-              selectedSet = true;
-            }
-            selectMicDevice.appendChild(opt);
-          });
+        data.sources.forEach(src => {
+          const opt = document.createElement("option");
+          opt.value = src.id;
+          opt.textContent = `${src.name}${src.is_earphones ? " (Earphones Mic)" : ""}`;
+
+          // On manual scan: if earphones exist, ALWAYS prioritize selecting earphones!
+          if (!silent && usbSource && src.id === usbSource.id) {
+            opt.selected = true;
+            selectedSet = true;
+          } else if (curVal && curVal === src.id && !selectedSet) {
+            opt.selected = true;
+            selectedSet = true;
+          } else if (!selectedSet && (src.is_default || (src.id && src.id.toLowerCase().includes("ab13x")))) {
+            opt.selected = true;
+            selectedSet = true;
+          }
+          selectMicDevice.appendChild(opt);
+        });
+
+        if (!silent && usbSource) {
+          selectMicDevice.value = usbSource.id;
+          handleDeviceChange("source", usbSource.id);
         }
       }
 
-      // Smart populate Earphone/Playback Sinks
+      // Populate Earphone/Playback Sinks
       if (selectOutputDevice && Array.isArray(data.sinks) && data.sinks.length > 0) {
         const curVal = selectOutputDevice.value;
-        const curSig = Array.from(selectOutputDevice.options).map(o => o.value).join("|");
-        const newSig = data.sinks.map(s => s.id).join("|");
+        selectOutputDevice.innerHTML = "";
+        let selectedSet = false;
 
-        if (curSig !== newSig || selectOutputDevice.options.length === 0) {
-          selectOutputDevice.innerHTML = "";
-          let selectedSet = false;
-          data.sinks.forEach(sink => {
-            const opt = document.createElement("option");
-            opt.value = sink.id;
-            opt.textContent = `${sink.name}${sink.is_earphones ? " (Earphones Playback)" : ""}`;
-            if (curVal && curVal === sink.id) {
-              opt.selected = true;
-              selectedSet = true;
-            } else if (!selectedSet && (sink.is_default || (sink.id && sink.id.toLowerCase().includes("ab13x")))) {
-              opt.selected = true;
-              selectedSet = true;
-            }
-            selectOutputDevice.appendChild(opt);
-          });
+        data.sinks.forEach(sink => {
+          const opt = document.createElement("option");
+          opt.value = sink.id;
+          opt.textContent = `${sink.name}${sink.is_earphones ? " (Earphones Playback)" : ""}`;
+
+          // On manual scan: if earphones exist, ALWAYS prioritize selecting earphones!
+          if (!silent && usbSink && sink.id === usbSink.id) {
+            opt.selected = true;
+            selectedSet = true;
+          } else if (curVal && curVal === sink.id && !selectedSet) {
+            opt.selected = true;
+            selectedSet = true;
+          } else if (!selectedSet && (sink.is_default || (sink.id && sink.id.toLowerCase().includes("ab13x")))) {
+            opt.selected = true;
+            selectedSet = true;
+          }
+          selectOutputDevice.appendChild(opt);
+        });
+
+        if (!silent && usbSink) {
+          selectOutputDevice.value = usbSink.id;
+          handleDeviceChange("sink", usbSink.id);
         }
       }
 
+      // Visual Status Badge Feedback
       if (deviceStatusBadge) {
-        const hasUsb = (data.sources?.some(s => s.id && (s.id.toLowerCase().includes("ab13x") || s.is_earphones)) ||
-                        data.sinks?.some(s => s.id && (s.id.toLowerCase().includes("ab13x") || s.is_earphones)));
-        deviceStatusBadge.textContent = hasUsb ? "AB13X Earphones Active" : "Hardware Audio Ready";
+        const hasUsb = (usbSource != null || usbSink != null);
         if (hasUsb) {
+          deviceStatusBadge.textContent = "✓ AB13X Earphones Active";
           deviceStatusBadge.style.color = "var(--accent-emerald)";
           deviceStatusBadge.style.borderColor = "rgba(16, 185, 129, 0.4)";
+          deviceStatusBadge.style.background = "rgba(16, 185, 129, 0.15)";
         } else {
+          deviceStatusBadge.textContent = silent ? "Built-in Audio Ready" : "Built-in Audio (No Earphones Detected)";
           deviceStatusBadge.style.color = "var(--text-muted)";
           deviceStatusBadge.style.borderColor = "var(--bg-card-border)";
+          deviceStatusBadge.style.background = "rgba(255, 255, 255, 0.04)";
         }
       }
     } catch (err) {
-      if (!silent) console.warn("Could not reload audio devices:", err);
+      console.warn("Could not reload audio devices:", err);
+      if (deviceStatusBadge && !silent) {
+        deviceStatusBadge.textContent = "Scan Error - Retrying...";
+      }
     } finally {
       isScanningAudio = false;
       if (btnRefresh) {
-        setTimeout(() => btnRefresh.classList.remove("spinning"), 300);
+        setTimeout(() => {
+          btnRefresh.classList.remove("spinning");
+          btnRefresh.disabled = false;
+          if (lblScanAudio) lblScanAudio.textContent = "Scan Audio";
+        }, 600);
       }
     }
   }
+
+  // Export to window for global access
+  window.fetchAudioDevices = fetchAudioDevices;
 
   async function handleDeviceChange(type, deviceName) {
     if (!deviceName) return;

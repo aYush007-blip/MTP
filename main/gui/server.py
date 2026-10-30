@@ -345,7 +345,7 @@ def broadcast_ws_message(msg_dict: dict):
 # Audio Hardware Device Enumeration & Control (PulseAudio / ALSA)
 # ===========================================================================
 
-def ensure_usb_audio_duplex() -> None:
+def ensure_usb_audio_duplex(force_rescan: bool = False) -> None:
     """Ensure any connected USB audio device (e.g. AB13X earphones) is configured in Full Duplex mode.
     
     In PulseAudio, connecting a USB audio device can default to single-direction profiles
@@ -354,18 +354,33 @@ def ensure_usb_audio_duplex() -> None:
     the simultaneous duplex profile (output:analog-stereo+input:analog-stereo).
     """
     try:
+        # Check /proc/asound/cards for USB audio card index
+        usb_alsa_card = None
+        try:
+            with open("/proc/asound/cards", "r") as f:
+                for line in f:
+                    if "usb" in line.lower() or "ab13x" in line.lower():
+                        usb_alsa_card = line.strip().split()[0]
+                        break
+        except Exception:
+            pass
+
         res = subprocess.run(["pactl", "list", "cards"], capture_output=True, text=True, timeout=3)
         if res.returncode != 0:
             return
 
         cur_card = ""
+        cur_owner_mod = ""
         active_profile = ""
         duplex_candidates = []
+        found_usb_card = False
 
-        def _apply_duplex(card_name: str, active_p: str, cands: list):
-            if not card_name or not ("usb" in card_name.lower() or "ab13x" in card_name.lower()):
+        def _apply_duplex(card_name: str, active_p: str, cands: list, owner_mod: str):
+            nonlocal found_usb_card
+            if not card_name or not ("usb" in card_name.lower() or "ab13x" in card_name.lower() or "audio" in card_name.lower()):
                 return
-            if ("output:" in active_p and "input:" in active_p) or ("duplex" in active_p.lower()):
+            found_usb_card = True
+            if not force_rescan and (("output:" in active_p and "input:" in active_p) or ("duplex" in active_p.lower())):
                 return
             chosen = None
             for cand in cands:
@@ -377,14 +392,21 @@ def ensure_usb_audio_duplex() -> None:
             if chosen:
                 print(f"[Audio Devices] Auto-enforcing duplex profile '{chosen}' for card {card_name} (was: {active_p})")
                 subprocess.run(["pactl", "set-card-profile", card_name, chosen], capture_output=True, timeout=2)
+            elif owner_mod and usb_alsa_card is not None:
+                print(f"[Audio Devices] USB card {card_name} missing duplex profile. Reloading owner module {owner_mod} for ALSA card {usb_alsa_card}...")
+                subprocess.run(["pactl", "unload-module", owner_mod], capture_output=True, timeout=2)
+                subprocess.run(["pactl", "load-module", "module-alsa-card", f"device_id={usb_alsa_card}"], capture_output=True, timeout=2)
 
         for line in res.stdout.splitlines():
             line_str = line.strip()
             if line_str.startswith("Name:"):
-                _apply_duplex(cur_card, active_profile, duplex_candidates)
+                _apply_duplex(cur_card, active_profile, duplex_candidates, cur_owner_mod)
                 cur_card = line_str.split(":", 1)[1].strip()
+                cur_owner_mod = ""
                 active_profile = ""
                 duplex_candidates = []
+            elif line_str.startswith("Owner Module:"):
+                cur_owner_mod = line_str.split(":", 1)[1].strip()
             elif line_str.startswith("Active Profile:"):
                 active_profile = line_str.split(":", 1)[1].strip()
             elif "output:" in line_str and "input:" in line_str:
@@ -395,15 +417,21 @@ def ensure_usb_audio_duplex() -> None:
                     if "sinks: 0" not in pdesc and "sources: 0" not in pdesc:
                         duplex_candidates.append(pname)
 
-        _apply_duplex(cur_card, active_profile, duplex_candidates)
+        _apply_duplex(cur_card, active_profile, duplex_candidates, cur_owner_mod)
+
+        # If USB card exists in ALSA but was completely absent in pactl cards, load it
+        if not found_usb_card and usb_alsa_card is not None:
+            print(f"[Audio Devices] USB card {usb_alsa_card} in ALSA but not in PulseAudio. Loading module-alsa-card...")
+            subprocess.run(["pactl", "load-module", "module-alsa-card", f"device_id={usb_alsa_card}"], capture_output=True, timeout=2)
+
     except Exception as e:
         print(f"[Audio Devices] Error checking USB duplex: {e}")
 
 
-def get_pulse_audio_devices() -> dict:
+def get_pulse_audio_devices(force_rescan: bool = False) -> dict:
     """Retrieve available PulseAudio and ALSA audio sources (microphones) and sinks (earphones/speakers)."""
     # 1. Guarantee that any connected USB earphones have duplex mode unlocked
-    ensure_usb_audio_duplex()
+    ensure_usb_audio_duplex(force_rescan=force_rescan)
 
     inputs = []
     outputs = []
@@ -1715,8 +1743,9 @@ async def ws_telemetry_loop(app: web.Application):
 
 async def handle_audio_devices(request: web.Request) -> web.Response:
     """Return available PulseAudio/ALSA input microphones and output earphones devices."""
+    rescan = request.query.get("rescan", "false").lower() in ("true", "1", "yes")
     loop = asyncio.get_event_loop()
-    devs = await loop.run_in_executor(None, get_pulse_audio_devices)
+    devs = await loop.run_in_executor(None, get_pulse_audio_devices, rescan)
     devs["active_mic_name"] = hw_recorder.selected_device_name or "Default (AB13X USB Earphones Mic)"
     return web.json_response(devs)
 
