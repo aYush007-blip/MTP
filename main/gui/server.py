@@ -345,8 +345,66 @@ def broadcast_ws_message(msg_dict: dict):
 # Audio Hardware Device Enumeration & Control (PulseAudio / ALSA)
 # ===========================================================================
 
+def ensure_usb_audio_duplex() -> None:
+    """Ensure any connected USB audio device (e.g. AB13X earphones) is configured in Full Duplex mode.
+    
+    In PulseAudio, connecting a USB audio device can default to single-direction profiles
+    (e.g. output-only analog-stereo or input-only stereo-fallback), which makes input and
+    output mutually exclusive in Ubuntu system settings. This function scans cards and enforces
+    the simultaneous duplex profile (output:analog-stereo+input:analog-stereo).
+    """
+    try:
+        res = subprocess.run(["pactl", "list", "cards"], capture_output=True, text=True, timeout=3)
+        if res.returncode != 0:
+            return
+
+        cur_card = ""
+        active_profile = ""
+        duplex_candidates = []
+
+        def _apply_duplex(card_name: str, active_p: str, cands: list):
+            if not card_name or not ("usb" in card_name.lower() or "ab13x" in card_name.lower()):
+                return
+            if ("output:" in active_p and "input:" in active_p) or ("duplex" in active_p.lower()):
+                return
+            chosen = None
+            for cand in cands:
+                if "analog-stereo+input:analog-stereo" in cand:
+                    chosen = cand
+                    break
+            if not chosen and cands:
+                chosen = cands[0]
+            if chosen:
+                print(f"[Audio Devices] Auto-enforcing duplex profile '{chosen}' for card {card_name} (was: {active_p})")
+                subprocess.run(["pactl", "set-card-profile", card_name, chosen], capture_output=True, timeout=2)
+
+        for line in res.stdout.splitlines():
+            line_str = line.strip()
+            if line_str.startswith("Name:"):
+                _apply_duplex(cur_card, active_profile, duplex_candidates)
+                cur_card = line_str.split(":", 1)[1].strip()
+                active_profile = ""
+                duplex_candidates = []
+            elif line_str.startswith("Active Profile:"):
+                active_profile = line_str.split(":", 1)[1].strip()
+            elif "output:" in line_str and "input:" in line_str:
+                m = re.match(r"^\s*([a-zA-Z0-9_\-\+:]+):\s+(.*)$", line_str)
+                if m:
+                    pname = m.group(1)
+                    pdesc = m.group(2)
+                    if "sinks: 0" not in pdesc and "sources: 0" not in pdesc:
+                        duplex_candidates.append(pname)
+
+        _apply_duplex(cur_card, active_profile, duplex_candidates)
+    except Exception as e:
+        print(f"[Audio Devices] Error checking USB duplex: {e}")
+
+
 def get_pulse_audio_devices() -> dict:
     """Retrieve available PulseAudio and ALSA audio sources (microphones) and sinks (earphones/speakers)."""
+    # 1. Guarantee that any connected USB earphones have duplex mode unlocked
+    ensure_usb_audio_duplex()
+
     inputs = []
     outputs = []
     default_source = ""
@@ -379,7 +437,7 @@ def get_pulse_audio_devices() -> dict:
                     desc = line.split(":", 1)[1].strip()
                     cur_source["name"] = desc
                     if not cur_source["id"].endswith(".monitor"):
-                        is_ab13x = "ab13x" in cur_source["id"].lower() or "ab13x" in desc.lower()
+                        is_ab13x = "ab13x" in cur_source["id"].lower() or "ab13x" in desc.lower() or "usb" in cur_source["id"].lower()
                         cur_source["is_earphones"] = is_ab13x
                         cur_source["is_default"] = (cur_source["id"] == default_source)
                         inputs.append(cur_source)
@@ -399,13 +457,34 @@ def get_pulse_audio_devices() -> dict:
                 elif line.startswith("Description:") and cur_sink:
                     desc = line.split(":", 1)[1].strip()
                     cur_sink["name"] = desc
-                    is_ab13x = "ab13x" in cur_sink["id"].lower() or "ab13x" in desc.lower()
+                    is_ab13x = "ab13x" in cur_sink["id"].lower() or "ab13x" in desc.lower() or "usb" in cur_sink["id"].lower()
                     cur_sink["is_earphones"] = is_ab13x
                     cur_sink["is_default"] = (cur_sink["id"] == default_sink)
                     outputs.append(cur_sink)
                     cur_sink = {}
     except Exception as e:
         print(f"[Audio Devices] Error listing sinks: {e}")
+
+    # Auto-switch defaults to USB earphones if present and current default is internal platform audio
+    usb_source = next((s["id"] for s in inputs if s.get("is_earphones")), None)
+    if usb_source and (not default_source or "platform" in default_source.lower()):
+        try:
+            subprocess.run(["pactl", "set-default-source", usb_source], capture_output=True, timeout=1)
+            default_source = usb_source
+            for s in inputs:
+                s["is_default"] = (s["id"] == default_source)
+        except Exception:
+            pass
+
+    usb_sink = next((s["id"] for s in outputs if s.get("is_earphones")), None)
+    if usb_sink and (not default_sink or "platform" in default_sink.lower()):
+        try:
+            subprocess.run(["pactl", "set-default-sink", usb_sink], capture_output=True, timeout=1)
+            default_sink = usb_sink
+            for s in outputs:
+                s["is_default"] = (s["id"] == default_sink)
+        except Exception:
+            pass
 
     return {
         "sources": inputs,
@@ -417,6 +496,7 @@ def get_pulse_audio_devices() -> dict:
 
 def set_pulse_default_device(source_id: Optional[str] = None, sink_id: Optional[str] = None) -> bool:
     """Set the system-wide active PulseAudio input (mic) and output (earphones) device."""
+    ensure_usb_audio_duplex()
     success = True
     if source_id:
         try:
@@ -1646,21 +1726,36 @@ async def handle_select_audio_device(request: web.Request) -> web.Response:
     data = await request.json()
     source_id = data.get("source_id")
     sink_id = data.get("sink_id")
+    dev_type = data.get("type")
+    dev_val = data.get("name") or data.get("id")
     device_name = data.get("device_name")
     device_index = data.get("device_index")
+
+    if dev_type == "source" and not source_id:
+        source_id = dev_val
+    elif dev_type == "sink" and not sink_id:
+        sink_id = dev_val
 
     loop = asyncio.get_event_loop()
     ok = await loop.run_in_executor(None, set_pulse_default_device, source_id, sink_id)
 
     if device_name:
         hw_recorder.selected_device_name = device_name
+    elif source_id:
+        hw_recorder.selected_device_name = source_id
+
     if device_index is not None:
         try:
             hw_recorder.selected_device_index = int(device_index)
         except Exception:
             pass
 
-    return web.json_response({"status": "ok" if ok else "warning", "source": source_id, "sink": sink_id})
+    return web.json_response({
+        "status": "ok" if ok else "warning",
+        "source": source_id,
+        "sink": sink_id,
+        "active_mic": hw_recorder.selected_device_name,
+    })
 
 
 async def handle_live_tests_summary(request: web.Request) -> web.Response:

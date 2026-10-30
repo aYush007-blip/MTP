@@ -121,48 +121,94 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------------------------------------
   // Jetson Hardware Audio Device Enumeration & Selection
   // -------------------------------------------------------------------------
-  async function fetchAudioDevices() {
+  // -------------------------------------------------------------------------
+  // Jetson Hardware Audio Device Enumeration & Selection
+  // -------------------------------------------------------------------------
+  let isScanningAudio = false;
+
+  async function fetchAudioDevices(silent = false) {
+    if (isScanningAudio && silent) return;
+    isScanningAudio = true;
+    const btnRefresh = document.getElementById("btnRefreshAudioDevices");
+    if (btnRefresh && !silent) {
+      btnRefresh.classList.add("spinning");
+    }
+
     try {
       const resp = await fetch("/api/audio_devices");
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
 
-      // Populate Mic Sources
+      // Smart populate Mic Sources
       if (selectMicDevice && Array.isArray(data.sources) && data.sources.length > 0) {
-        selectMicDevice.innerHTML = "";
-        data.sources.forEach(src => {
-          const opt = document.createElement("option");
-          opt.value = src.id;
-          opt.textContent = `${src.name}${src.is_earphones ? " (Earphones Mic)" : ""}`;
-          if (src.is_default || (src.id && src.id.toLowerCase().includes("ab13x"))) {
-            opt.selected = true;
-          }
-          selectMicDevice.appendChild(opt);
-        });
+        const curVal = selectMicDevice.value;
+        const curSig = Array.from(selectMicDevice.options).map(o => o.value).join("|");
+        const newSig = data.sources.map(s => s.id).join("|");
+
+        if (curSig !== newSig || selectMicDevice.options.length === 0) {
+          selectMicDevice.innerHTML = "";
+          let selectedSet = false;
+          data.sources.forEach(src => {
+            const opt = document.createElement("option");
+            opt.value = src.id;
+            opt.textContent = `${src.name}${src.is_earphones ? " (Earphones Mic)" : ""}`;
+            // Preserve user selection if present, else prefer earphones or default
+            if (curVal && curVal === src.id) {
+              opt.selected = true;
+              selectedSet = true;
+            } else if (!selectedSet && (src.is_default || (src.id && src.id.toLowerCase().includes("ab13x")))) {
+              opt.selected = true;
+              selectedSet = true;
+            }
+            selectMicDevice.appendChild(opt);
+          });
+        }
       }
 
-      // Populate Earphone/Playback Sinks
+      // Smart populate Earphone/Playback Sinks
       if (selectOutputDevice && Array.isArray(data.sinks) && data.sinks.length > 0) {
-        selectOutputDevice.innerHTML = "";
-        data.sinks.forEach(sink => {
-          const opt = document.createElement("option");
-          opt.value = sink.id;
-          opt.textContent = `${sink.name}${sink.is_earphones ? " (Earphones Playback)" : ""}`;
-          if (sink.is_default || (sink.id && sink.id.toLowerCase().includes("ab13x"))) {
-            opt.selected = true;
-          }
-          selectOutputDevice.appendChild(opt);
-        });
+        const curVal = selectOutputDevice.value;
+        const curSig = Array.from(selectOutputDevice.options).map(o => o.value).join("|");
+        const newSig = data.sinks.map(s => s.id).join("|");
+
+        if (curSig !== newSig || selectOutputDevice.options.length === 0) {
+          selectOutputDevice.innerHTML = "";
+          let selectedSet = false;
+          data.sinks.forEach(sink => {
+            const opt = document.createElement("option");
+            opt.value = sink.id;
+            opt.textContent = `${sink.name}${sink.is_earphones ? " (Earphones Playback)" : ""}`;
+            if (curVal && curVal === sink.id) {
+              opt.selected = true;
+              selectedSet = true;
+            } else if (!selectedSet && (sink.is_default || (sink.id && sink.id.toLowerCase().includes("ab13x")))) {
+              opt.selected = true;
+              selectedSet = true;
+            }
+            selectOutputDevice.appendChild(opt);
+          });
+        }
       }
 
       if (deviceStatusBadge) {
-        const hasUsb = (data.sources?.some(s => s.id && s.id.toLowerCase().includes("ab13x")) ||
-                        data.sinks?.some(s => s.id && s.id.toLowerCase().includes("ab13x")));
+        const hasUsb = (data.sources?.some(s => s.id && (s.id.toLowerCase().includes("ab13x") || s.is_earphones)) ||
+                        data.sinks?.some(s => s.id && (s.id.toLowerCase().includes("ab13x") || s.is_earphones)));
         deviceStatusBadge.textContent = hasUsb ? "AB13X Earphones Active" : "Hardware Audio Ready";
+        if (hasUsb) {
+          deviceStatusBadge.style.color = "var(--accent-emerald)";
+          deviceStatusBadge.style.borderColor = "rgba(16, 185, 129, 0.4)";
+        } else {
+          deviceStatusBadge.style.color = "var(--text-muted)";
+          deviceStatusBadge.style.borderColor = "var(--bg-card-border)";
+        }
       }
     } catch (err) {
-      console.warn("Could not reload audio devices (using pre-populated defaults):", err);
-      if (deviceStatusBadge) deviceStatusBadge.textContent = "AB13X Earphones Ready";
+      if (!silent) console.warn("Could not reload audio devices:", err);
+    } finally {
+      isScanningAudio = false;
+      if (btnRefresh) {
+        setTimeout(() => btnRefresh.classList.remove("spinning"), 300);
+      }
     }
   }
 
@@ -174,7 +220,15 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, name: deviceName }),
       });
-      if (deviceStatusBadge) deviceStatusBadge.textContent = "Device Updated";
+      if (deviceStatusBadge) {
+        const prevText = deviceStatusBadge.textContent;
+        deviceStatusBadge.textContent = "Device Updated";
+        setTimeout(() => {
+          if (deviceStatusBadge.textContent === "Device Updated") {
+            deviceStatusBadge.textContent = prevText;
+          }
+        }, 1200);
+      }
     } catch (err) {
       console.error("Device select error:", err);
     }
@@ -187,8 +241,22 @@ document.addEventListener("DOMContentLoaded", () => {
     handleDeviceChange("sink", selectOutputDevice.value);
   });
 
+  // Hotplug refresh triggers: manual button, dropdown focus/click, and periodic scan
+  document.getElementById("btnRefreshAudioDevices")?.addEventListener("click", () => fetchAudioDevices(false));
+  selectMicDevice?.addEventListener("focus", () => fetchAudioDevices(true));
+  selectMicDevice?.addEventListener("mousedown", () => fetchAudioDevices(true));
+  selectOutputDevice?.addEventListener("focus", () => fetchAudioDevices(true));
+  selectOutputDevice?.addEventListener("mousedown", () => fetchAudioDevices(true));
+
+  // Periodic polling every 3s when idle to catch hotplug events automatically
+  setInterval(() => {
+    if (!isContinuousRecording && !isRecording) {
+      fetchAudioDevices(true);
+    }
+  }, 3000);
+
   // Call on load
-  fetchAudioDevices();
+  fetchAudioDevices(false);
 
   // -------------------------------------------------------------------------
   // Live Timer Badge
