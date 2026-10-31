@@ -2001,16 +2001,21 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                         try:
                             wav_path = await loop.run_in_executor(None, hw_recorder.stop)
                             raw_transcript, asr_ms = await loop.run_in_executor(None, run_whisper, wav_path)
+                            cleaned_raw = clean_whisper_text(raw_transcript)
 
                             if engine != "t5":
                                 slm = get_slm_translator()
                                 t_slm = time.monotonic()
-                                processed = await loop.run_in_executor(None, slm.translate, raw_transcript)
+                                if has_math_indicators(cleaned_raw):
+                                    processed = await loop.run_in_executor(None, slm.translate, cleaned_raw)
+                                    processed = clean_slm_hallucinations(processed, cleaned_raw)
+                                else:
+                                    processed = cleaned_raw
                                 slm_ms = (time.monotonic() - t_slm) * 1000.0
                             else:
                                 r = get_router()
                                 t_r = time.monotonic()
-                                res = await loop.run_in_executor(None, r.process, raw_transcript)
+                                res = await loop.run_in_executor(None, r.process, cleaned_raw)
                                 processed = res.processed_text
                                 slm_ms = (time.monotonic() - t_r) * 1000.0
 
@@ -2027,7 +2032,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                                     duration_sec = asr_ms / 1000.0
                                 live_item = get_active_session().record_utterance(
                                     wav_bytes=wav_path.read_bytes(),
-                                    raw_transcript=raw_transcript,
+                                    raw_transcript=cleaned_raw,
                                     processed_latex=processed,
                                     duration_sec=duration_sec,
                                 )
@@ -2039,7 +2044,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                                 "audio_file": wav_path.name,
                                 "audio_url": f"/recordings/{wav_path.name}",
                                 "download_url": f"/api/download_audio/{wav_path.name}",
-                                "raw_transcript": raw_transcript,
+                                "raw_transcript": cleaned_raw,
                                 "processed_text": processed,
                                 "engine": "qwen2.5-1.5b" if engine != "t5" else "t5-v2",
                                 "asr_time_ms": round(asr_ms, 1),
