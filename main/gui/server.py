@@ -13,10 +13,14 @@ import subprocess
 import time
 import wave
 import zipfile
+import collections
+from collections import Counter
+import queue
 from datetime import datetime
 from pathlib import Path
 import sys
 from typing import Optional, Dict, Any, List, Tuple
+import urllib.request
 
 # Auto-bootstrap to repo .venv if running under system python
 _venv_python = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
@@ -52,6 +56,66 @@ if str(SRC_DIR) not in sys.path:
 import urllib.request
 
 from audio import stereo_48k_to_mono_16k
+
+
+def to_16k_mono(raw_bytes: bytes, rate: int, channels: int) -> np.ndarray:
+    """Safely convert any incoming raw PCM byte buffer into 16000Hz mono float32 normalized in [-1.0, 1.0]."""
+    if rate == 48000 and channels == 2:
+        return stereo_48k_to_mono_16k(raw_bytes)
+    pcm = np.frombuffer(raw_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+    if channels > 1:
+        pcm = pcm.reshape(-1, channels).mean(axis=1)
+    if rate == 16000:
+        return np.clip(pcm, -1.0, 1.0).astype(np.float32)
+    elif rate == 48000:
+        return np.clip(pcm[::3], -1.0, 1.0).astype(np.float32)
+    else:
+        num_target = int(len(pcm) * 16000 / rate)
+        resampled = np.interp(np.linspace(0, len(pcm), num_target, endpoint=False), np.arange(len(pcm)), pcm)
+        return np.clip(resampled, -1.0, 1.0).astype(np.float32)
+
+
+def get_best_input_stream_config(pa: pyaudio.PyAudio, requested_idx: Optional[int] = None) -> tuple[int, int, int, int]:
+    """Negotiate the optimal (device_index, channels, rate, chunk_size) supported by hardware."""
+    target_idx = requested_idx
+    if target_idx is None:
+        for i in range(pa.get_device_count()):
+            try:
+                info = pa.get_device_info_by_index(i)
+                name_low = info.get("name", "").lower()
+                if ("ab13x" in name_low or "usb" in name_low) and info.get("maxInputChannels", 0) > 0:
+                    target_idx = i
+                    break
+            except Exception:
+                continue
+
+    if target_idx is None:
+        try:
+            default_info = pa.get_default_input_device_info()
+            target_idx = default_info["index"]
+        except Exception:
+            target_idx = 0
+
+    info = pa.get_device_info_by_index(target_idx)
+    name = info.get("name", "")
+    max_ch = max(1, int(info.get("maxInputChannels", 1)))
+    def_rate = int(info.get("defaultSampleRate", 16000))
+
+    if "ab13x" in name.lower() or "hw:2" in name.lower() or "hw:" in name.lower():
+        candidates = [(48000, 2), (48000, 1), (16000, 1)]
+    else:
+        candidates = [(16000, 1), (48000, 2), (48000, 1), (def_rate, min(max_ch, 2))]
+
+    for rate, ch in candidates:
+        try:
+            if pa.is_format_supported(rate, input_device=target_idx, input_channels=ch, input_format=pyaudio.paInt16):
+                chunk = int(rate * 0.1)  # 100ms chunks
+                return target_idx, ch, rate, chunk
+        except Exception:
+            continue
+
+    return target_idx, 1, 16000, 1600
+
 
 # Paths & Daemon Endpoints
 WHISPER_SERVER_URL = "http://127.0.0.1:8081"
@@ -125,6 +189,67 @@ def clean_whisper_text(text: str) -> str:
     return cleaned
 
 
+# ===========================================================================
+# Fast Linguistic Gating & SLM Math Pre-Checks (Sub-millisecond Latency)
+# ===========================================================================
+
+MATH_INDICATOR_PATTERN = re.compile(
+    r"\b("
+    # Equality and comparison
+    r"equals?|is\s+equal\s+to|greater\s+than|less\s+than|"
+    # Arithmetic operators
+    r"plus|minus|times|multiplied\s+by|divided\s+by|"
+    r"(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|numerator|\))\s+over\s+(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|denominator)|"
+    # Powers and roots
+    r"squared|cubed|to\s+the\s+power|square\s+root|cube\s+root|roots?\s+of|"
+    # Fractions & polynomials
+    r"fraction|numerator|denominator|polynomials?|"
+    # Trigonometry & transcendentals
+    r"sine|cosine|tangent|cotangent|secant|cosecant|logarithm|\bln\b|exponential|"
+    # Calculus
+    r"integral|derivative|dy\s+by\s+d[tx]|partial\s+derivative|gradient|divergence|curl|"
+    # Sequences & series
+    r"summation|sum\s+from|sum\s+of|"
+    # Greek letters
+    r"sigma|omega|theta|alpha|beta|gamma|lambda|phi|psi|delta|epsilon|tau|mu|rho|kappa|zeta|"
+    # Linear algebra & transforms
+    r"matrix|matrices|determinant|eigenvalues?|eigenvectors?|"
+    r"z-transform|laplace|fourier|"
+    # Control systems & signals
+    r"transfer\s+function|root\s+locus|poles?|zeros?|characteristic\s+equation|"
+    r"frequency\s+response|impulse\s+response|step\s+response|state\s+space|"
+    r"bode\s+plot|nyquist|open\s+loop|closed\s+loop|feedback|"
+    # Functional notation: universal [var] of [arg] (e.g. h of s, f of x, g of t, y of t, x of n)
+    r"(?:[a-z]|alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|rho|sigma|tau|phi|psi|omega)\s+of\s+(?:j\s+omega|omega|[a-z0-9]+)|"
+    r"sinusoid|kcl|kvl|ohm\'?s\s+law"
+    r")\b|"
+    r"\b[0-9]+(?:\.[0-9]+)?\s*(?:hz|khz|mhz|ghz|volts?|amps?|amperes?|ohms?|farads?|henrys?|watts?|kev|mev|ev|db)\b|"
+    r"[=+\-*/^<>]",
+    re.IGNORECASE,
+)
+
+
+def has_math_indicators(text: str) -> bool:
+    """Fast linguistic pre-check to distinguish mathematical speech from pure conversational discourse."""
+    if not text:
+        return False
+    return bool(MATH_INDICATOR_PATTERN.search(text))
+
+
+def clean_slm_hallucinations(latex_text: str, raw_text: str) -> str:
+    """Safeguard against conversational assistant filler, apologies, or degenerative repetition loops."""
+    s = latex_text.strip()
+    if re.search(r"^(?:I apologize|Thank you for sharing|As an AI|Could you please provide|Here is the)", s, re.IGNORECASE):
+        return raw_text
+    words = s.split()
+    if len(words) > 15:
+        tri_grams = [" ".join(words[i:i+3]) for i in range(len(words)-2)]
+        counts = Counter(tri_grams)
+        if any(cnt >= 4 for cnt in counts.values()):
+            return raw_text
+    return s
+
+
 def is_service_alive(url: str, endpoint: str = "/health") -> bool:
     try:
         req = urllib.request.Request(f"{url}{endpoint}", method="GET")
@@ -196,6 +321,7 @@ def ensure_edge_daemons(model_type: str = "small"):
             "-c", "2048",
             "-ngl", "28",
             "-t", "2",
+            "-np", "1",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
@@ -365,19 +491,45 @@ def ensure_usb_audio_duplex(force_rescan: bool = False) -> None:
         except Exception:
             pass
 
+        # 1. Clean up duplicate module-alsa-card instances if any were previously loaded
+        if usb_alsa_card is not None:
+            mod_res = subprocess.run(["pactl", "list", "modules", "short"], capture_output=True, text=True, timeout=2)
+            if mod_res.returncode == 0:
+                loaded_mods = [
+                    line.split()[0] for line in mod_res.stdout.splitlines()
+                    if f"device_id={usb_alsa_card}" in line or f'device_id="{usb_alsa_card}"' in line
+                ]
+                if len(loaded_mods) > 1:
+                    print(f"[Audio Devices] Unloading {len(loaded_mods)-1} duplicate module-alsa-card instances...")
+                    for extra_mod in loaded_mods[1:]:
+                        subprocess.run(["pactl", "unload-module", extra_mod], capture_output=True, timeout=2)
+
         res = subprocess.run(["pactl", "list", "cards"], capture_output=True, text=True, timeout=3)
         if res.returncode != 0:
             return
 
         cur_card = ""
+        cur_desc = ""
         cur_owner_mod = ""
         active_profile = ""
         duplex_candidates = []
         found_usb_card = False
 
-        def _apply_duplex(card_name: str, active_p: str, cands: list, owner_mod: str):
+        def _is_usb_card(card_name: str, desc: str) -> bool:
+            if not card_name:
+                return False
+            c_low = card_name.lower()
+            d_low = desc.lower()
+            if "usb" in c_low or "ab13x" in c_low or "usb" in d_low or "ab13x" in d_low:
+                return True
+            if usb_alsa_card is not None:
+                if c_low == f"alsa_card.{usb_alsa_card}" or c_low.startswith(f"alsa_card.{usb_alsa_card}."):
+                    return True
+            return False
+
+        def _apply_duplex(card_name: str, card_desc: str, active_p: str, cands: list):
             nonlocal found_usb_card
-            if not card_name or not ("usb" in card_name.lower() or "ab13x" in card_name.lower() or "audio" in card_name.lower()):
+            if not _is_usb_card(card_name, card_desc):
                 return
             found_usb_card = True
             if not force_rescan and (("output:" in active_p and "input:" in active_p) or ("duplex" in active_p.lower())):
@@ -392,19 +544,18 @@ def ensure_usb_audio_duplex(force_rescan: bool = False) -> None:
             if chosen:
                 print(f"[Audio Devices] Auto-enforcing duplex profile '{chosen}' for card {card_name} (was: {active_p})")
                 subprocess.run(["pactl", "set-card-profile", card_name, chosen], capture_output=True, timeout=2)
-            elif owner_mod and usb_alsa_card is not None:
-                print(f"[Audio Devices] USB card {card_name} missing duplex profile. Reloading owner module {owner_mod} for ALSA card {usb_alsa_card}...")
-                subprocess.run(["pactl", "unload-module", owner_mod], capture_output=True, timeout=2)
-                subprocess.run(["pactl", "load-module", "module-alsa-card", f"device_id={usb_alsa_card}"], capture_output=True, timeout=2)
 
         for line in res.stdout.splitlines():
             line_str = line.strip()
             if line_str.startswith("Name:"):
-                _apply_duplex(cur_card, active_profile, duplex_candidates, cur_owner_mod)
+                _apply_duplex(cur_card, cur_desc, active_profile, duplex_candidates)
                 cur_card = line_str.split(":", 1)[1].strip()
+                cur_desc = ""
                 cur_owner_mod = ""
                 active_profile = ""
                 duplex_candidates = []
+            elif line_str.startswith("device.description ="):
+                cur_desc = line_str.split("=", 1)[1].strip().strip('"')
             elif line_str.startswith("Owner Module:"):
                 cur_owner_mod = line_str.split(":", 1)[1].strip()
             elif line_str.startswith("Active Profile:"):
@@ -417,12 +568,32 @@ def ensure_usb_audio_duplex(force_rescan: bool = False) -> None:
                     if "sinks: 0" not in pdesc and "sources: 0" not in pdesc:
                         duplex_candidates.append(pname)
 
-        _apply_duplex(cur_card, active_profile, duplex_candidates, cur_owner_mod)
+        _apply_duplex(cur_card, cur_desc, active_profile, duplex_candidates)
 
-        # If USB card exists in ALSA but was completely absent in pactl cards, load it
+        # If USB card exists in ALSA, verify PulseAudio has an active input source for it
+        if usb_alsa_card is not None:
+            src_res = subprocess.run(["pactl", "list", "sources", "short"], capture_output=True, text=True, timeout=2)
+            if src_res.returncode == 0 and "ab13x" not in src_res.stdout.lower():
+                print(f"[Audio Devices] Loading PulseAudio ALSA source for AB13X card {usb_alsa_card}...")
+                subprocess.run(
+                    [
+                        "pactl", "load-module", "module-alsa-source",
+                        f"device=hw:{usb_alsa_card},0", "rate=48000", "channels=2",
+                        "source_name=ab13x_earphones_mic",
+                        'source_properties="device.description=AB13X_USB_Earphones_Mic"'
+                    ],
+                    capture_output=True,
+                    timeout=2
+                )
+                subprocess.run(["pactl", "set-default-source", "ab13x_earphones_mic"], capture_output=True, timeout=1)
+
+        # If USB card exists in ALSA but was completely absent in PulseAudio cards, load it ONCE
         if not found_usb_card and usb_alsa_card is not None:
-            print(f"[Audio Devices] USB card {usb_alsa_card} in ALSA but not in PulseAudio. Loading module-alsa-card...")
-            subprocess.run(["pactl", "load-module", "module-alsa-card", f"device_id={usb_alsa_card}"], capture_output=True, timeout=2)
+            mod_res = subprocess.run(["pactl", "list", "modules", "short"], capture_output=True, text=True, timeout=2)
+            has_mod = any(f"device_id={usb_alsa_card}" in l or f'device_id="{usb_alsa_card}"' in l for l in mod_res.stdout.splitlines())
+            if not has_mod:
+                print(f"[Audio Devices] USB card {usb_alsa_card} in ALSA but not in PulseAudio. Loading module-alsa-card...")
+                subprocess.run(["pactl", "load-module", "module-alsa-card", f"device_id={usb_alsa_card}"], capture_output=True, timeout=2)
 
     except Exception as e:
         print(f"[Audio Devices] Error checking USB duplex: {e}")
@@ -456,6 +627,7 @@ def get_pulse_audio_devices(force_rescan: bool = False) -> dict:
         res = subprocess.run(["pactl", "list", "sources"], capture_output=True, text=True, timeout=3)
         if res.returncode == 0:
             cur_source = {}
+            seen_src_ids = set()
             for line in res.stdout.splitlines():
                 line = line.strip()
                 if line.startswith("Name:"):
@@ -464,11 +636,12 @@ def get_pulse_audio_devices(force_rescan: bool = False) -> dict:
                 elif line.startswith("Description:") and cur_source:
                     desc = line.split(":", 1)[1].strip()
                     cur_source["name"] = desc
-                    if not cur_source["id"].endswith(".monitor"):
-                        is_ab13x = "ab13x" in cur_source["id"].lower() or "ab13x" in desc.lower() or "usb" in cur_source["id"].lower()
+                    if not cur_source["id"].endswith(".monitor") and cur_source["id"] not in seen_src_ids:
+                        is_ab13x = "ab13x" in cur_source["id"].lower() or "ab13x" in desc.lower() or "usb" in cur_source["id"].lower() or "usb" in desc.lower()
                         cur_source["is_earphones"] = is_ab13x
                         cur_source["is_default"] = (cur_source["id"] == default_source)
                         inputs.append(cur_source)
+                        seen_src_ids.add(cur_source["id"])
                     cur_source = {}
     except Exception as e:
         print(f"[Audio Devices] Error listing sources: {e}")
@@ -477,6 +650,7 @@ def get_pulse_audio_devices(force_rescan: bool = False) -> dict:
         res = subprocess.run(["pactl", "list", "sinks"], capture_output=True, text=True, timeout=3)
         if res.returncode == 0:
             cur_sink = {}
+            seen_sink_ids = set()
             for line in res.stdout.splitlines():
                 line = line.strip()
                 if line.startswith("Name:"):
@@ -485,10 +659,12 @@ def get_pulse_audio_devices(force_rescan: bool = False) -> dict:
                 elif line.startswith("Description:") and cur_sink:
                     desc = line.split(":", 1)[1].strip()
                     cur_sink["name"] = desc
-                    is_ab13x = "ab13x" in cur_sink["id"].lower() or "ab13x" in desc.lower() or "usb" in cur_sink["id"].lower()
-                    cur_sink["is_earphones"] = is_ab13x
-                    cur_sink["is_default"] = (cur_sink["id"] == default_sink)
-                    outputs.append(cur_sink)
+                    if cur_sink["id"] not in seen_sink_ids:
+                        is_ab13x = "ab13x" in cur_sink["id"].lower() or "ab13x" in desc.lower() or "usb" in cur_sink["id"].lower() or "usb" in desc.lower()
+                        cur_sink["is_earphones"] = is_ab13x
+                        cur_sink["is_default"] = (cur_sink["id"] == default_sink)
+                        outputs.append(cur_sink)
+                        seen_sink_ids.add(cur_sink["id"])
                     cur_sink = {}
     except Exception as e:
         print(f"[Audio Devices] Error listing sinks: {e}")
@@ -835,30 +1011,11 @@ class HardwareMicRecorder:
 
     def _record_loop(self):
         pa = pyaudio.PyAudio()
-        dev_idx = self.selected_device_index
-        channels = 1
-        rate = 16000
-        chunk_size = 1600
-
         try:
-            if dev_idx is None:
-                for i in range(pa.get_device_count()):
-                    try:
-                        info = pa.get_device_info_by_index(i)
-                        name_low = info.get("name", "").lower()
-                        if "ab13x" in name_low and info.get("maxInputChannels", 0) > 0:
-                            dev_idx = i
-                            channels = 2
-                            rate = 48000
-                            chunk_size = 4800
-                            break
-                    except Exception:
-                        continue
-
-            if dev_idx is None:
-                default_info = pa.get_default_input_device_info()
-                dev_idx = default_info["index"]
-
+            dev_idx, channels, rate, chunk_size = get_best_input_stream_config(
+                pa, self.selected_device_index
+            )
+            print(f"[Hardware Mic] Opening stream on device {dev_idx} ({channels}ch, {rate}Hz, chunk={chunk_size})...")
             stream = pa.open(
                 format=pyaudio.paInt16,
                 channels=channels,
@@ -870,12 +1027,7 @@ class HardwareMicRecorder:
 
             while not self._stop_event.is_set():
                 raw_bytes = stream.read(chunk_size, exception_on_overflow=False)
-                if rate == 48000 and channels == 2:
-                    mono_chunk = stereo_48k_to_mono_16k(raw_bytes)
-                else:
-                    pcm_data = np.frombuffer(raw_bytes, dtype=np.int16)
-                    mono_chunk = np.clip(pcm_data / 32768.0, -1.0, 1.0).astype(np.float32)
-
+                mono_chunk = to_16k_mono(raw_bytes, rate, channels)
                 filtered_chunk = self._hpf.process(mono_chunk)
                 rms = float(np.sqrt(np.mean(filtered_chunk ** 2)))
 
@@ -925,17 +1077,20 @@ hw_recorder = HardwareMicRecorder()
 
 
 class ContinuousLectureManager:
-    """Manages continuous 1-hour lecture recording with automated pause detection and live streaming."""
+    """Manages continuous 1-hour lecture recording with automated pause detection, non-blocking queue processing, and live streaming."""
 
     def __init__(self, recorder: HardwareMicRecorder):
         self.recorder = recorder
         self.is_running = False
         self.thread: Optional[threading.Thread] = None
+        self.worker_thread: Optional[threading.Thread] = None
         self.stop_event = threading.Event()
+        self.queue: queue.Queue = queue.Queue()
         self.lock = threading.Lock()
         self.start_epoch = 0.0
         self.utterance_count = 0
         self.hpf = HighPassHumFilter()
+        self.recent_chunks: list[dict] = []
 
     def get_status(self) -> dict:
         with self.lock:
@@ -955,9 +1110,18 @@ class ContinuousLectureManager:
             self.is_running = True
             self.start_epoch = time.time()
             self.utterance_count = 0
+            self.recent_chunks.clear()
+            while not self.queue.empty():
+                try:
+                    self.queue.get_nowait()
+                except Exception:
+                    break
             self.hpf.reset()
+            self.worker_thread = threading.Thread(target=self._worker_loop, daemon=True)
+            self.worker_thread.start()
             self.thread = threading.Thread(target=self._lecture_loop, daemon=True)
             self.thread.start()
+            print(f"[Continuous Lecture] Started manager at {datetime.now().strftime('%H:%M:%S')}")
             return {"status": "started", "start_time": self.start_epoch}
 
     def stop(self) -> dict:
@@ -967,35 +1131,37 @@ class ContinuousLectureManager:
             self.is_running = False
         self.stop_event.set()
         if self.thread:
-            self.thread.join(timeout=3.0)
+            self.thread.join(timeout=2.0)
+        if self.worker_thread:
+            self.worker_thread.join(timeout=3.0)
+        print(f"[Continuous Lecture] Stopped manager. Captured {self.utterance_count} utterances.")
         return self.get_status()
 
+    def _worker_loop(self):
+        """Dedicated background worker: processes speech chunks via Whisper & Qwen SLM without blocking audio input."""
+        while not self.stop_event.is_set() or not self.queue.empty():
+            try:
+                item = self.queue.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if item is None:
+                break
+            wav_bytes, dur_sec, start_offset = item
+            try:
+                self._process_and_broadcast_chunk(wav_bytes, dur_sec, start_offset)
+            except Exception as e:
+                print(f"[Continuous Lecture Worker Error] {e}")
+            finally:
+                self.queue.task_done()
+
     def _lecture_loop(self):
+        """High-priority audio capture loop: continuously streams hardware mic and applies real-time adaptive VAD."""
         pa = pyaudio.PyAudio()
-        dev_idx = self.recorder.selected_device_index
-        channels = 1
-        rate = 16000
-        chunk_size = 1600
-
         try:
-            if dev_idx is None:
-                for i in range(pa.get_device_count()):
-                    try:
-                        info = pa.get_device_info_by_index(i)
-                        name_low = info.get("name", "").lower()
-                        if "ab13x" in name_low and info.get("maxInputChannels", 0) > 0:
-                            dev_idx = i
-                            channels = 2
-                            rate = 48000
-                            chunk_size = 4800
-                            break
-                    except Exception:
-                        continue
-
-            if dev_idx is None:
-                default_info = pa.get_default_input_device_info()
-                dev_idx = default_info["index"]
-
+            dev_idx, channels, rate, chunk_size = get_best_input_stream_config(
+                pa, self.recorder.selected_device_index
+            )
+            print(f"[Continuous Lecture] Recording stream opened: device={dev_idx}, ch={channels}, rate={rate}, chunk={chunk_size}")
             stream = pa.open(
                 format=pyaudio.paInt16,
                 channels=channels,
@@ -1005,69 +1171,79 @@ class ContinuousLectureManager:
                 frames_per_buffer=chunk_size,
             )
 
+            noise_floor = 0.003
+            pre_roll_buffer = collections.deque(maxlen=4)  # 400ms pre-speech audio buffer
             speech_buffer: list[np.ndarray] = []
             silence_chunks = 0
             is_in_speech = False
             speech_start_sec = 0.0
-            speech_thold = 0.025
 
             while not self.stop_event.is_set():
                 raw_bytes = stream.read(chunk_size, exception_on_overflow=False)
-                if rate == 48000 and channels == 2:
-                    mono_chunk = stereo_48k_to_mono_16k(raw_bytes)
-                else:
-                    pcm_data = np.frombuffer(raw_bytes, dtype=np.int16)
-                    mono_chunk = np.clip(pcm_data / 32768.0, -1.0, 1.0).astype(np.float32)
-
+                mono_chunk = to_16k_mono(raw_bytes, rate, channels)
                 filtered_chunk = self.hpf.process(mono_chunk)
                 rms = float(np.sqrt(np.mean(filtered_chunk ** 2)))
+                self.recorder._last_rms = rms
                 cur_offset = time.time() - self.start_epoch
 
-                if rms >= speech_thold:
-                    if not is_in_speech:
-                        is_in_speech = True
-                        speech_start_sec = max(0.0, cur_offset - 0.2)
-                    speech_buffer.append(filtered_chunk)
-                    silence_chunks = 0
-                elif is_in_speech:
-                    speech_buffer.append(filtered_chunk)
-                    silence_chunks += 1
+                if not is_in_speech:
+                    noise_floor = 0.95 * noise_floor + 0.05 * rms
+                    pre_roll_buffer.append(filtered_chunk)
+                    # Adaptive trigger threshold: down to 0.004 RMS for sensitive earphone pickup
+                    speech_thold = max(0.004, min(0.020, noise_floor * 1.8))
 
-                    if silence_chunks >= 12 or len(speech_buffer) >= 180:
-                        if len(speech_buffer) >= 15:
+                    if rms >= speech_thold:
+                        is_in_speech = True
+                        speech_start_sec = max(0.0, cur_offset - len(pre_roll_buffer) * 0.1)
+                        speech_buffer = list(pre_roll_buffer)
+                        speech_buffer.append(filtered_chunk)
+                        silence_chunks = 0
+                        print(f"[Continuous Lecture] Speech triggered (RMS={rms:.4f} >= {speech_thold:.4f})")
+                else:
+                    speech_buffer.append(filtered_chunk)
+                    speech_thold = max(0.004, min(0.020, noise_floor * 1.8))
+                    if rms < speech_thold * 0.70:
+                        silence_chunks += 1
+                    else:
+                        silence_chunks = 0
+
+                    # Natural lecture pause: 6 chunks = 0.6s, or max chunk = 80 chunks (8.0s)
+                    if silence_chunks >= 6 or len(speech_buffer) >= 80:
+                        if len(speech_buffer) >= 3:  # At least 300ms
                             audio_arr = np.concatenate(speech_buffer)
-                            audio_int16 = np.clip(audio_arr * 32767, -32768, 32767).astype(np.int16)
+                            dur_sec = len(audio_arr) / 16000.0
+                            print(f"[Continuous Lecture] Utterance ready ({dur_sec:.2f}s, {len(speech_buffer)} chunks). Enqueueing...")
 
                             wav_buf = io.BytesIO()
                             with wave.open(wav_buf, "wb") as wf:
                                 wf.setnchannels(1)
                                 wf.setsampwidth(2)
                                 wf.setframerate(16000)
+                                audio_int16 = np.clip(audio_arr * 32767, -32768, 32767).astype(np.int16)
                                 wf.writeframes(audio_int16.tobytes())
 
-                            self._process_and_broadcast_chunk(
-                                wav_buf.getvalue(), len(audio_arr) / 16000.0, speech_start_sec
-                            )
+                            self.queue.put((wav_buf.getvalue(), dur_sec, speech_start_sec))
 
                         speech_buffer = []
                         silence_chunks = 0
                         is_in_speech = False
 
-            if is_in_speech and len(speech_buffer) >= 15:
+            # Flush any pending utterance on stop
+            if is_in_speech and len(speech_buffer) >= 3:
                 audio_arr = np.concatenate(speech_buffer)
-                audio_int16 = np.clip(audio_arr * 32767, -32768, 32767).astype(np.int16)
+                dur_sec = len(audio_arr) / 16000.0
                 wav_buf = io.BytesIO()
                 with wave.open(wav_buf, "wb") as wf:
                     wf.setnchannels(1)
                     wf.setsampwidth(2)
                     wf.setframerate(16000)
+                    audio_int16 = np.clip(audio_arr * 32767, -32768, 32767).astype(np.int16)
                     wf.writeframes(audio_int16.tobytes())
-                self._process_and_broadcast_chunk(
-                    wav_buf.getvalue(), len(audio_arr) / 16000.0, speech_start_sec
-                )
+                self.queue.put((wav_buf.getvalue(), dur_sec, speech_start_sec))
 
             stream.stop_stream()
             stream.close()
+            print("[Continuous Lecture] Audio capture stream stopped cleanly.")
         except Exception as e:
             print(f"[Continuous Lecture Loop Error] {e}")
         finally:
@@ -1076,13 +1252,30 @@ class ContinuousLectureManager:
     def _process_and_broadcast_chunk(self, wav_bytes: bytes, duration_sec: float, start_offset: float):
         try:
             raw_text, asr_ms = query_whisper_server(wav_bytes)
+            raw_text = clean_whisper_text(raw_text)
             if not raw_text.strip():
+                print(f"[Continuous Lecture] Whisper returned blank/silent speech ({duration_sec:.2f}s).")
                 return
 
-            slm = get_slm_translator()
-            t0 = time.monotonic()
-            latex_text = slm.translate(raw_text)
-            slm_ms = (time.monotonic() - t0) * 1000.0
+            # Fast linguistic gating: bypass SLM in 0.05ms for conversational speech
+            if has_math_indicators(raw_text):
+                if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
+                    print("[SLM] llama-server is offline. Auto-starting daemon...")
+                    ensure_edge_daemons()
+                slm = get_slm_translator()
+                t0 = time.monotonic()
+                num_words = len(raw_text.split())
+                dyn_tokens = min(256, max(64, int(num_words * 3.5)))
+                try:
+                    raw_latex = slm.translate(raw_text, max_new_tokens=dyn_tokens)
+                    latex_text = clean_slm_hallucinations(raw_latex, raw_text)
+                except Exception as e:
+                    print(f"[SLM Translation Error] {e}")
+                    latex_text = raw_text
+                slm_ms = (time.monotonic() - t0) * 1000.0
+            else:
+                latex_text = raw_text
+                slm_ms = 0.05
 
             session = get_active_session()
             item = session.record_utterance(
@@ -1092,9 +1285,6 @@ class ContinuousLectureManager:
                 duration_sec=duration_sec,
                 start_offset=start_offset,
             )
-
-            with self.lock:
-                self.utterance_count += 1
 
             packet = {
                 "type": "lecture_chunk",
@@ -1110,7 +1300,13 @@ class ContinuousLectureManager:
                 "router_time_ms": round(slm_ms, 1),
                 "audio_url": f"/live_tests/{session.session_id}/audio/{item['wav_file']}",
             }
+
+            with self.lock:
+                self.utterance_count += 1
+                self.recent_chunks.append(packet)
+
             broadcast_ws_message(packet)
+            print(f"[Live Lecture Broadcast] Chunk #{item['index']}: '{raw_text}' -> '{latex_text}' (ASR: {asr_ms:.1f}ms, SLM: {slm_ms:.1f}ms)")
         except Exception as e:
             print(f"[Process Chunk Error] {e}")
 
@@ -1288,13 +1484,23 @@ async def handle_transcribe_text(request: web.Request) -> web.Response:
     # Default to high-performance QwenMathTranslator (SLM) unless T5 is explicitly requested
     if engine != "t5":
         try:
-            slm = get_slm_translator()
-            t_start = time.monotonic()
-            processed_text = slm.translate(raw_text)
-            total_ms = (time.monotonic() - t_start) * 1000.0
+            if has_math_indicators(raw_text):
+                if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
+                    ensure_edge_daemons()
+                slm = get_slm_translator()
+                t_start = time.monotonic()
+                num_words = len(raw_text.split())
+                dyn_tokens = min(256, max(64, int(num_words * 3.5)))
+                raw_latex = slm.translate(raw_text, max_new_tokens=dyn_tokens)
+                processed_text = clean_slm_hallucinations(raw_latex, raw_text)
+                total_ms = (time.monotonic() - t_start) * 1000.0
+            else:
+                processed_text = raw_text
+                total_ms = 0.05
+
             return web.json_response({
                 "raw_text": raw_text,
-                "route_type": "slm_direct",
+                "route_type": "slm_direct" if processed_text != raw_text else "PURE_ENGLISH",
                 "processed_text": processed_text,
                 "spans": [],
                 "engine": "qwen2.5-1.5b",
@@ -1346,10 +1552,20 @@ async def run_pipeline_on_file(wav_path: Path, t_total_start: float, engine: str
     # Default to high-performance QwenMathTranslator (SLM) unless T5 is explicitly requested
     if engine != "t5":
         try:
-            slm = get_slm_translator()
-            t_slm_start = time.monotonic()
-            processed_text = slm.translate(raw_transcript)
-            slm_ms = (time.monotonic() - t_slm_start) * 1000.0
+            raw_clean = clean_whisper_text(raw_transcript)
+            if has_math_indicators(raw_clean):
+                if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
+                    ensure_edge_daemons()
+                slm = get_slm_translator()
+                t_slm_start = time.monotonic()
+                num_words = len(raw_clean.split())
+                dyn_tokens = min(256, max(64, int(num_words * 3.5)))
+                raw_latex = slm.translate(raw_clean, max_new_tokens=dyn_tokens)
+                processed_text = clean_slm_hallucinations(raw_latex, raw_clean)
+                slm_ms = (time.monotonic() - t_slm_start) * 1000.0
+            else:
+                processed_text = raw_clean
+                slm_ms = 0.05
             total_ms = (time.monotonic() - t_total_start) * 1000.0
 
             # Record into active LiveTestSession
@@ -1895,6 +2111,21 @@ async def handle_lecture_status(request: web.Request) -> web.Response:
     return web.json_response(lecture_mgr.get_status())
 
 
+async def handle_lecture_chunks(request: web.Request) -> web.Response:
+    """Return recently streamed chunks from continuous lecture for resilient fallback polling."""
+    try:
+        since_idx = int(request.query.get("since_index", 0))
+    except Exception:
+        since_idx = 0
+    with lecture_mgr.lock:
+        new_chunks = [c for c in lecture_mgr.recent_chunks if c.get("index", 0) > since_idx]
+        return web.json_response({
+            "is_running": lecture_mgr.is_running,
+            "utterance_count": lecture_mgr.utterance_count,
+            "chunks": new_chunks,
+        })
+
+
 async def start_background_tasks(app: web.Application):
     # Ensure background daemons on startup
     global main_event_loop
@@ -1914,6 +2145,8 @@ async def cleanup_background_tasks(app: web.Application):
 
 @web.middleware
 async def no_cache_middleware(request: web.Request, handler) -> web.StreamResponse:
+    if not request.path.startswith("/static/") and request.path != "/ws":
+        print(f"[HTTP {request.method}] {request.path}")
     if request.path == "/ws":
         return await handler(request)
     response = await handler(request)
@@ -1960,6 +2193,7 @@ def create_app() -> web.Application:
     app.router.add_post("/api/lecture/start", handle_lecture_start)
     app.router.add_post("/api/lecture/stop", handle_lecture_stop)
     app.router.add_get("/api/lecture/status", handle_lecture_status)
+    app.router.add_get("/api/lecture/chunks", handle_lecture_chunks)
 
     # Static routes
     app.router.add_static("/static/", STATIC_DIR, name="static")

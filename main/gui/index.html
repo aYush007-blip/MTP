@@ -12,7 +12,7 @@
   <script src="/static/katex/auto-render.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="/static/style.css?v=20261030_v5">
+  <link rel="stylesheet" href="/static/style.css?v=20261031_live_v14">
 </head>
 <body>
 
@@ -115,11 +115,19 @@
           <span>Press <kbd>Enter</kbd> to Start Recording &bull; Press <kbd>Enter</kbd> to Transcribe Immediately</span>
         </div>
 
-        <!-- Primary Hardware Record / Transcribe Action Button -->
-        <div class="primary-action-container">
-          <button id="btnToggleRecord" class="btn-main-record idle" type="button" title="Press Enter or click to record">
+        <!-- Primary Hardware Record / Transcribe Action Buttons -->
+        <div class="primary-action-container" style="display: flex; gap: 10px;">
+          <button id="btnToggleRecord" class="btn-main-record idle" type="button" style="flex: 1;" title="Press Enter or click to record a single utterance">
             <span id="mainRecordIcon" class="main-record-badge">[REC]</span>
             <span id="mainRecordLabel">Record [Enter]</span>
+          </button>
+          <button id="btnStartLecture" class="btn-main-record idle" type="button" style="flex: 1.1; background: linear-gradient(135deg, #4338ca, #6366f1);" title="Hands-free continuous live lecture mode (speak freely, auto-chunks on pauses)">
+            <span id="lectureRecordIcon" class="main-record-badge">[LIVE]</span>
+            <span id="lectureRecordLabel">Start Live Lecture</span>
+          </button>
+          <button id="btnStopLecture" class="btn-main-record idle" type="button" disabled style="flex: 0.9; background: #1e293b; color: #64748b; border: 1px solid #334155; opacity: 0.45; cursor: not-allowed; transition: all 0.2s ease;" title="Stop live lecture mode">
+            <span id="lectureStopIcon" class="main-record-badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">[STOP]</span>
+            <span id="lectureStopLabel">Stop Lecture</span>
           </button>
         </div>
 
@@ -155,7 +163,10 @@
               <span class="route-badge PURE_ENGLISH" id="routeBadge">IDLE</span>
             </div>
             <div class="action-buttons-group">
-              <button class="btn-tool" id="btnCopyLatex" type="button" title="Copy LaTeX formula to clipboard">
+              <button class="btn-tool" id="btnClearLiveText" type="button" title="Clear continuous lecture text">
+                <span>Clear</span>
+              </button>
+              <button class="btn-tool" id="btnCopyLatex" type="button" title="Copy LaTeX formula or full lecture text to clipboard">
                 <span>Copy</span>
               </button>
               <button class="btn-tool" id="btnDownloadOutputAudio" type="button" disabled title="Download audio WAV file">
@@ -265,6 +276,6 @@
   </div>
 
   <!-- Custom App JavaScript -->
-  <script src="/static/app.js?v=20261030_v5"></script>
+  <script src="/static/app.js?v=20261031_live_v14"></script>
 </body>
 </html>

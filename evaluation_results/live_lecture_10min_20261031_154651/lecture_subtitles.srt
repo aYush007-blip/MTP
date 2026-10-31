@@ -1,0 +1,528 @@
+1
+00:00:08,111 --> 00:00:16,111
+In which we will talk about how to calculate the poles of any transfer function $H(s)$.
+
+2
+00:00:15,804 --> 00:00:23,804
+So, any transfer function $H(s)$ can be written as $\frac{numerator}{denominator}$. Let's suppose
+
+3
+00:00:23,401 --> 00:00:26,401
+The numerator is
+
+4
+00:00:26,304 --> 00:00:30,404
+$n(s)$ and the denominator is $d(s)$.
+
+5
+00:00:31,101 --> 00:00:33,001
+Now,
+
+6
+00:00:33,212 --> 00:00:41,212
+We find the poles of the transfer function $H(s)$ by finding the roots of the denominator.
+
+7
+00:00:41,110 --> 00:00:42,910
+The office.
+
+8
+00:00:42,601 --> 00:00:50,601
+So, we solve $d(s) = 0$ and whatever the values of $s$ that we get from solving.
+
+9
+00:00:50,202 --> 00:00:58,102
+These equations are ultimately the roots of the denominator of $H(s)$.
+
+10
+00:00:00,732 --> 00:00:08,732
+This is the topic of time scale.
+
+11
+00:00:08,336 --> 00:00:13,136
+And operation that we perform on sequences.
+
+12
+00:00:13,033 --> 00:00:21,033
+Okay, and this usually comes in the context when you are changing
+
+13
+00:00:20,670 --> 00:00:28,670
+So, we are changing the sampling rate of a discrete-time sequence. But again, we will talk about the change of sampling rate when we talk about
+
+14
+00:00:28,247 --> 00:00:36,247
+So, let us capture it in the following form. Let me give you a sequence. This is a sequence
+
+15
+00:00:35,837 --> 00:00:37,737
+$P(x[n])$.
+
+16
+00:00:37,336 --> 00:00:45,336
+$\theta$, which is many zeros, and then finally starts with $1, 2,$ etc.
+
+17
+00:00:46,041 --> 00:00:49,041
+Three, four, five.
+
+18
+00:00:50,036 --> 00:00:55,636
+And then four, three, two, one, and then zeros.
+
+19
+00:00:55,834 --> 00:00:57,034
+Okay.
+
+20
+00:00:56,658 --> 00:01:01,658
+This is a finite length sequence. Is it causal?
+
+21
+00:01:02,934 --> 00:01:07,834
+Okay, where is the origin? I didn't show you the origin. Okay, the origin is here.
+
+22
+00:01:08,048 --> 00:01:16,048
+So, a finite-length sequence is causal and it starts with the sample value equal to 1.
+
+23
+00:01:15,633 --> 00:01:18,533
+Let's sketch it for us here.
+
+24
+00:01:18,134 --> 00:01:25,234
+So, we have this particular sequence. It starts at $n = 1$.
+
+25
+00:01:24,841 --> 00:01:30,841
+Then $n = 2$, $3$, $4$, and $5$.
+
+26
+00:01:30,463 --> 00:01:34,063
+And then it comes down to four.
+
+27
+00:01:34,242 --> 00:01:35,842
+Three.
+
+28
+00:01:35,933 --> 00:01:43,933
+and then one okay zero one two three four five six
+
+29
+00:01:43,534 --> 00:01:48,034
+These are nonzero samples, after that it is zero.
+
+30
+00:01:49,034 --> 00:01:53,034
+And the heights we can indicate.
+
+31
+00:01:52,948 --> 00:01:55,348
+As
+
+32
+00:01:56,034 --> 00:02:00,634
+One, two, three, four, five.
+
+33
+00:02:00,335 --> 00:02:04,935
+One, four, three, two, one. Okay, so you are comfortable with this.
+
+34
+00:02:05,339 --> 00:02:13,339
+Now, the first operation of time scaling is a reduction in the sampling rate.
+
+35
+00:02:12,962 --> 00:02:20,962
+What we are going to say is, I will define the sequence $y[n]$ that is equal to $x[2]$.
+
+36
+00:02:20,543 --> 00:02:21,943
+All in.
+
+37
+00:02:22,539 --> 00:02:30,539
+Okay, so $y(0)$ will be $x(0)$, $y(1)$ will be equal to $x(1)$.
+
+38
+00:02:30,139 --> 00:02:31,339
+Cool.
+
+39
+00:02:31,551 --> 00:02:37,951
+$y(2)$ will be equal to $x(4)$, so just write down a few of those. So, $y(0)$.
+
+40
+00:02:37,547 --> 00:02:40,247
+One will be $x(0)$.
+
+41
+00:02:39,943 --> 00:02:44,443
+$y(1)$ will be $x(2)$.
+
+42
+00:02:44,248 --> 00:02:52,248
+And $y(2)$ will be equal to $x(4)$ and so on.
+
+43
+00:02:51,839 --> 00:02:56,939
+What does this sequence look like? So basically we will take this.
+
+44
+00:02:56,537 --> 00:02:59,537
+At the same sequence.
+
+45
+00:02:59,937 --> 00:03:04,237
+And paste it over here.
+
+46
+00:03:04,035 --> 00:03:06,335
+With a different color.
+
+47
+00:03:06,636 --> 00:03:13,736
+Let's say we'll make it blue and what we have done is we have erased
+
+48
+00:03:13,448 --> 00:03:16,248
+It's some of these samples.
+
+49
+00:03:17,436 --> 00:03:23,436
+Okay, and we have now renumbered them as
+
+50
+00:03:23,049 --> 00:03:27,249
+This is one, two, three, four.
+
+51
+00:03:27,154 --> 00:03:28,554
+Okay.
+
+52
+00:03:28,348 --> 00:03:33,648
+Or maybe it's easier if you can look at it as a sequence.
+
+53
+00:03:34,847 --> 00:03:37,047
+As a sequence.
+
+54
+00:03:40,256 --> 00:03:41,356
+And
+
+55
+00:03:40,937 --> 00:03:44,337
+Okay, so $y[n]$
+
+56
+00:03:45,137 --> 00:03:47,637
+So $y[n]$ is...
+
+57
+00:03:47,839 --> 00:03:51,239
+$x[2n]$ and $y(0)$ are the same.
+
+58
+00:03:51,438 --> 00:03:55,738
+This sample got dropped. Next sample got dropped.
+
+59
+00:03:55,552 --> 00:04:03,552
+And this sample got dropped, this one got dropped and zeros are there. Okay?
+
+60
+00:04:03,147 --> 00:04:11,147
+This is obtained by this process.
+
+61
+00:04:10,738 --> 00:04:18,738
+This is basically we are doing a scaling of time. This is a process that we call as down-sampling or compression.
+
+62
+00:04:18,340 --> 00:04:19,440
+Let's check it.
+
+63
+00:04:19,059 --> 00:04:27,059
+So, in general, if you write down an expression, $y[n] =$
+
+64
+00:04:26,640 --> 00:04:32,140
+$X[nm]$, where $m$ is an integer.
+
+65
+00:04:33,759 --> 00:04:41,759
+Okay, and the value meaning, something greater than 1, 2n or 3m equals 2, 3, 4 and so on. You are basically going to be doing
+
+66
+00:04:41,441 --> 00:04:42,841
+Okay.
+
+67
+00:04:42,446 --> 00:04:50,446
+A compression, so this is a operation on time scaling which is called as compression or as
+
+68
+00:04:50,050 --> 00:04:52,150
+Don't sample.
+
+69
+00:04:51,740 --> 00:04:56,840
+I like the term downsampling much better than compression.
+
+70
+00:04:56,851 --> 00:05:04,851
+Because, you know, it's very easy to see that you originally had eight non-zero samples, now it went down to five because some non-zero samples got eliminated.
+
+71
+00:05:04,451 --> 00:05:08,051
+Some got omitted.
+
+72
+00:05:07,954 --> 00:05:12,554
+Okay, now if I were to ask you to write down
+
+73
+00:05:12,440 --> 00:05:18,340
+$y_1[n] = x[3n]$
+
+74
+00:05:18,739 --> 00:05:21,539
+Okay, this would be a sequence.
+
+75
+00:05:21,348 --> 00:05:25,248
+Lots of zeros. You'll start with one.
+
+76
+00:05:25,440 --> 00:05:33,440
+Next sample that will be present in your sequence, you are going to throw out two samples and retain the
+
+77
+00:05:33,046 --> 00:05:41,046
+Next one. So, two and three got dropped, four will be the next sample. Then five and four got dropped, three will be
+
+78
+00:05:40,640 --> 00:05:48,640
+Next are the next non-zero samples, and then two and one, and then zeros everywhere. So this would be the sequence.
+
+79
+00:05:48,559 --> 00:05:56,559
+You would get $x(3)$ and a few fewer non-zero samples because you are doing the downsampling.
+
+80
+00:05:56,157 --> 00:05:57,757
+Then operation.
+
+81
+00:05:57,840 --> 00:06:05,840
+Okay, so anytime we do a down sampling operation there must be a counterpart and yes there is an
+
+82
+00:06:05,441 --> 00:06:13,441
+So, we have a sampling operation as well or a expansion operation basically.
+
+83
+00:06:13,044 --> 00:06:21,044
+Before I forget, this has got a notation. We say that you take $x[n]$.
+
+84
+00:06:21,441 --> 00:06:28,841
+Pass it through a down sampler marked by a down arrow and the factor M.
+
+85
+00:06:28,466 --> 00:06:32,866
+And then this output is $y[n]$.
+
+86
+00:06:32,641 --> 00:06:33,741
+And
+
+87
+00:06:34,041 --> 00:06:38,041
+The output is $y[n]$, which is equal to
+
+88
+00:06:37,854 --> 00:06:45,854
+Now moving on to the expansion operation or the
+
+89
+00:06:45,442 --> 00:06:47,042
+And sampling.
+
+90
+00:06:47,770 --> 00:06:52,270
+Expansion or up sampling.
+
+91
+00:06:52,857 --> 00:07:00,857
+Very, very simple. What we are doing here is taking the samples that we
+
+92
+00:07:00,542 --> 00:07:08,542
+We already have and are going to insert zeros. Now the question is how many zeros are we to insert?
+
+93
+00:07:08,154 --> 00:07:16,154
+So here is an example, as usual. If $y[n]$, I want to upsample by a factor of 2.
+
+94
+00:07:16,845 --> 00:07:24,845
+The definition of the function is the same.
+
+95
+00:07:24,442 --> 00:07:31,542
+This is equal to $\frac{x[n]}{2}$.
+
+96
+00:07:31,362 --> 00:07:36,262
+If, if,
+
+97
+00:07:36,248 --> 00:07:43,348
+$n = 0 - 2 - 4 + \ldots$
+
+98
+00:07:43,650 --> 00:07:51,650
+Remember, a discrete-time sequence is defined only when the argument is an integer.
+
+99
+00:07:51,253 --> 00:07:55,953
+And it is equal to zero otherwise.
+
+100
+00:07:57,558 --> 00:08:04,358
+This equals zero otherwise.
+
+101
+00:08:04,060 --> 00:08:07,160
+$\theta$ will be the same as $x(0)$.
+
+102
+00:08:07,345 --> 00:08:09,345
+$y(1)$.
+
+103
+00:08:08,949 --> 00:08:14,849
+You will get $x(1) = \frac{1}{2}$ that is not allowed. Therefore, that sample will be equal to 0.
+
+104
+00:08:14,843 --> 00:08:19,743
+$y(2) = x(1)$, yes, that is an integer, you will get equal to $x(1)$.
+
+105
+00:08:19,864 --> 00:08:21,764
+$y(3)$.
+
+106
+00:08:21,346 --> 00:08:25,246
+Y of four?
+
+107
+00:08:24,849 --> 00:08:28,949
+$y = 2$. Now you know the trend, sorry, $x(2)$.
+
+108
+00:08:29,057 --> 00:08:37,057
+And you can do the same thing over for all the samples. So the original sequence that we had
+
+109
+00:08:36,645 --> 00:08:38,445
+$x[n]$
+
+110
+00:08:38,246 --> 00:08:40,946
+At many poles.
+
+111
+00:08:40,559 --> 00:08:47,859
+And then started out with a sample one, two, three, four, five.
+
+112
+00:08:47,647 --> 00:08:52,547
+Four, three, two, one, and then zeros.
+
+113
+00:08:52,844 --> 00:08:55,344
+Okay, so...
+
+114
+00:08:54,951 --> 00:08:57,651
+Let $y[n]$ be played down.
+
+115
+00:08:57,945 --> 00:09:05,945
+This sample was $y(0)$, which is the same as $x(0)$, but this is the origin.
+
+116
+00:09:05,555 --> 00:09:09,755
+The next example of $y[n]$ was a zero.
+
+117
+00:09:10,046 --> 00:09:13,446
+Then you had the value equal to $2$.
+
+118
+00:09:13,047 --> 00:09:21,047
+Then zero three, zero four, zero five, zero four, zero three, zero two,
+
+119
+00:09:20,646 --> 00:09:28,646
+Then you have two, and zero, one, and then all zeros. So basically put a comma in between. So you have inserted one zero between.
+
+120
+00:09:28,263 --> 00:09:31,463
+Then every two set of samples.
+
+121
+00:09:32,146 --> 00:09:33,846
+Okay?
+
+122
+00:09:33,747 --> 00:09:37,747
+Now, the general case of expansion.
+
+123
+00:09:37,861 --> 00:09:41,861
+$y[n] =$
+
+124
+00:09:41,469 --> 00:09:43,669
+x of
+
+125
+00:09:43,346 --> 00:09:47,646
+And by an integer and upper case n.
+
+126
+00:09:49,345 --> 00:09:52,045
+Okay, x of...
+
+127
+00:09:51,860 --> 00:09:54,760
+And $\frac{1}{n}$.
+
+128
+00:09:54,545 --> 00:10:02,545
+If $n$ is a multiple of, if $\frac{n}{n}$ is an integer, this will be true if $n = 0 + \pm$
+
+129
+00:10:02,146 --> 00:10:03,746
+Yes, and...
+
+130
+00:10:03,562 --> 00:10:10,562
+And notice that for all other values,
+
+131
+00:10:10,155 --> 00:10:12,055
+It will be zero.
+
+132
+00:10:13,260 --> 00:10:20,560
+So, for $n = 0$, you will get a non-zero value. For $n = 1, 2, 3$, you are going to get zero.
+

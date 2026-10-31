@@ -1,0 +1,294 @@
+1
+00:00:00,000 --> 00:00:01,920
+Alright!
+
+2
+00:00:01,920 --> 00:00:10,120
+As far as I understand, you guys are just starting this, right? This is my slide deck. It's identical. It just has different colors. It's blue.
+
+3
+00:00:10,120 --> 00:00:13,120
+And you must have just finished the IC (Integrated Circuits) course.
+
+4
+00:00:13,120 --> 00:00:17,460
+All right, all the wonders of wafer silicon fabrication.
+
+5
+00:00:17,460 --> 00:00:19,720
+No.
+
+6
+00:00:19,720 --> 00:00:21,640
+Wow
+
+7
+00:00:21,640 --> 00:00:23,360
+We are going to be in line.
+
+8
+00:00:23,360 --> 00:00:28,780
+All of this over here
+
+9
+00:00:28,780 --> 00:00:33,100
+Yay!
+
+10
+00:00:33,100 --> 00:00:35,340
+All right.
+
+11
+00:00:35,340 --> 00:00:38,420
+Thank you for sharing that! Is there anything else you would like to discuss?
+
+12
+00:00:38,420 --> 00:00:40,800
+Are there any questions for me?
+
+13
+00:00:40,800 --> 00:00:43,460
+I apologize if my previous responses were not helpful or clear. Let me know if you have any other questions or need further assistance.
+
+14
+00:00:43,460 --> 00:00:46,800
+That's it? Nothing? Yeah, what?
+
+15
+00:00:46,800 --> 00:00:54,460
+I apologize, but there seems to be a mix-up with the spoken text. Could you please provide the correct spoken mathematical expression or phrase that needs to be converted into LaTeX format?
+
+16
+00:00:54,460 --> 00:00:56,240
+Come on, dude.
+
+17
+00:00:56,240 --> 00:00:59,040
+So you knew who I was.
+
+18
+00:00:59,040 --> 00:01:09,180
+You just wanted to make a point that I had to introduce myself. So who looks like the shithead now? You or me?
+
+19
+00:01:09,180 --> 00:01:10,620
+Yeah.
+
+20
+00:01:10,620 --> 00:01:16,000
+Fawaz, who is a balding old guy, but he's like Papa Smurf, you wanna hug him?
+
+21
+00:01:16,000 --> 00:01:19,500
+Doesn't he look like Paul Smirkf in the thing? He's a really cool guy actually.
+
+22
+00:01:19,500 --> 00:01:24,180
+He's one of the fathers of EM or whatever. He's a pretty cool guy. Yes, is he out of your hand up?
+
+23
+00:01:24,180 --> 00:01:25,260
+Thank you.
+
+24
+00:01:25,260 --> 00:01:26,720
+Can you guys see the answer?
+
+25
+00:01:26,720 --> 00:01:29,600
+Can you license them?
+
+26
+00:01:29,600 --> 00:01:33,100
+I apologize.
+
+27
+00:01:33,100 --> 00:01:38,060
+Oh, you were asking why?
+
+28
+00:01:38,060 --> 00:01:43,520
+Why do we not provide you with, such as downloading and providing you with the answers to all the end-of-chapter problems?
+
+29
+00:01:43,520 --> 00:01:48,400
+Okay, so hold on, there's a very easy answer to this.
+
+30
+00:01:48,400 --> 00:01:52,560
+Go through two versions. By the way, is this actually recorded?
+
+31
+00:01:52,560 --> 00:02:04,560
+I don't record 40, that's why I curse so much. That's fine. Hi, everybody. Hi, grandma. Anyway, look, so...
+
+32
+00:02:04,560 --> 00:02:09,860
+The answer is these guys don't, I mean think about it, the textbook, right? So you don't...
+
+33
+00:02:09,860 --> 00:02:16,000
+You don't want to give out the answers to these things because then they will go all over the web and everyone will have them except...
+
+34
+00:02:16,000 --> 00:02:19,740
+Obviously that's already true unless you
+
+35
+00:02:19,740 --> 00:02:21,660
+You don't know what "torrenting" is, so
+
+36
+00:02:21,660 --> 00:02:23,320
+Great.
+
+37
+00:02:23,320 --> 00:02:26,580
+Does that answer your question?
+
+38
+00:02:26,580 --> 00:02:29,860
+All right. Any other questions?
+
+39
+00:02:29,860 --> 00:02:31,220
+Thank you.
+
+40
+00:02:31,220 --> 00:02:32,980
+What?
+
+41
+00:02:32,980 --> 00:02:34,100
+But if you guys find it online, please share it with us.
+
+42
+00:02:34,100 --> 00:02:41,500
+No, I think it's I can't believe that we can't right because the company would never agree to
+
+43
+00:02:41,500 --> 00:02:51,860
+To give out all the answers to the end of the book if some people are assigning them because then they'd go out and wander. I'm not arguing that the position is tenable, it's just that this is the position.
+
+44
+00:02:51,860 --> 00:02:54,000
+We can't just distribute these things.
+
+45
+00:02:54,000 --> 00:02:57,140
+willy-nilly because they are the answers to problems that
+
+46
+00:02:57,140 --> 00:02:59,360
+supposedly are guarded by the teacher's manual.
+
+47
+00:02:59,360 --> 00:03:05,800
+This is a conflict between a modern reality with information and older models of things that have been around for a long time.
+
+48
+00:03:05,800 --> 00:03:09,320
+There was a teacher's manual that I couldn't get my students to obtain.
+
+49
+00:03:09,320 --> 00:03:12,800
+But they are still operating under that model.
+
+50
+00:03:12,800 --> 00:03:13,880
+We're going to ask you to move forward.
+
+51
+00:03:13,880 --> 00:03:15,340
+Thank you.
+
+52
+00:03:15,340 --> 00:03:20,020
+You mean the numbers, the answer is 3.
+
+53
+00:03:20,020 --> 00:03:21,800
+I'll email NTS.
+
+54
+00:03:21,800 --> 00:03:25,320
+I don't set those rules, so I'll email NTS, right? They own the...
+
+55
+00:03:25,320 --> 00:03:28,720
+They are the ones who publish it. I will ask.
+
+56
+00:03:28,720 --> 00:03:30,700
+I doubt the answer will be "yes".
+
+57
+00:03:30,700 --> 00:03:35,160
+But it will get me out, you won't see me again, so it will get me out of today, right?
+
+58
+00:03:35,160 --> 00:03:40,380
+I promise I'll look into it. I'll look into your problem. Give me a baby kiss. Bye.
+
+59
+00:03:40,380 --> 00:03:43,640
+Any other questions?
+
+60
+00:03:43,640 --> 00:03:47,160
+Okay. Let's get started.
+
+61
+00:03:47,160 --> 00:03:48,960
+So, uh...
+
+62
+00:03:48,960 --> 00:03:54,840
+I guess you guys are about to do amplifiers in particular op-amps.
+
+63
+00:03:54,840 --> 00:04:01,940
+Oh, that is true. I don't know what, sorry, that reminds me. I don't know what Vivek does, but in 45 minutes we'll take a stretch break, because otherwise I am going to fall asleep.
+
+64
+00:04:01,940 --> 00:04:06,980
+So just you know, okay, so you guys are about to do amplifiers.
+
+65
+00:04:06,980 --> 00:04:16,680
+You probably used op amps in the lab if he is following labs similar to ours, and probably frustrated you because he had not talked about them before he lectured on them.
+
+66
+00:04:16,680 --> 00:04:21,320
+The reason for that by the way is on purpose for $s_4$, which is that
+
+67
+00:04:21,320 --> 00:04:30,380
+It seems to, /, -1, -0, 0. This is how much, -d, -d, =, etc.,> - >, <, /, ... this is not a, -a, -a, etc., etc.
+I, -d, -d, etc., >, <, /, etc. >, <, /, etc. >, <, /, etc. >, <, /, etc. >, <, /, etc
+I, -1, -d/d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, -1, - d, - 4, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, - d, -
+
+68
+00:04:30,380 --> 00:04:40,200
+But for the specific to the words "the" and "it" by speaking in English, as well by speaking in English, it is not by speaking in English. by speaking in English, it's not by speaking in English, but by speaking in English, it is not by speaking in English, it is not by speaking in English, by speaking in English, it is not by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English, by speaking in English
+
+69
+00:04:40,200 --> 00:04:42,820
+and feel stressed by it, stress is good.
+
+70
+00:04:42,820 --> 00:04:52,320
+And then you generate all these questions that were generated by your anger at us and the professors in Dickhead and all this stuff. And then you show up and then we lecture. So there is a reason why that was done.
+
+71
+00:04:52,320 --> 00:04:53,940
+in the context of 4D, by the way.
+
+72
+00:04:53,940 --> 00:04:57,760
+So anyway, you're doing amplifiers and
+
+73
+00:04:57,760 --> 00:05:00,000
+It was a good point here to stop.
+

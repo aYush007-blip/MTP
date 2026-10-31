@@ -23,17 +23,17 @@ SYSTEM_PROMPT = (
     "You are an expert lecture transcriber and mathematical typesetter.\n"
     "Your task is to take a spoken lecture transcript and convert it into a natural, continuous transcript where spoken mathematical formulas and expressions are converted into standard inline LaTeX ($...$).\n\n"
     "STRICT RULES:\n"
-    "1. When mathematical operators, definitions, or equations are spoken in words (e.g. summations, integrals, fractions, derivatives, signals), convert the complete spoken mathematical phrase into its standard LaTeX formula:\n"
-    "   - 'the integral from zero to infinity of f of t times e to the minus s t dt' -> '$\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$'\n"
-    "   - 'the sum over all integers n of x of n times z to the power minus n' -> '$\\sum_{n=-\\infty}^{\\infty} x[n] z^{-n}$'\n"
-    "   - 'sum from n equals 0 to infinity of a to the n' -> '$\\sum_{n=0}^{\\infty} a^n$'\n"
-    "   - 'dy by dt plus two y equals one' -> '$\\frac{dy}{dt} + 2y = 1$'\n"
-    "   - 'x of n' -> '$x[n]$', 'x of t' -> '$x(t)$', 'f of t' -> '$f(t)$', 'z-plane' -> '$z$-plane'\n"
+    "1. When mathematical expressions, variables, operators, definitions, or equations are spoken in words (e.g. summations, integrals, fractions, derivatives, functions, transfer functions, signals), convert them into standard inline LaTeX formula ($...$):\n"
+    "   - Functions, signals, and transfer functions: convert spoken 'VARIABLE of ARGUMENT' into standard functional notation: e.g. 'f of x' -> '$f(x)$', 'h of s' or 'transfer function h of s' -> '$H(s)$' (or '$h(s)$'), 'g of s' -> '$G(s)$', 'x of t' -> '$x(t)$', 'y of t' -> '$y(t)$', 'x of n' -> '$x[n]$', 'theta of t' -> '$\\theta(t)$'.\n"
+    "   - Spoken equations & operators: 'dy by dt plus two y equals one' -> '$\\frac{dy}{dt} + 2y = 1$', 'the integral from zero to infinity of f of t times e to the minus s t dt' -> '$\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$'.\n"
+    "   - Engineering concepts & variables: preserve conversational phrasing ('root locus', 'transfer function', 'poles and zeros') and typeset variables/formulas: e.g. 'poles of h of s' -> 'poles of $H(s)$', 'roots of denominator of h of s' -> 'roots of the denominator of $H(s)$', 'poles at s equals minus two' -> 'poles at $s = -2$'.\n"
     "2. Preserve 100% of the spoken conversational explanations, surrounding context, and English words. Do not summarize or omit explanations.\n"
-    "3. NEVER wrap non-math words, conversational phrases, numbers, or counting in LaTeX or \\text{}. (e.g. 'Five, four, three, two, one, zero. Let us get technical.' must remain as plain text).\n"
-    "4. Use ONLY inline math ($...$). NEVER use display math ($$...$$ or \\( ... \\)).\n"
-    "5. Output ONLY the resulting transcript. Do not output preamble, notes, or explanations."
+    "3. If the transcript contains no mathematical formulas, or ends abruptly, output the spoken transcript EXACTLY as provided. NEVER complete, continue, answer, or elaborate on the sentence.\n"
+    "4. NEVER wrap non-math words, conversational phrases, numbers, or counting in LaTeX or \\text{}. (e.g. 'Five, four, three, two, one, zero. Let us get technical.' must remain as plain text).\n"
+    "5. Use ONLY inline math ($...$). NEVER use display math ($$...$$ or \\( ... \\)).\n"
+    "6. Output ONLY the resulting transcript. Do not output preamble, notes, or explanations."
 )
+
 
 FEW_SHOT_MESSAGES = [
     {
@@ -59,6 +59,14 @@ FEW_SHOT_MESSAGES = [
     {
         "role": "assistant",
         "content": "For instance, if $\\frac{dy}{dt} + 2y = 1$ with $y(0) = 0$, applying the transform gives $s y(s) + 2 y(s) = \\frac{1}{s}$."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nConsider an open loop transfer function h of s. To find the poles of its transfer function h of s, we find the roots of the denominator of h of s."
+    },
+    {
+        "role": "assistant",
+        "content": "Consider an open loop transfer function $H(s)$. To find the poles of its transfer function $H(s)$, we find the roots of the denominator of $H(s)$."
     },
     {
         "role": "user",
@@ -197,7 +205,7 @@ class QwenMathTranslator:
         return s.strip()
 
     def translate_server(self, spoken_text: str, max_new_tokens: int = 128) -> str:
-        """Call llama-server via OpenAI-compatible REST API."""
+        """Call llama-server via OpenAI-compatible REST API with automatic reconnect/revive."""
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
         messages.extend(FEW_SHOT_MESSAGES)
         messages.append({"role": "user", "content": f"Spoken transcript:\n{spoken_text}"})
@@ -214,10 +222,28 @@ class QwenMathTranslator:
             data=data_bytes,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            resp_data = json.loads(resp.read().decode("utf-8"))
-            content = resp_data["choices"][0]["message"]["content"]
-            return self._clean_response(content)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp_data = json.loads(resp.read().decode("utf-8"))
+                content = resp_data["choices"][0]["message"]["content"]
+                return self._clean_response(content)
+        except Exception as e:
+            print(f"[SLM Server Warning] {e}. Checking server health...")
+            # Auto-revive daemon if down
+            if not self._is_server_alive():
+                try:
+                    from gui.server import ensure_edge_daemons
+                    ensure_edge_daemons()
+                    time.sleep(1.0)
+                except Exception as revive_err:
+                    print(f"[SLM Revive Failed] {revive_err}")
+            # Retry once
+            if self._is_server_alive():
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    resp_data = json.loads(resp.read().decode("utf-8"))
+                    content = resp_data["choices"][0]["message"]["content"]
+                    return self._clean_response(content)
+            raise
 
     def translate_cli(self, spoken_text: str, max_new_tokens: int = 128) -> str:
         """Execute translation directly through compiled llama-cli."""
@@ -303,7 +329,13 @@ class QwenMathTranslator:
             max_new_tokens = min(1536, max(256, len(words) * 4))
 
         if self.backend == "server" or self._is_server_alive():
-            return self.translate_server(text, max_new_tokens=max_new_tokens)
+            try:
+                return self.translate_server(text, max_new_tokens=max_new_tokens)
+            except Exception as e:
+                print(f"[SLM Warning] translate_server failed: {e}. Falling back to CLI/Transformers...")
+                if self.model_path and (self.model_path.suffix == ".gguf" or self.model_path.is_file()):
+                    return self.translate_cli(text, max_new_tokens=max_new_tokens)
+                return self.translate_transformers(text, max_new_tokens=max_new_tokens)
         elif self.backend == "llama_cli" or (self.model_path and self.model_path.suffix == ".gguf"):
             return self.translate_cli(text, max_new_tokens=max_new_tokens)
         else:

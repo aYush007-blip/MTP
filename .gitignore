@@ -48,6 +48,7 @@ transcripts/
 live_tests/session_*/
 logs/
 .Trash-*/
+*.wav
 
 # IDE & OS
 .vscode/

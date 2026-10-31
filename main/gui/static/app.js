@@ -78,9 +78,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // Application State
   // -------------------------------------------------------------------------
   let isHardwareRecording = false;
+  let isLectureRunning = false;
   let animFrameId = null;
   let timerIntervalId = null;
   let timerStartTime = 0;
+  let lastRenderedChunkIndex = 0;
+  let lecturePollInterval = null;
+  let lectureAccumulatedRaw = "";
+  let lectureAccumulatedLatex = "";
 
   let currentOutputData = null;
   let currentAudioUrl = null;
@@ -156,65 +161,71 @@ document.addEventListener("DOMContentLoaded", () => {
       const usbSource = data.sources?.find(s => s.is_earphones || (s.id && (s.id.toLowerCase().includes("ab13x") || s.id.toLowerCase().includes("usb"))));
       const usbSink = data.sinks?.find(s => s.is_earphones || (s.id && (s.id.toLowerCase().includes("ab13x") || s.id.toLowerCase().includes("usb"))));
 
-      // Populate Mic Sources
+      // Populate Mic Sources (only rebuild if list changed or manual scan to prevent DOM jitter)
       if (selectMicDevice && Array.isArray(data.sources) && data.sources.length > 0) {
         const curVal = selectMicDevice.value;
-        selectMicDevice.innerHTML = "";
-        let selectedSet = false;
+        const currentIds = Array.from(selectMicDevice.options).map(o => o.value).join(",");
+        const newIds = data.sources.map(s => s.id).join(",");
+        if (currentIds !== newIds || !silent) {
+          selectMicDevice.innerHTML = "";
+          let selectedSet = false;
 
-        data.sources.forEach(src => {
-          const opt = document.createElement("option");
-          opt.value = src.id;
-          opt.textContent = `${src.name}${src.is_earphones ? " (Earphones Mic)" : ""}`;
+          data.sources.forEach(src => {
+            const opt = document.createElement("option");
+            opt.value = src.id;
+            opt.textContent = `${src.name}${src.is_earphones ? " (Earphones Mic)" : ""}`;
 
-          // On manual scan: if earphones exist, ALWAYS prioritize selecting earphones!
-          if (!silent && usbSource && src.id === usbSource.id) {
-            opt.selected = true;
-            selectedSet = true;
-          } else if (curVal && curVal === src.id && !selectedSet) {
-            opt.selected = true;
-            selectedSet = true;
-          } else if (!selectedSet && (src.is_default || (src.id && src.id.toLowerCase().includes("ab13x")))) {
-            opt.selected = true;
-            selectedSet = true;
+            if (!silent && usbSource && src.id === usbSource.id) {
+              opt.selected = true;
+              selectedSet = true;
+            } else if (curVal && curVal === src.id && !selectedSet) {
+              opt.selected = true;
+              selectedSet = true;
+            } else if (!selectedSet && (src.is_default || (src.id && src.id.toLowerCase().includes("ab13x")))) {
+              opt.selected = true;
+              selectedSet = true;
+            }
+            selectMicDevice.appendChild(opt);
+          });
+
+          if (!silent && usbSource) {
+            selectMicDevice.value = usbSource.id;
+            handleDeviceChange("source", usbSource.id);
           }
-          selectMicDevice.appendChild(opt);
-        });
-
-        if (!silent && usbSource) {
-          selectMicDevice.value = usbSource.id;
-          handleDeviceChange("source", usbSource.id);
         }
       }
 
-      // Populate Earphone/Playback Sinks
+      // Populate Earphone/Playback Sinks (only rebuild if list changed or manual scan)
       if (selectOutputDevice && Array.isArray(data.sinks) && data.sinks.length > 0) {
         const curVal = selectOutputDevice.value;
-        selectOutputDevice.innerHTML = "";
-        let selectedSet = false;
+        const currentIds = Array.from(selectOutputDevice.options).map(o => o.value).join(",");
+        const newIds = data.sinks.map(s => s.id).join(",");
+        if (currentIds !== newIds || !silent) {
+          selectOutputDevice.innerHTML = "";
+          let selectedSet = false;
 
-        data.sinks.forEach(sink => {
-          const opt = document.createElement("option");
-          opt.value = sink.id;
-          opt.textContent = `${sink.name}${sink.is_earphones ? " (Earphones Playback)" : ""}`;
+          data.sinks.forEach(sink => {
+            const opt = document.createElement("option");
+            opt.value = sink.id;
+            opt.textContent = `${sink.name}${sink.is_earphones ? " (Earphones Playback)" : ""}`;
 
-          // On manual scan: if earphones exist, ALWAYS prioritize selecting earphones!
-          if (!silent && usbSink && sink.id === usbSink.id) {
-            opt.selected = true;
-            selectedSet = true;
-          } else if (curVal && curVal === sink.id && !selectedSet) {
-            opt.selected = true;
-            selectedSet = true;
-          } else if (!selectedSet && (sink.is_default || (sink.id && sink.id.toLowerCase().includes("ab13x")))) {
-            opt.selected = true;
-            selectedSet = true;
+            if (!silent && usbSink && sink.id === usbSink.id) {
+              opt.selected = true;
+              selectedSet = true;
+            } else if (curVal && curVal === sink.id && !selectedSet) {
+              opt.selected = true;
+              selectedSet = true;
+            } else if (!selectedSet && (sink.is_default || (sink.id && sink.id.toLowerCase().includes("ab13x")))) {
+              opt.selected = true;
+              selectedSet = true;
+            }
+            selectOutputDevice.appendChild(opt);
+          });
+
+          if (!silent && usbSink) {
+            selectOutputDevice.value = usbSink.id;
+            handleDeviceChange("sink", usbSink.id);
           }
-          selectOutputDevice.appendChild(opt);
-        });
-
-        if (!silent && usbSink) {
-          selectOutputDevice.value = usbSink.id;
-          handleDeviceChange("sink", usbSink.id);
         }
       }
 
@@ -291,7 +302,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Periodic polling every 3s when idle to catch hotplug events automatically
   setInterval(() => {
-    if (!isContinuousRecording && !isRecording) {
+    if (!isHardwareRecording && !isLectureRunning) {
       fetchAudioDevices(true);
     }
   }, 3000);
@@ -356,7 +367,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     canvasCtx.stroke();
 
-    if (!isHardwareRecording) {
+    if (!isHardwareRecording && !isLectureRunning) {
       animFrameId = requestAnimationFrame(drawIdleWave);
     }
   }
@@ -389,7 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     canvasCtx.stroke();
 
-    if (isHardwareRecording) {
+    if (isHardwareRecording || isLectureRunning) {
       requestAnimationFrame(drawSimulatedActiveWave);
     }
   }
@@ -467,13 +478,185 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------------------------------------
   // Main Primary Button Click Handler
   // -------------------------------------------------------------------------
-  btnToggleRecord?.addEventListener("click", () => {
+  window.toggleHardwareRecord = () => {
+    if (isLectureRunning) {
+      stopContinuousLecture();
+      return;
+    }
     if (!isHardwareRecording) {
       startHardwareRecording();
     } else {
       stopHardwareRecording();
     }
-  });
+  };
+
+  btnToggleRecord?.addEventListener("click", window.toggleHardwareRecord);
+
+  // -------------------------------------------------------------------------
+  // Hands-free Continuous Live Lecture Mode (Auto-VAD streaming)
+  // -------------------------------------------------------------------------
+  const btnStartLecture = document.getElementById("btnStartLecture");
+  const btnStopLecture = document.getElementById("btnStopLecture");
+  const lectureRecordIcon = document.getElementById("lectureRecordIcon");
+  const lectureRecordLabel = document.getElementById("lectureRecordLabel");
+
+  async function pollRecentLectureChunks() {
+    try {
+      const resp = await fetch(`/api/lecture/chunks?since_index=${lastRenderedChunkIndex}`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.chunks && data.chunks.length > 0) {
+        for (const ch of data.chunks) {
+          if (ch.index > lastRenderedChunkIndex) {
+            lastRenderedChunkIndex = ch.index;
+            const chunkData = {
+              raw_transcript: ch.raw_transcript,
+              processed_text: ch.processed_text,
+              asr_time_ms: ch.asr_time_ms,
+              router_time_ms: ch.router_time_ms,
+              total_time_ms: Math.round((ch.asr_time_ms || 0) + (ch.router_time_ms || 0)),
+              route_type: (ch.processed_text || "").includes("$") ? "MIXED" : "PURE_ENGLISH",
+              engine: "qwen2.5-1.5b",
+              audio_url: ch.audio_url,
+              audio_file: `chunk_${ch.index}.wav`,
+              start_sec: ch.start_sec,
+              end_sec: ch.end_sec,
+              start_time: ch.start_time,
+              end_time: ch.end_time,
+              is_continuous_chunk: true,
+            };
+            renderOutput(chunkData);
+          }
+        }
+        fetchLiveTestsSummary();
+      }
+    } catch (e) {
+      console.warn("[Lecture Polling]", e);
+    }
+  }
+
+  async function startContinuousLecture() {
+    if (isLectureRunning) return;
+    console.log("[Continuous Lecture] Starting...");
+    if (isHardwareRecording) {
+      await stopHardwareRecording();
+    }
+    isLectureRunning = true;
+    lastRenderedChunkIndex = 0;
+    lectureAccumulatedRaw = "";
+    lectureAccumulatedLatex = "";
+
+    if (rawTranscriptBox) {
+      rawTranscriptBox.textContent = "Listening to live lecture... Speak freely.";
+    }
+    if (latexRenderContainer) {
+      latexRenderContainer.style.justifyContent = "flex-start";
+      latexRenderContainer.style.textAlign = "left";
+      latexRenderContainer.innerHTML = '<span style="color: var(--text-dim); font-style: italic;">Continuous lecture text and equations will stream here in real time...</span>';
+    }
+
+    // Instant Visual State Change
+    if (btnStartLecture) {
+      btnStartLecture.className = "btn-main-record lecture-active";
+      btnStartLecture.style.background = "linear-gradient(135deg, #d97706, #b45309)";
+      btnStartLecture.disabled = true;
+      btnStartLecture.style.opacity = "0.75";
+      btnStartLecture.style.cursor = "default";
+      if (lectureRecordIcon) lectureRecordIcon.textContent = "[STREAMING]";
+      if (lectureRecordLabel) lectureRecordLabel.textContent = "Live Streaming...";
+    }
+    if (btnStopLecture) {
+      btnStopLecture.disabled = false;
+      btnStopLecture.className = "btn-main-record recording";
+      btnStopLecture.style.background = "linear-gradient(135deg, #dc2626, #b91c1c)";
+      btnStopLecture.style.color = "#ffffff";
+      btnStopLecture.style.border = "1px solid #ef4444";
+      btnStopLecture.style.opacity = "1";
+      btnStopLecture.style.cursor = "pointer";
+    }
+
+    if (visualizerDot) visualizerDot.style.background = "#f59e0b";
+    if (visualizerLabel) visualizerLabel.textContent = "Continuous Mode: Speak freely (auto-detects pauses & streams live)...";
+    startLiveTimer("LIVE");
+    cancelAnimationFrame(animFrameId);
+    drawSimulatedActiveWave();
+
+    // Start robust backup polling every 900ms to guarantee live chunk updates even if WebSocket has jitter
+    if (lecturePollInterval) clearInterval(lecturePollInterval);
+    lecturePollInterval = setInterval(() => {
+      if (isLectureRunning) {
+        pollRecentLectureChunks();
+      }
+    }, 900);
+
+    try {
+      const resp = await fetch("/api/lecture/start", { method: "POST" });
+      const res = await resp.json();
+      if (!resp.ok && res.status !== "already_running") {
+        throw new Error(res.error || "Failed to start");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Could not start continuous lecture: " + e.message);
+      stopContinuousLecture();
+    }
+  }
+
+  async function stopContinuousLecture() {
+    if (!isLectureRunning) return;
+    console.log("[Continuous Lecture] Stopping...");
+    isLectureRunning = false;
+    if (lecturePollInterval) {
+      clearInterval(lecturePollInterval);
+      lecturePollInterval = null;
+    }
+
+    // Reset Buttons
+    if (btnStartLecture) {
+      btnStartLecture.disabled = false;
+      btnStartLecture.className = "btn-main-record idle";
+      btnStartLecture.style.background = "linear-gradient(135deg, #4338ca, #6366f1)";
+      btnStartLecture.style.opacity = "1";
+      btnStartLecture.style.cursor = "pointer";
+      if (lectureRecordIcon) lectureRecordIcon.textContent = "[LIVE]";
+      if (lectureRecordLabel) lectureRecordLabel.textContent = "Start Live Lecture";
+    }
+    if (btnStopLecture) {
+      btnStopLecture.disabled = true;
+      btnStopLecture.className = "btn-main-record idle";
+      btnStopLecture.style.background = "#1e293b";
+      btnStopLecture.style.color = "#64748b";
+      btnStopLecture.style.border = "1px solid #334155";
+      btnStopLecture.style.opacity = "0.45";
+      btnStopLecture.style.cursor = "not-allowed";
+    }
+
+    if (visualizerDot) visualizerDot.style.background = "#64748b";
+    if (visualizerLabel) visualizerLabel.textContent = "Microphone Idle";
+    stopLiveTimer();
+    drawIdleWave();
+
+    try {
+      const resp = await fetch("/api/lecture/stop", { method: "POST" });
+      await resp.json();
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      // Final poll to capture any in-flight chunk
+      setTimeout(() => {
+        pollRecentLectureChunks();
+        fetchLiveTestsSummary();
+        loadRecordingsList();
+      }, 500);
+    }
+  }
+
+  window.startContinuousLecture = startContinuousLecture;
+  window.stopContinuousLecture = stopContinuousLecture;
+
+  btnStartLecture?.addEventListener("click", startContinuousLecture);
+  btnStopLecture?.addEventListener("click", stopContinuousLecture);
+
 
   // -------------------------------------------------------------------------
   // Global Enter Key Handler (Press Enter to Start / Stop)
@@ -812,63 +995,110 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------------------------------------
   function renderOutput(data) {
     currentOutputData = data;
+    const isContinuous = isLectureRunning || Boolean(data.is_continuous_chunk);
 
-    // 1. Raw Whisper Transcript
-    if (rawTranscriptBox) {
-      rawTranscriptBox.textContent = data.raw_transcript || data.raw_text || "(empty)";
-    }
+    if (isContinuous) {
+      const newRaw = (data.raw_transcript || data.raw_text || "").trim();
+      const newProcessed = (data.processed_text || "").trim();
 
-    // 2. Route Badge
-    const isSlm = data.engine === "qwen2.5-1.5b" || data.route_type === "slm_direct" || currentEngine === "slm";
-    if (routeBadge) {
-      if (isSlm) {
+      if (newRaw) {
+        lectureAccumulatedRaw = lectureAccumulatedRaw ? `${lectureAccumulatedRaw} ${newRaw}` : newRaw;
+      }
+      if (newProcessed) {
+        lectureAccumulatedLatex = lectureAccumulatedLatex ? `${lectureAccumulatedLatex} ${newProcessed}` : newProcessed;
+      }
+
+      // 1. Continuous Raw Whisper Transcript
+      if (rawTranscriptBox) {
+        rawTranscriptBox.textContent = lectureAccumulatedRaw || "(listening...)";
+        rawTranscriptBox.scrollTop = rawTranscriptBox.scrollHeight;
+      }
+
+      // 2. Route Badge
+      if (routeBadge) {
         routeBadge.className = "route-badge MIXED";
-        routeBadge.textContent = "SLM (Qwen2.5-1.5B)";
-      } else {
-        routeBadge.className = `route-badge ${data.route_type || "PURE_ENGLISH"}`;
-        routeBadge.textContent = data.route_type || "IDLE";
+        routeBadge.textContent = "LIVE LECTURE STREAMING";
+      }
+
+      // 3. Latency Metrics (displays latest chunk processing latency)
+      if (valAsrTime) valAsrTime.textContent = (data.asr_time_ms || 0) + " ms";
+      if (valRouterTime) valRouterTime.textContent = (data.router_time_ms || 0) + " ms";
+      if (lblTranslationEngine) lblTranslationEngine.textContent = "SLM (Qwen)";
+      if (valT5Time) valT5Time.textContent = (data.router_time_ms || 0) + " ms";
+      if (valTotalTime) valTotalTime.textContent = (data.total_time_ms || 0) + " ms";
+
+      // 4. Render Visual LaTeX Typography (Continuous flowing lecture text & formulas)
+      currentLatex = lectureAccumulatedLatex;
+      if (latexRenderContainer) {
+        latexRenderContainer.style.justifyContent = "flex-start";
+        latexRenderContainer.style.textAlign = "left";
+        latexRenderContainer.innerHTML = renderLatexToVisualHtml(lectureAccumulatedLatex, "MIXED");
+        latexRenderContainer.scrollTop = latexRenderContainer.scrollHeight;
+      }
+
+      // 5. LaTeX Code Box (Continuous)
+      if (latexCodeCard && latexCodeBox) {
+        if (lectureAccumulatedLatex.includes("$") || lectureAccumulatedLatex.includes("\\") || lectureAccumulatedLatex.includes("=")) {
+          latexCodeCard.style.display = "block";
+          latexCodeBox.textContent = lectureAccumulatedLatex;
+          latexCodeBox.scrollTop = latexCodeBox.scrollHeight;
+        } else {
+          latexCodeCard.style.display = "none";
+        }
+      }
+    } else {
+      // Single Utterance Mode
+      if (rawTranscriptBox) {
+        rawTranscriptBox.textContent = data.raw_transcript || data.raw_text || "(empty)";
+      }
+
+      const isSlm = data.engine === "qwen2.5-1.5b" || data.route_type === "slm_direct" || currentEngine === "slm";
+      if (routeBadge) {
+        if (isSlm) {
+          routeBadge.className = "route-badge MIXED";
+          routeBadge.textContent = "SLM (Qwen2.5-1.5B)";
+        } else {
+          routeBadge.className = `route-badge ${data.route_type || "PURE_ENGLISH"}`;
+          routeBadge.textContent = data.route_type || "IDLE";
+        }
+      }
+
+      if (valAsrTime) valAsrTime.textContent = (data.asr_time_ms || 0) + " ms";
+      if (valRouterTime) valRouterTime.textContent = (data.router_time_ms || 0) + " ms";
+      if (lblTranslationEngine) lblTranslationEngine.textContent = isSlm ? "SLM (Qwen)" : "T5-v2";
+      if (valT5Time) {
+        valT5Time.textContent = (data.route_type === "PURE_ENGLISH" ? "0 ms" : (data.router_time_ms || 0) + " ms");
+      }
+      if (valTotalTime) valTotalTime.textContent = (data.total_time_ms || 0) + " ms";
+
+      const processed = data.processed_text || "";
+      currentLatex = processed;
+      if (latexRenderContainer) {
+        latexRenderContainer.style.justifyContent = "center";
+        latexRenderContainer.style.textAlign = "center";
+        latexRenderContainer.innerHTML = renderLatexToVisualHtml(processed, data.route_type);
+      }
+
+      if (latexCodeCard && latexCodeBox) {
+        if (data.route_type !== "PURE_ENGLISH" && (processed.includes("$") || processed.includes("\\") || processed.includes("="))) {
+          latexCodeCard.style.display = "block";
+          latexCodeBox.textContent = processed;
+        } else {
+          latexCodeCard.style.display = "none";
+        }
+      }
+
+      if (spansCard && spansBox) {
+        if (data.spans && data.spans.length > 0) {
+          spansCard.style.display = "block";
+          spansBox.innerHTML = data.spans.map(s => `• Math Span: "<strong>${s.spoken}</strong>" → <code>${s.latex || s.latex_text || ""}</code>`).join("<br>");
+        } else {
+          spansCard.style.display = "none";
+        }
       }
     }
 
-    // 3. Latency Metrics
-    if (valAsrTime) valAsrTime.textContent = (data.asr_time_ms || 0) + " ms";
-    if (valRouterTime) valRouterTime.textContent = (data.router_time_ms || 0) + " ms";
-    if (lblTranslationEngine) {
-      lblTranslationEngine.textContent = isSlm ? "SLM (Qwen)" : "T5-v2";
-    }
-    if (valT5Time) {
-      valT5Time.textContent = (data.route_type === "PURE_ENGLISH" ? "0 ms" : (data.router_time_ms || 0) + " ms");
-    }
-    if (valTotalTime) valTotalTime.textContent = (data.total_time_ms || 0) + " ms";
-
-    // 4. Render Visual LaTeX Typography
-    const processed = data.processed_text || "";
-    currentLatex = processed;
-    if (latexRenderContainer) {
-      latexRenderContainer.innerHTML = renderLatexToVisualHtml(processed, data.route_type);
-    }
-
-    // 5. LaTeX Code Box
-    if (latexCodeCard && latexCodeBox) {
-      if (data.route_type !== "PURE_ENGLISH" && (processed.includes("$") || processed.includes("\\") || processed.includes("="))) {
-        latexCodeCard.style.display = "block";
-        latexCodeBox.textContent = processed;
-      } else {
-        latexCodeCard.style.display = "none";
-      }
-    }
-
-    // 6. Math Spans
-    if (spansCard && spansBox) {
-      if (data.spans && data.spans.length > 0) {
-        spansCard.style.display = "block";
-        spansBox.innerHTML = data.spans.map(s => `• Math Span: "<strong>${s.spoken}</strong>" → <code>${s.latex || s.latex_text || ""}</code>`).join("<br>");
-      } else {
-        spansCard.style.display = "none";
-      }
-    }
-
-    // 7. Enable Output Download Actions
+    // Enable Output Download Actions
     if (btnDownloadOutputJson) btnDownloadOutputJson.disabled = false;
     if (data.audio_file || data.audio_url) {
       currentAudioFilename = data.audio_file;
@@ -876,7 +1106,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (btnDownloadOutputAudio) btnDownloadOutputAudio.disabled = false;
     }
 
-    // 8. Add to Session Dataset and History
+    // Add to Session Dataset and History
     recordSessionSample(data);
   }
 
@@ -888,6 +1118,22 @@ document.addEventListener("DOMContentLoaded", () => {
       btnCopyLatex.innerHTML = "<span>Copied</span>";
       setTimeout(() => btnCopyLatex.innerHTML = originalText, 1400);
     });
+  });
+
+  // Clear Continuous Live Text
+  const btnClearLiveText = document.getElementById("btnClearLiveText");
+  btnClearLiveText?.addEventListener("click", () => {
+    lectureAccumulatedRaw = "";
+    lectureAccumulatedLatex = "";
+    currentLatex = "";
+    if (rawTranscriptBox) rawTranscriptBox.textContent = "(cleared)";
+    if (latexRenderContainer) {
+      latexRenderContainer.style.justifyContent = "center";
+      latexRenderContainer.style.textAlign = "center";
+      latexRenderContainer.innerHTML = '<span style="color: var(--text-dim);">Formula or typography will render here</span>';
+    }
+    if (latexCodeBox) latexCodeBox.textContent = "";
+    if (latexCodeCard) latexCodeCard.style.display = "none";
   });
 
   // -------------------------------------------------------------------------
@@ -965,14 +1211,50 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const msg = JSON.parse(event.data);
 
-          if (msg.type === "telemetry" && isHardwareRecording) {
-            if (visualizerDot) visualizerDot.style.background = "#ef4444";
-            if (visualizerLabel) visualizerLabel.textContent = `Recording ${msg.elapsed_sec.toFixed(1)}s (Press Enter to transcribe)...`;
-            if (recordingTimerText) {
-              const mm = String(Math.floor(msg.elapsed_sec / 60)).padStart(2, "0");
-              const ss = String(Math.floor(msg.elapsed_sec % 60)).padStart(2, "0");
-              recordingTimerText.textContent = `REC ${mm}:${ss}`;
+          if (msg.type === "telemetry" || msg.type === "lecture_telemetry") {
+            const isRec = isHardwareRecording;
+            const isLec = isLectureRunning || msg.is_lecture_running;
+            if (isRec || isLec) {
+              if (visualizerDot) visualizerDot.style.background = isLec ? "#f59e0b" : "#ef4444";
+              if (visualizerLabel) {
+                const elap = msg.elapsed_sec ? msg.elapsed_sec.toFixed(1) : "0.0";
+                const utts = msg.utterance_count ? ` (${msg.utterance_count} chunks captured)` : "";
+                visualizerLabel.textContent = isLec
+                  ? `Live Lecture Streaming ${elap}s${utts}...`
+                  : `Recording ${elap}s (Press Enter to transcribe)...`;
+              }
+              if (recordingTimerText && msg.elapsed_sec !== undefined) {
+                const mm = String(Math.floor(msg.elapsed_sec / 60)).padStart(2, "0");
+                const ss = String(Math.floor(msg.elapsed_sec % 60)).padStart(2, "0");
+                recordingTimerText.textContent = `${isLec ? "LIVE" : "REC"} ${mm}:${ss}`;
+              }
             }
+          } else if (msg.type === "lecture_chunk") {
+            // Live streamed chunk from continuous lecture worker
+            if (msg.index && msg.index <= lastRenderedChunkIndex) {
+              return; // Already rendered by backup poll
+            }
+            if (msg.index) {
+              lastRenderedChunkIndex = Math.max(lastRenderedChunkIndex, msg.index);
+            }
+            const chunkData = {
+              raw_transcript: msg.raw_transcript,
+              processed_text: msg.processed_text,
+              asr_time_ms: msg.asr_time_ms,
+              router_time_ms: msg.router_time_ms,
+              total_time_ms: Math.round((msg.asr_time_ms || 0) + (msg.router_time_ms || 0)),
+              route_type: (msg.processed_text || "").includes("$") ? "MIXED" : "PURE_ENGLISH",
+              engine: "qwen2.5-1.5b",
+              audio_url: msg.audio_url,
+              audio_file: `chunk_${msg.index}.wav`,
+              start_sec: msg.start_sec,
+              end_sec: msg.end_sec,
+              start_time: msg.start_time,
+              end_time: msg.end_time,
+              is_continuous_chunk: true,
+            };
+            renderOutput(chunkData);
+            fetchLiveTestsSummary();
           } else if (msg.type === "transcription_result") {
             setAudioSource(msg.audio_url, msg.audio_file);
             renderOutput(msg);
