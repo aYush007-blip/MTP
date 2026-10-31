@@ -9,6 +9,7 @@ Supports high-performance edge execution via:
 """
 
 import argparse
+from collections import Counter
 import json
 import os
 from pathlib import Path
@@ -20,98 +21,54 @@ from typing import Optional
 import urllib.request
 
 SYSTEM_PROMPT = (
-    "You are an expert STEM lecture transcriber and mathematical typesetter across all engineering disciplines "
-    "(Mechanical, Civil, Electrical, Chemical, Aerospace, Computer Science, and Applied Mathematics).\n"
-    "Your task is to take a spoken lecture transcript and convert it into a natural, continuous transcript where spoken mathematical formulas, symbols, physical laws, and equations are accurately converted into standard inline LaTeX ($...$).\n\n"
-    "STRICT UNIVERSAL ENGINEERING RULES:\n"
-    "1. MATHEMATICAL FORMULAS & SYMBOLS ($...$):\n"
-    "   - Function & Signal Notation:\n"
-    "     * Continuous coordinates/functions use parentheses: e.g. 'f of x' -> '$f(x)$', 'u of x and t' -> '$u(x, t)$', 't of r' -> '$T(r)$', 'psi of t' -> '$\\psi(t)$', 'h of s' -> '$H(s)$', 'g of j omega' -> '$G(j\\omega)$'.\n"
-    "     * Discrete sequences/indices use brackets: e.g. 'x of n' -> '$x[n]$', 'y of n' -> '$y[n]$', 'y of 0' -> '$y[0]$', 'x of 0' -> '$x[0]$', 'x of 1' -> '$x[1]$', 'y of 1' -> '$y[1]$', 'h of k' -> '$h[k]$', 'x of 2n' -> '$x[2n]$'.\n"
-    "     * Inner argument fractions: 'x of n over 2' -> '$x[n/2]$', 'x of n over capital N' -> '$x[n/N]$'. Do NOT divide the entire function by the denominator unless explicitly stated outside the argument.\n"
-    "   - Derivatives, Partials & Calculus:\n"
-    "     * 'd y by d t' or 'derivative of y with respect to t' -> '$\\frac{dy}{dt}$'.\n"
-    "     * 'partial u with respect to x' -> '$\\frac{\\partial u}{\\partial x}$', 'partial squared t with respect to x squared' -> '$\\frac{\\partial^2 T}{\\partial x^2}$'.\n"
-    "     * Vector calculus: 'grad p' -> '$\\nabla p$', 'del squared v' -> '$\\nabla^2 \\mathbf{v}$', 'curl of e' -> '$\\nabla \\times \\mathbf{E}$', 'divergence of b' -> '$\\nabla \\cdot \\mathbf{B}$'.\n"
-    "     * Integrals & Summations: 'integral from a to b of f of x dx' -> '$\\int_{a}^{b} f(x) \\, dx$', 'sum from i equals 1 to n of x i' -> '$\\sum_{i=1}^{n} x_i$'.\n"
-    "   - Physical Laws & Conservation Equations:\n"
-    "     * Fluids: 'rho times partial v with respect to t plus v dot grad v equals minus grad p plus mu del squared v' -> '$\\rho \\left(\\frac{\\partial \\mathbf{v}}{\\partial t} + \\mathbf{v} \\cdot \\nabla \\mathbf{v}\\right) = -\\nabla p + \\mu \\nabla^2 \\mathbf{v}$'.\n"
-    "     * Thermodynamics: 'd u equals delta q minus delta w' -> '$dU = \\delta Q - \\delta W$', 'p v equals n r t' -> '$PV = nRT$'.\n"
-    "     * Mechanics & Materials: 'stress sigma equals young\\'s modulus e times strain epsilon' -> '$\\sigma = E \\epsilon$', 'f equals m a' -> '$\\mathbf{F} = m\\mathbf{a}$', 'tau equals mu du by dy' -> '$\\tau = \\mu \\frac{du}{dy}$'.\n"
-    "     * Control & Circuits: 'v equals i times r' -> '$V = IR$', 'h of s equals omega n squared over s squared plus two zeta omega n s plus omega n squared' -> '$H(s) = \\frac{\\omega_n^2}{s^2 + 2\\zeta\\omega_n s + \\omega_n^2}$'.\n"
-    "     * Algorithms & Probability: 't of n equals 2 t of n over 2 plus o of n' -> '$T(n) = 2T(n/2) + O(n)$', 'p of a given b equals p of b given a times p of a over p of b' -> '$P(A|B) = \\frac{P(B|A)P(A)}{P(B)}$'.\n"
-    "   - Spoken Engineering Units: '50 mega pascals' -> '$50\\,\\text{MPa}$', '10 kilo hertz' -> '$10\\,\\text{kHz}$', '300 kelvin' -> '$300\\,\\text{K}$'.\n"
-    "2. PRESERVE 100% of surrounding English explanations, conversational context, and engineering terminology ('boundary condition', 'steady state', 'control volume', 'eigenvalue', 'downsampling').\n"
-    "3. NEVER wrap plain conversational phrases, numbering, or countdowns in LaTeX (e.g. 'Turn to page twenty. Step one, two, three.' must remain plain text).\n"
-    "4. Clean verbal false starts, repetitions, and stammers into the intended mathematical form. NEVER produce broken or invalid LaTeX ($0 + \\pm$ or $\\frac{n}{n}$ from verbal hesitation).\n"
-    "5. Use ONLY inline math ($...$). NEVER output display math ($$...$$ or \\( ... \\)). Output ONLY the resulting transcript."
+    "You are an expert STEM lecture transcriber and mathematical typesetter across all engineering disciplines.\n"
+    "Your task is to take a spoken lecture transcript and convert mathematical formulas, symbols, physical laws, "
+    "and equations into standard inline LaTeX ($...$).\n\n"
+    "RULES:\n"
+    "1. Function notation: Continuous functions use parentheses (e.g., $f(x)$, $u(x, t)$, $T(r)$, $H(s)$, $G(j\\omega)$, $i(t)$, $V(t)$, $I_0$). "
+    "Discrete sequences use brackets (e.g., $x[n]$, $y[n]$, $x[2n]$, $x[n/N]$, $h[k]$).\n"
+    "2. Calculus & relations: Derivatives use \\frac{d...}{d...} (e.g., $\\frac{di}{dt}$, $\\frac{\\partial u}{\\partial x}$). "
+    "Use standard engineering notation for integrals ($\\int$), sums ($\\sum$), and vectors ($\\nabla$).\n"
+    "3. Conversational speech: Preserve surrounding explanations and technical terminology exactly. "
+    "NEVER wrap normal speech, numbering, or countdowns in LaTeX.\n"
+    "4. Clean disfluencies: Turn spoken stutters into the intended mathematical formula.\n"
+    "5. CRITICAL: NEVER repeat, echo, or quote preceding context. NEVER output \"Spoken transcript:\", meta labels, or markdown blocks. "
+    "Output ONLY the inline LaTeX-typeset transcript of the current user message."
 )
 
 
 FEW_SHOT_MESSAGES = [
     {
         "role": "user",
-        "content": "Spoken transcript:\nConsider the Navier-Stokes momentum equation for incompressible flow: rho times open parenthesis partial v with respect to t plus v dot grad v close parenthesis equals minus grad p plus mu del squared v."
+        "content": "Spoken transcript:\nLet's apply Kirchhoff's voltage law: r i plus l d i by d t equals zero with initial condition i of zero is i zero."
     },
     {
         "role": "assistant",
-        "content": "Consider the Navier-Stokes momentum equation for incompressible flow: $\\rho \\left(\\frac{\\partial \\mathbf{v}}{\\partial t} + \\mathbf{v} \\cdot \\nabla \\mathbf{v}\\right) = -\\nabla p + \\mu \\nabla^2 \\mathbf{v}$."
+        "content": "Let's apply Kirchhoff's voltage law: $Ri + L\\frac{di}{dt} = 0$ with initial condition $i(0) = I_0$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nBy the first law of thermodynamics, the change in internal energy d u equals heat added delta q minus work done delta w."
+        "content": "Spoken transcript:\nIn the momentum equation, rho times partial v with respect to t equals minus grad p plus mu del squared v."
     },
     {
         "role": "assistant",
-        "content": "By the first law of thermodynamics, the change in internal energy $dU = \\delta Q - \\delta W$."
+        "content": "In the momentum equation, $\\rho \\frac{\\partial \\mathbf{v}}{\\partial t} = -\\nabla p + \\mu \\nabla^2 \\mathbf{v}$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nFor discrete-time scaling, the sequence y of n equals x of 2n represents downsampling by two, while y of n equals x of n over capital N represents expansion."
+        "content": "Spoken transcript:\nFor the discrete sequence x of n, the downsampled signal y of n equals x of 2n has z transform y of z."
     },
     {
         "role": "assistant",
-        "content": "For discrete-time scaling, the sequence $y[n] = x[2n]$ represents downsampling by two, while $y[n] = x[n/N]$ represents expansion."
+        "content": "For the discrete sequence $x[n]$, the downsampled signal $y[n] = x[2n]$ has z-transform $Y(z)$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nIn structural mechanics, under elastic deformation, normal stress sigma equals Young's modulus e times strain epsilon, while shear stress tau equals mu times d u by d y."
+        "content": "Spoken transcript:\nOkay, welcome to lecture four of week one. Today we will discuss linear time invariant systems."
     },
     {
         "role": "assistant",
-        "content": "In structural mechanics, under elastic deformation, normal stress $\\sigma = E \\epsilon$, while shear stress $\\tau = \\mu \\frac{du}{dy}$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nThe closed loop transfer function is h of s equals omega n squared over s squared plus two zeta omega n s plus omega n squared with poles at s equals minus two."
-    },
-    {
-        "role": "assistant",
-        "content": "The closed-loop transfer function is $H(s) = \\frac{\\omega_n^2}{s^2 + 2\\zeta\\omega_n s + \\omega_n^2}$ with poles at $s = -2$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nThe definition of the one-sided Laplace transform of f of t is the integral from zero to infinity of f of t times e to the minus s t dt."
-    },
-    {
-        "role": "assistant",
-        "content": "The definition of the one-sided Laplace transform of $f(t)$ is $\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nBy Bayes' rule, the posterior probability p of a given b equals p of b given a times p of a divided by p of b."
-    },
-    {
-        "role": "assistant",
-        "content": "By Bayes' rule, the posterior probability $P(A|B) = \\frac{P(B|A)P(A)}{P(B)}$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nGood morning everyone, welcome to lecture ten. Please turn to page forty five and make sure your homework is submitted by five pm."
-    },
-    {
-        "role": "assistant",
-        "content": "Good morning everyone, welcome to lecture ten. Please turn to page forty five and make sure your homework is submitted by five pm."
+        "content": "Okay, welcome to lecture four of week one. Today we will discuss linear time-invariant systems."
     }
 ]
 
@@ -212,23 +169,42 @@ class QwenMathTranslator:
             cls._instance = cls(model_path=model_path, backend=backend, device=device)
         return cls._instance
 
-    def _build_chatml_prompt(self, spoken_text: str, context: str = "") -> str:
-        prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
-        for msg in FEW_SHOT_MESSAGES:
+    def _build_messages(self, spoken_text: str, context: str = "", history: Optional[list] = None) -> list[dict]:
+        """Construct multi-turn conversation messages ensuring zero context-echo hallucinations."""
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(FEW_SHOT_MESSAGES)
+        if history:
+            for item in history[-2:]:
+                if isinstance(item, (list, tuple)) and len(item) == 2:
+                    r, l = item
+                    r_str, l_str = str(r).strip(), str(l).strip()
+                    if r_str and l_str:
+                        messages.append({"role": "user", "content": f"Spoken transcript:\n{r_str}"})
+                        messages.append({"role": "assistant", "content": l_str})
+        elif context and str(context).strip():
+            ctx_str = str(context).strip()
+            messages.append({"role": "user", "content": "Spoken transcript:\n[Preceding lecture context]"})
+            messages.append({"role": "assistant", "content": ctx_str})
+
+        messages.append({"role": "user", "content": f"Spoken transcript:\n{spoken_text.strip()}"})
+        return messages
+
+    def _build_chatml_prompt(self, spoken_text: str, context: str = "", history: Optional[list] = None) -> str:
+        messages = self._build_messages(spoken_text, context=context, history=history)
+        prompt = ""
+        for msg in messages:
             prompt += f"<|im_start|>{msg['role']}\n{msg['content']}<|im_end|>\n"
-        if context:
-            prompt += f"<|im_start|>user\n[Preceding context]: {context}\n[Spoken transcript]: {spoken_text}<|im_end|>\n<|im_start|>assistant\n"
-        else:
-            prompt += f"<|im_start|>user\nSpoken transcript:\n{spoken_text}<|im_end|>\n<|im_start|>assistant\n"
+        prompt += "<|im_start|>assistant\n"
         return prompt
 
-    def _clean_response(self, text: str) -> str:
+    def _clean_response(self, text: str, raw_text: str = "", context_text: str = "") -> str:
         s = text.strip()
         # Remove accidental markdown code fences
         s = re.sub(r"^```(?:latex|markdown)?\s*", "", s)
         s = re.sub(r"\s*```$", "", s)
-        # Remove conversational meta prefixes
-        s = re.sub(r"^(?:Transcribed(?:\s+result)?|Output|Text|Transcription):\s*", "", s, flags=re.IGNORECASE)
+        # Remove conversational meta prefixes and leaked prompt markers
+        s = re.sub(r"(?:^|\n)\s*\[?(?:Spoken transcript|Preceding context|Translation|Output|Text|Transcription)\]?:\s*", "\n", s, flags=re.IGNORECASE)
+        s = s.strip()
         # Unpack accidental \text{...} wrappers around non-math speech
         s = re.sub(r"\$\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$\$", r"\1", s)
         s = re.sub(r"\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$", r"\1", s)
@@ -243,23 +219,52 @@ class QwenMathTranslator:
         # Clean illegal math artifacts like $0 + \pm$ or $0 - 2 - 4 + ...$
         s = re.sub(r"\$0\s*\+\s*\\pm\$", r"$0, \\pm 1, \\pm 2, \\ldots$", s)
         # Collapse multiple spaces
-        s = re.sub(r"[ \t]+", " ", s)
-        return s.strip()
+        s = re.sub(r"[ \t]+", " ", s).strip()
 
-    def translate_server(self, spoken_text: str, context: str = "", max_new_tokens: int = 128) -> str:
+        # Context echo stripping: remove verbatim context prefix echoed by model
+        if context_text:
+            ctx_clean = context_text.strip()
+            if s.startswith(ctx_clean):
+                rem = s[len(ctx_clean):].strip()
+                if rem:
+                    s = rem
+            for line in [l.strip() for l in ctx_clean.split("\n") if len(l.strip()) > 10]:
+                if s.startswith(line):
+                    rem = s[len(line):].strip()
+                    if rem:
+                        s = rem
+
+        # Hallucination & fidelity checks if raw_text is provided
+        if raw_text:
+            words_out = re.findall(r"\b[a-zA-Z0-9_]{3,}\b", s.lower())
+            words_raw = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", raw_text.lower()))
+            # Length explosion check
+            if len(words_out) > max(20, len(words_raw) * 3 + 10):
+                return raw_text
+            # Repetition loop check
+            if len(words_out) >= 9:
+                tri_grams = [" ".join(words_out[i:i+3]) for i in range(len(words_out)-2)]
+                counts = Counter(tri_grams)
+                if any(cnt >= 3 for cnt in counts.values()):
+                    return raw_text
+            # Context echo hijacking check
+            if context_text and len(words_out) >= 5:
+                words_ctx = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", context_text.lower()))
+                spoken_overlap = len(set(words_out) & words_raw) / max(1, len(set(words_out)))
+                context_overlap = len(set(words_out) & words_ctx) / max(1, len(set(words_out)))
+                if context_overlap > 0.6 and spoken_overlap < 0.2:
+                    return raw_text
+
+        return s
+
+    def translate_server(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
         """Call llama-server via OpenAI-compatible REST API with automatic reconnect/revive."""
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        messages.extend(FEW_SHOT_MESSAGES)
-        if context:
-            user_msg = f"[Preceding context]: {context}\n[Spoken transcript]: {spoken_text}"
-        else:
-            user_msg = f"Spoken transcript:\n{spoken_text}"
-        messages.append({"role": "user", "content": user_msg})
+        messages = self._build_messages(spoken_text, context=context, history=history)
         payload = {
             "messages": messages,
             "max_tokens": max_new_tokens,
             "temperature": 0.0,
-            "repeat_penalty": 1.1,
+            "repeat_penalty": 1.15,
             "stream": False,
         }
         data_bytes = json.dumps(payload).encode("utf-8")
@@ -268,11 +273,12 @@ class QwenMathTranslator:
             data=data_bytes,
             headers={"Content-Type": "application/json"},
         )
+        ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp_data = json.loads(resp.read().decode("utf-8"))
                 content = resp_data["choices"][0]["message"]["content"]
-                return self._clean_response(content)
+                return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
         except Exception as e:
             print(f"[SLM Server Warning] {e}. Checking server health...")
             # Auto-revive daemon if down
@@ -288,21 +294,21 @@ class QwenMathTranslator:
                 with urllib.request.urlopen(req, timeout=30) as resp:
                     resp_data = json.loads(resp.read().decode("utf-8"))
                     content = resp_data["choices"][0]["message"]["content"]
-                    return self._clean_response(content)
+                    return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
             raise
 
-    def translate_cli(self, spoken_text: str, context: str = "", max_new_tokens: int = 128) -> str:
+    def translate_cli(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
         """Execute translation directly through compiled llama-cli."""
-        prompt = self._build_chatml_prompt(spoken_text, context=context)
+        prompt = self._build_chatml_prompt(spoken_text, context=context, history=history)
         cmd = [
             LLAMA_CLI_BIN,
             "-m", str(self.model_path),
             "-p", prompt,
             "-n", str(max_new_tokens),
             "--temp", "0.0",
-            "--repeat-penalty", "1.1",
+            "--repeat-penalty", "1.15",
             "-ngl", "28" if self.device == "cuda" else "0",
-            "-c", "2048",
+            "-c", "4096",
             "--no-display-prompt",
             "-b", "512",
         ]
@@ -313,19 +319,14 @@ class QwenMathTranslator:
             output = output.split("<|im_start|>assistant", 1)[1]
         if "<|im_end|>" in output:
             output = output.split("<|im_end|>", 1)[0]
-        return self._clean_response(output)
+        ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
+        return self._clean_response(output, raw_text=spoken_text, context_text=ctx_str)
 
-    def translate_transformers(self, spoken_text: str, context: str = "", max_new_tokens: int = 128) -> str:
+    def translate_transformers(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
         """Execute translation via HuggingFace PyTorch pipeline."""
         import torch
 
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        messages.extend(FEW_SHOT_MESSAGES)
-        if context:
-            user_msg = f"[Preceding context]: {context}\n[Spoken transcript]: {spoken_text}"
-        else:
-            user_msg = f"Spoken transcript:\n{spoken_text}"
-        messages.append({"role": "user", "content": user_msg})
+        messages = self._build_messages(spoken_text, context=context, history=history)
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
 
@@ -334,26 +335,23 @@ class QwenMathTranslator:
                 **inputs,
                 max_new_tokens=max_new_tokens,
                 do_sample=False,
-                repetition_penalty=1.1,
+                repetition_penalty=1.15,
                 pad_token_id=self.tokenizer.eos_token_id,
             )
 
         input_len = inputs["input_ids"].shape[1]
         response_tokens = outputs[0][input_len:]
         response = self.tokenizer.decode(response_tokens, skip_special_tokens=True).strip()
-        return self._clean_response(response)
+        ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
+        return self._clean_response(response, raw_text=spoken_text, context_text=ctx_str)
 
-    def translate(self, spoken_text: str, context: str = "", max_new_tokens: Optional[int] = None) -> str:
+    def translate(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: Optional[int] = None) -> str:
         """Translate spoken lecture transcript into clean prose + LaTeX notation with rolling context."""
         text = spoken_text.strip()
         if not text:
             return ""
 
         words = text.split()
-        # For long continuous lecture transcripts (>45 words), chunk by sentence to:
-        # 1. Prevent over-current throttling (micro-burst compute with power recovery)
-        # 2. Maintain 100% mathematical precision without truncation
-        # 3. Maintain exact sequential spoken order (text + latex + text...)
         if len(words) > 45 and max_new_tokens is None:
             sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
             if len(sentences) > 1:
@@ -362,36 +360,37 @@ class QwenMathTranslator:
                     chunks.append(" ".join(sentences[i:i+2]))
                 results = []
                 curr_ctx = context
+                curr_hist = list(history) if history else []
                 for ch in chunks:
                     ch_words = len(ch.split())
                     ch_tokens = min(512, max(180, ch_words * 4))
                     if self.backend == "server" or self._is_server_alive():
-                        translated = self.translate_server(ch, context=curr_ctx, max_new_tokens=ch_tokens)
+                        translated = self.translate_server(ch, context=curr_ctx, history=curr_hist, max_new_tokens=ch_tokens)
                     elif self.backend == "llama_cli" or (self.model_path and self.model_path.suffix == ".gguf"):
-                        translated = self.translate_cli(ch, context=curr_ctx, max_new_tokens=ch_tokens)
+                        translated = self.translate_cli(ch, context=curr_ctx, history=curr_hist, max_new_tokens=ch_tokens)
                     else:
-                        translated = self.translate_transformers(ch, context=curr_ctx, max_new_tokens=ch_tokens)
+                        translated = self.translate_transformers(ch, context=curr_ctx, history=curr_hist, max_new_tokens=ch_tokens)
                     results.append(translated)
                     curr_ctx = translated
-                    time.sleep(0.05)  # brief power-rail recovery to prevent VDD_IN current spike
+                    curr_hist = [(ch, translated)]
+                    time.sleep(0.05)
                 return " ".join(results)
 
         if max_new_tokens is None:
-            # Scaled token budget: minimum 256 tokens, up to 1536 tokens for long lectures
             max_new_tokens = min(1536, max(256, len(words) * 4))
 
         if self.backend == "server" or self._is_server_alive():
             try:
-                return self.translate_server(text, context=context, max_new_tokens=max_new_tokens)
+                return self.translate_server(text, context=context, history=history, max_new_tokens=max_new_tokens)
             except Exception as e:
                 print(f"[SLM Warning] translate_server failed: {e}. Falling back to CLI/Transformers...")
                 if self.model_path and (self.model_path.suffix == ".gguf" or self.model_path.is_file()):
-                    return self.translate_cli(text, context=context, max_new_tokens=max_new_tokens)
-                return self.translate_transformers(text, context=context, max_new_tokens=max_new_tokens)
+                    return self.translate_cli(text, context=context, history=history, max_new_tokens=max_new_tokens)
+                return self.translate_transformers(text, context=context, history=history, max_new_tokens=max_new_tokens)
         elif self.backend == "llama_cli" or (self.model_path and self.model_path.suffix == ".gguf"):
-            return self.translate_cli(text, context=context, max_new_tokens=max_new_tokens)
+            return self.translate_cli(text, context=context, history=history, max_new_tokens=max_new_tokens)
         else:
-            return self.translate_transformers(text, context=context, max_new_tokens=max_new_tokens)
+            return self.translate_transformers(text, context=context, history=history, max_new_tokens=max_new_tokens)
 
 
 def main():

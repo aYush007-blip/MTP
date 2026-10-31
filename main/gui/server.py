@@ -139,7 +139,9 @@ WHISPER_MATH_PROMPT = (
     "mechanics, thermodynamics, fluid dynamics, circuits, control systems, "
     "electromagnetics, algorithms, stress, strain, shear, entropy, enthalpy, heat flux, "
     "curl, divergence, gradient, partial derivative, Navier-Stokes, Reynolds number, "
+    "Kirchhoff's laws, KCL, KVL, inductance, resistance, capacitance, flux, current i(t), voltage v(t), "
     "transfer function, eigenvalues, vectors, tensors, matrices, summations, integrals, "
+    "state-space, transient, steady state, impulse response, step response, convolution, Bode plot, Nyquist, "
     "discrete-time sequences x[n], y[n], downsampling, upsampling, difference equations, "
     "units: Pascals, Newtons, Joules, Watts, Hertz, Farads, Ohms, Kelvin, meters per second."
 )
@@ -279,17 +281,65 @@ def has_math_indicators(text: str) -> bool:
     return bool(MATH_INDICATOR_PATTERN.search(text))
 
 
-def clean_slm_hallucinations(latex_text: str, raw_text: str) -> str:
-    """Safeguard against conversational assistant filler, apologies, or degenerative repetition loops."""
+def merge_text_clauses(prev: str, curr: str) -> str:
+    """Merge two consecutive transcript clauses, deduplicating any overlapping words at boundary."""
+    if not prev or not prev.strip():
+        return curr.strip()
+    if not curr or not curr.strip():
+        return prev.strip()
+    words_p = prev.strip().split()
+    words_c = curr.strip().split()
+    max_k = min(len(words_p), len(words_c), 6)
+    for k in range(max_k, 0, -1):
+        if [w.lower().strip(".,;:!?") for w in words_p[-k:]] == [w.lower().strip(".,;:!?") for w in words_c[:k]]:
+            return (" ".join(words_p) + " " + " ".join(words_c[k:])).strip()
+    return f"{prev.strip()} {curr.strip()}"
+
+
+def clean_slm_hallucinations(latex_text: str, raw_text: str, context_text: str = "") -> str:
+    """Safeguard against conversational assistant filler, prompt leakage, context hijacking, or repetition loops."""
     s = latex_text.strip()
+    # Strip leaked prompt tags
+    s = re.sub(r"(?:^|\n)\s*\[?(?:Spoken transcript|Preceding context|Translation|Output|Text|Transcription)\]?:\s*", "\n", s, flags=re.IGNORECASE).strip()
+
     if re.search(r"^(?:I apologize|Thank you for sharing|As an AI|Could you please provide|Here is the)", s, re.IGNORECASE):
         return raw_text
-    words = s.split()
-    if len(words) > 15:
-        tri_grams = [" ".join(words[i:i+3]) for i in range(len(words)-2)]
+
+    # Strip verbatim context echo prefix
+    if context_text:
+        ctx_clean = context_text.strip()
+        if s.startswith(ctx_clean):
+            rem = s[len(ctx_clean):].strip()
+            if rem:
+                s = rem
+        for line in [l.strip() for l in ctx_clean.split("\n") if len(l.strip()) > 10]:
+            if s.startswith(line):
+                rem = s[len(line):].strip()
+                if rem:
+                    s = rem
+
+    words_out = re.findall(r"\b[a-zA-Z0-9_]{3,}\b", s.lower())
+    words_raw = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", raw_text.lower()))
+
+    # Length explosion rejection
+    if len(words_out) > max(20, len(words_raw) * 3 + 10):
+        return raw_text
+
+    # Repetition loop detection
+    if len(words_out) >= 9:
+        tri_grams = [" ".join(words_out[i:i+3]) for i in range(len(words_out)-2)]
         counts = Counter(tri_grams)
-        if any(cnt >= 4 for cnt in counts.values()):
+        if any(cnt >= 3 for cnt in counts.values()):
             return raw_text
+
+    # Context echo hijacking rejection
+    if context_text and len(words_out) >= 5:
+        words_ctx = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", context_text.lower()))
+        spoken_overlap = len(set(words_out) & words_raw) / max(1, len(set(words_out)))
+        context_overlap = len(set(words_out) & words_ctx) / max(1, len(set(words_out)))
+        if context_overlap > 0.6 and spoken_overlap < 0.2:
+            return raw_text
+
     return s
 
 
@@ -361,7 +411,7 @@ def ensure_edge_daemons(model_type: str = "small"):
         cmd = [
             str(LLAMA_BIN),
             "-m", str(LLAMA_MODEL),
-            "-c", "2048",
+            "-c", "4096",
             "-ngl", "28",
             "-t", "2",
             "-np", "1",
@@ -1300,6 +1350,7 @@ class ContinuousLectureManager:
                         speech_buffer = []
                         silence_chunks = 0
                         is_in_speech = False
+                        pre_roll_buffer.clear()
 
             # Flush any pending utterance on stop
             if is_in_speech and len(speech_buffer) >= 3:
@@ -1333,9 +1384,9 @@ class ContinuousLectureManager:
             cleaned_speech = clean_speech_disfluencies(raw_text)
 
             # Syntactic Clause Stitcher:
-            # If we had a previously buffered open/dangling clause, merge it with current speech
+            # If we had a previously buffered open/dangling clause, merge it with current speech using word-boundary deduplication
             if self.pending_text:
-                full_text = f"{self.pending_text} {cleaned_speech}".strip()
+                full_text = merge_text_clauses(self.pending_text, cleaned_speech)
                 self.pending_wav.append(wav_bytes)
                 total_dur = self.pending_duration + duration_sec
                 start_off = self.pending_start_offset
@@ -1376,10 +1427,10 @@ class ContinuousLectureManager:
             t0 = time.monotonic()
             num_words = len(text.split())
             dyn_tokens = min(384, max(80, int(num_words * 3.5)))
-            recent_context = " ".join(self.context_history) if self.context_history else ""
+            recent_context = " ".join(t[1] for t in self.context_history) if self.context_history else ""
             try:
-                raw_latex = slm.translate(text, context=recent_context, max_new_tokens=dyn_tokens)
-                latex_text = clean_slm_hallucinations(raw_latex, text)
+                raw_latex = slm.translate(text, history=list(self.context_history), max_new_tokens=dyn_tokens)
+                latex_text = clean_slm_hallucinations(raw_latex, text, context_text=recent_context)
             except Exception as e:
                 print(f"[SLM Translation Error] {e}")
                 latex_text = text
@@ -1388,8 +1439,8 @@ class ContinuousLectureManager:
             latex_text = text
             slm_ms = 0.05
 
-        # Update rolling context for continuous cross-chunk awareness
-        self.context_history.append(latex_text)
+        # Update rolling context for continuous cross-chunk awareness (store raw & latex pair)
+        self.context_history.append((text, latex_text))
 
         session = get_active_session()
         item = session.record_utterance(
