@@ -37,19 +37,31 @@ TRAIN_FILE = DATA_DIR / "train.jsonl"
 VAL_FILE = DATA_DIR / "val.jsonl"
 
 SYSTEM_PROMPT = (
-    "You are an expert lecture transcriber and mathematical typesetter.\n"
-    "Your task is to take a spoken lecture transcript and convert it into a natural, continuous transcript where spoken mathematical formulas and expressions are converted into standard inline LaTeX ($...$).\n\n"
-    "STRICT RULES:\n"
-    "1. When mathematical operators, definitions, or equations are spoken in words (e.g. summations, integrals, fractions, derivatives, signals), convert the complete spoken mathematical phrase into its standard LaTeX formula:\n"
-    "   - 'the integral from zero to infinity of f of t times e to the minus s t dt' -> '$\\int_{0}^{\\infty} f(t) e^{-st} \\, dt$'\n"
-    "   - 'the sum over all integers n of x of n times z to the power minus n' -> '$\\sum_{n=-\\infty}^{\\infty} x[n] z^{-n}$'\n"
-    "   - 'sum from n equals 0 to infinity of a to the n' -> '$\\sum_{n=0}^{\\infty} a^n$'\n"
-    "   - 'dy by dt plus two y equals one' -> '$\\frac{dy}{dt} + 2y = 1$'\n"
-    "   - 'x of n' -> '$x[n]$', 'x of t' -> '$x(t)$', 'f of t' -> '$f(t)$', 'z-plane' -> '$z$-plane'\n"
-    "2. Preserve 100% of the spoken conversational explanations, surrounding context, and English words. Do not summarize or omit explanations.\n"
-    "3. NEVER wrap non-math words, conversational phrases, numbers, or counting in LaTeX or \\text{}. (e.g. 'Five, four, three, two, one, zero. Let us get technical.' must remain as plain text).\n"
-    "4. Use ONLY inline math ($...$). NEVER use display math ($$...$$ or \\( ... \\)).\n"
-    "5. Output ONLY the resulting transcript. Do not output preamble, notes, or explanations."
+    "You are an expert STEM lecture transcriber and mathematical typesetter across all engineering disciplines "
+    "(Mechanical, Civil, Electrical, Chemical, Aerospace, Computer Science, and Applied Mathematics).\n"
+    "Your task is to take a spoken lecture transcript and convert it into a natural, continuous transcript where spoken mathematical formulas, symbols, physical laws, and equations are accurately converted into standard inline LaTeX ($...$).\n\n"
+    "STRICT UNIVERSAL ENGINEERING RULES:\n"
+    "1. MATHEMATICAL FORMULAS & SYMBOLS ($...$):\n"
+    "   - Function & Signal Notation:\n"
+    "     * Continuous coordinates/functions use parentheses: e.g. 'f of x' -> '$f(x)$', 'u of x and t' -> '$u(x, t)$', 't of r' -> '$T(r)$', 'psi of t' -> '$\\psi(t)$', 'h of s' -> '$H(s)$', 'g of j omega' -> '$G(j\\omega)$'.\n"
+    "     * Discrete sequences/indices use brackets: e.g. 'x of n' -> '$x[n]$', 'y of n' -> '$y[n]$', 'h of k' -> '$h[k]$', 'x of 2n' -> '$x[2n]$'.\n"
+    "     * Inner argument fractions: 'x of n over 2' -> '$x[n/2]$', 'x of n over capital N' -> '$x[n/N]$'. Do NOT divide the entire function by the denominator unless explicitly stated outside the argument.\n"
+    "   - Derivatives, Partials & Calculus:\n"
+    "     * 'd y by d t' or 'derivative of y with respect to t' -> '$\\frac{dy}{dt}$'.\n"
+    "     * 'partial u with respect to x' -> '$\\frac{\\partial u}{\\partial x}$', 'partial squared t with respect to x squared' -> '$\\frac{\\partial^2 T}{\\partial x^2}$'.\n"
+    "     * Vector calculus: 'grad p' -> '$\\nabla p$', 'del squared v' -> '$\\nabla^2 \\mathbf{v}$', 'curl of e' -> '$\\nabla \\times \\mathbf{E}$', 'divergence of b' -> '$\\nabla \\cdot \\mathbf{B}$'.\n"
+    "     * Integrals & Summations: 'integral from a to b of f of x dx' -> '$\\int_{a}^{b} f(x) \\, dx$', 'sum from i equals 1 to n of x i' -> '$\\sum_{i=1}^{n} x_i$'.\n"
+    "   - Physical Laws & Conservation Equations:\n"
+    "     * Fluids: 'rho times partial v with respect to t plus v dot grad v equals minus grad p plus mu del squared v' -> '$\\rho \\left(\\frac{\\partial \\mathbf{v}}{\\partial t} + \\mathbf{v} \\cdot \\nabla \\mathbf{v}\\right) = -\\nabla p + \\mu \\nabla^2 \\mathbf{v}$'.\n"
+    "     * Thermodynamics: 'd u equals delta q minus delta w' -> '$dU = \\delta Q - \\delta W$', 'p v equals n r t' -> '$PV = nRT$'.\n"
+    "     * Mechanics & Materials: 'stress sigma equals young\\'s modulus e times strain epsilon' -> '$\\sigma = E \\epsilon$', 'f equals m a' -> '$\\mathbf{F} = m\\mathbf{a}$', 'tau equals mu du by dy' -> '$\\tau = \\mu \\frac{du}{dy}$'.\n"
+    "     * Control & Circuits: 'v equals i times r' -> '$V = IR$', 'h of s equals omega n squared over s squared plus two zeta omega n s plus omega n squared' -> '$H(s) = \\frac{\\omega_n^2}{s^2 + 2\\zeta\\omega_n s + \\omega_n^2}$'.\n"
+    "     * Algorithms & Probability: 't of n equals 2 t of n over 2 plus o of n' -> '$T(n) = 2T(n/2) + O(n)$', 'p of a given b equals p of b given a times p of a over p of b' -> '$P(A|B) = \\frac{P(B|A)P(A)}{P(B)}$'.\n"
+    "   - Spoken Engineering Units: '50 mega pascals' -> '$50\\,\\text{MPa}$', '10 kilo hertz' -> '$10\\,\\text{kHz}$', '300 kelvin' -> '$300\\,\\text{K}$'.\n"
+    "2. PRESERVE 100% of surrounding English explanations, conversational context, and engineering terminology ('boundary condition', 'steady state', 'control volume', 'eigenvalue', 'downsampling').\n"
+    "3. NEVER wrap plain conversational phrases, numbering, or countdowns in LaTeX (e.g. 'Turn to page twenty. Step one, two, three.' must remain plain text).\n"
+    "4. Clean verbal false starts, repetitions, and stammers into the intended mathematical form. NEVER produce broken or invalid LaTeX ($0 + \\pm$ or $\\frac{n}{n}$ from verbal hesitation).\n"
+    "5. Use ONLY inline math ($...$). NEVER output display math ($$...$$ or \\( ... \\)). Output ONLY the resulting transcript."
 )
 
 # ---------------------------------------------------------------------------
@@ -69,6 +81,43 @@ VARIABLES = ["x", "y", "z", "s", "t", "n", "k", "a", "b", "c", "u", "v"]
 def gen_mixed_lecture_sample() -> tuple[str, str]:
     """Category 1: Continuous conversational lecture sentence with embedded math formulas (40%)."""
     templates = [
+        # Fluids & Aerodynamics
+        (
+            "Consider the incompressible Navier-Stokes momentum equation: rho times open parenthesis partial v with respect to t plus v dot grad v close parenthesis equals minus grad p plus mu del squared v.",
+            "Consider the incompressible Navier-Stokes momentum equation: $\\rho \\left(\\frac{\\partial \\mathbf{v}}{\\partial t} + \\mathbf{v} \\cdot \\nabla \\mathbf{v}\\right) = -\\nabla p + \\mu \\nabla^2 \\mathbf{v}$."
+        ),
+        (
+            "The continuity equation for steady incompressible flow through a streamtube simplifies to area a 1 times velocity v 1 equals a 2 times v 2.",
+            "The continuity equation for steady incompressible flow through a streamtube simplifies to $A_1 v_1 = A_2 v_2$."
+        ),
+        # Thermodynamics & Heat Transfer
+        (
+            "By the first law of thermodynamics, the differential internal energy d u equals heat added delta q minus work done delta w.",
+            "By the first law of thermodynamics, the differential internal energy $dU = \\delta Q - \\delta W$."
+        ),
+        (
+            "Fourier's law of thermal conduction states that conductive heat flux q equals minus k times d t by d x.",
+            "Fourier's law of thermal conduction states that conductive heat flux $q = -k \\frac{dT}{dx}$."
+        ),
+        # Solid Mechanics & Structures
+        (
+            "Under elastic uniaxial deformation, normal stress sigma equals Young's modulus e times normal strain epsilon.",
+            "Under elastic uniaxial deformation, normal stress $\\sigma = E \\epsilon$."
+        ),
+        (
+            "For Newtonian fluid shear, shear stress tau equals dynamic viscosity mu times velocity gradient d u by d y.",
+            "For Newtonian fluid shear, shear stress $\\tau = \\mu \\frac{du}{dy}$."
+        ),
+        # Discrete-time Signals & Systems
+        (
+            "We define the time-scaled discrete sequence y of n equals x of 2n, which drops odd samples and halves the sampling rate.",
+            "We define the time-scaled discrete sequence $y[n] = x[2n]$, which drops odd samples and halves the sampling rate."
+        ),
+        (
+            "For general sequence expansion, y of n equals x of n over capital N if n is a multiple of capital N and zero otherwise.",
+            "For general sequence expansion, $y[n] = x[n/N]$ if $n$ is a multiple of $N$ and $0$ otherwise."
+        ),
+        # Electrical & Signals
         (
             "Today we are looking at the Laplace transform of a continuous signal {fn} of t, which maps into a complex frequency variable s.",
             "Today we are looking at the Laplace transform of a continuous signal ${fn}(t)$, which maps into a complex frequency variable $s$."
@@ -82,32 +131,17 @@ def gen_mixed_lecture_sample() -> tuple[str, str]:
             "Here $s = \\sigma + j\\omega$ where $\\sigma$ is the attenuation and $\\omega$ is the angular frequency in radians per second."
         ),
         (
-            "If the input is {fn} of t equals e to the {a} t, the Laplace transform evaluates to 1 over s minus {a} for real part of s greater than {a}.",
-            "If the input is ${fn}(t) = e^{{{a}t}}$, the Laplace transform evaluates to $\\frac{{1}}{{s - {a}}}$ for real part of $s > {a}$."
-        ),
-        (
-            "For the differential equation d {y} by d t plus {c} {y} equals {d} with initial condition {y} of zero equals zero, the s-domain representation is s {Y} of s plus {c} {Y} of s equals {d} over s.",
-            "For the differential equation $\\frac{{d{y}}}{{dt}} + {c}{y} = {d}$ with initial condition ${y}(0) = 0$, the s-domain representation is $s {Y}(s) + {c} {Y}(s) = \\frac{{{d}}}{{s}}$."
-        ),
-        (
-            "The bilateral Z-transform of a discrete-time sequence {x} of n is the sum over all integers n of {x} of n times z to the power minus n.",
-            "The bilateral Z-transform of a discrete-time sequence ${x}[n]$ is $\\sum_{{n=-\\infty}}^{{\\infty}} {x}[n] z^{{-n}}$."
-        ),
-        (
-            "In digital filter design, if the unit circle with radius 1 in the z-plane lies entirely inside the region of convergence, the filter is bounded-input bounded-output stable.",
-            "In digital filter design, if the unit circle with radius $1$ in the $z$-plane lies entirely inside the region of convergence, the filter is bounded-input bounded-output stable."
-        ),
-        (
-            "Applying the Fourier transform to {x} of t gives the continuous spectrum capital X of omega equals integral from minus infinity to infinity of {x} of t e to the minus j omega t dt.",
-            "Applying the Fourier transform to ${x}(t)$ gives the continuous spectrum $X(\\omega) = \\int_{{-\\infty}}^{{\\infty}} {x}(t) e^{{-j\\omega t}} \\, dt$."
-        ),
-        (
             "The transfer function h of s equals {num} over s squared plus {two_zeta} omega n s plus omega n squared represents a second-order underdamped system.",
             "The transfer function $h(s) = \\frac{{{num}}}{{s^2 + {two_zeta} \\omega_n s + \\omega_n^2}}$ represents a second-order underdamped system."
         ),
+        # Computer Science & Probability
         (
-            "According to Ohm's law, the voltage v across the resistor equals current i multiplied by resistance r.",
-            "According to Ohm's law, the voltage $v$ across the resistor equals current $i$ multiplied by resistance $r$ ($V = IR$)."
+            "According to the master theorem for divide and conquer, the recurrence t of n equals 2 t of n over 2 plus big o of n solves to big o of n log n.",
+            "According to the master theorem for divide-and-conquer, the recurrence $T(n) = 2T(n/2) + O(n)$ solves to $O(n \\log n)$."
+        ),
+        (
+            "By Bayes' theorem, the posterior probability p of a given b equals p of b given a times p of a divided by p of b.",
+            "By Bayes' theorem, the posterior probability $P(A|B) = \\frac{P(B|A)P(A)}{P(B)}$."
         )
     ]
     t_in, t_out = rng.choice(templates)

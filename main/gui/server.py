@@ -133,11 +133,15 @@ LIVE_TESTS_DIR.mkdir(parents=True, exist_ok=True)
 GUI_DIR = Path(__file__).resolve().parent
 STATIC_DIR = GUI_DIR / "static"
 
-# Math domain prompt for Whisper ASR
+# Universal STEM domain prompt for Whisper ASR across all engineering fields
 WHISPER_MATH_PROMPT = (
-    "Fourier transform, Laplace, continuous-time signal, discrete-time, integral, "
-    "derivative, calculus, algebra, omega, theta, phi, pi, infinity, x(t), f(x), "
-    "e to the power, differential equation, matrix, vector, sinusoids."
+    "Engineering lecture: calculus, linear algebra, differential equations, "
+    "mechanics, thermodynamics, fluid dynamics, circuits, control systems, "
+    "electromagnetics, algorithms, stress, strain, shear, entropy, enthalpy, heat flux, "
+    "curl, divergence, gradient, partial derivative, Navier-Stokes, Reynolds number, "
+    "transfer function, eigenvalues, vectors, tensors, matrices, summations, integrals, "
+    "discrete-time sequences x[n], y[n], downsampling, upsampling, difference equations, "
+    "units: Pascals, Newtons, Joules, Watts, Hertz, Farads, Ohms, Kelvin, meters per second."
 )
 
 
@@ -189,14 +193,48 @@ def clean_whisper_text(text: str) -> str:
     return cleaned
 
 
+def clean_speech_disfluencies(text: str) -> str:
+    """Pre-clean speech stutters, repeated false starts, and filler hitches before SLM translation."""
+    if not text:
+        return ""
+    s = text.strip()
+    # 1. Collapse immediate repeated words: "if if" -> "if", "so so" -> "so", "to to" -> "to", "is is" -> "is"
+    s = re.sub(r"\b([a-zA-Z]+)\s+\1\b", r"\1", s, flags=re.IGNORECASE)
+    # 2. Collapse repeated two-word phrases: "y of n y of n" -> "y of n", "x of x of" -> "x of"
+    s = re.sub(r"\b([a-zA-Z]+\s+[a-zA-Z]+)\s+\1\b", r"\1", s, flags=re.IGNORECASE)
+    # 3. Clean conversational filler hesitations when surrounded by mathematical discourse
+    s = re.sub(r"\b(?:you know|basically|so basically|like I said|as I said)\b", "", s, flags=re.IGNORECASE)
+    # 4. Normalize multiple punctuation and spaces
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+
+DANGLING_OPERATOR_PATTERN = re.compile(
+    r"(\b(?:equals?|is\s+equal\s+to|is\s+greater\s+than|is\s+less\s+than|"
+    r"plus|minus|times|multiplied\s+by|divided\s+by|over|"
+    r"raised\s+to|to\s+the\s+power\s+of|"
+    r"partial\s+of|derivative\s+of|integral\s+of|sum\s+of|summation\s+from|"
+    r"with\s+respect\s+to|evaluated\s+at|"
+    r"(?:[a-zA-Z]|theta|omega|phi|psi|sigma|alpha|beta|lambda|mu)\s+of|"
+    r"such\s+that|where|defined\s+as|given\s+by)\b|[=+\-*/<>^])$",
+    re.IGNORECASE
+)
+
+
+def is_dangling_math_clause(text: str) -> bool:
+    """Detect whether a spoken transcript ends abruptly with an open/incomplete mathematical clause or operator."""
+    clean = text.strip().rstrip(".,;:!?")
+    return bool(DANGLING_OPERATOR_PATTERN.search(clean))
+
+
 # ===========================================================================
 # Fast Linguistic Gating & SLM Math Pre-Checks (Sub-millisecond Latency)
 # ===========================================================================
 
 MATH_INDICATOR_PATTERN = re.compile(
     r"\b("
-    # Equality and comparison
-    r"equals?|is\s+equal\s+to|greater\s+than|less\s+than|"
+    # Equality, relations, and comparison
+    r"equals?|is\s+equal\s+to|greater\s+than|less\s+than|approaches|\bto\b|"
     # Arithmetic operators
     r"plus|minus|times|multiplied\s+by|divided\s+by|"
     r"(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|numerator|\))\s+over\s+(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|denominator)|"
@@ -206,24 +244,29 @@ MATH_INDICATOR_PATTERN = re.compile(
     r"fraction|numerator|denominator|polynomials?|"
     # Trigonometry & transcendentals
     r"sine|cosine|tangent|cotangent|secant|cosecant|logarithm|\bln\b|exponential|"
-    # Calculus
-    r"integral|derivative|dy\s+by\s+d[tx]|partial\s+derivative|gradient|divergence|curl|"
-    # Sequences & series
-    r"summation|sum\s+from|sum\s+of|"
+    # Calculus & Partials
+    r"integral|derivative|dy\s+by\s+d[tx]|partial\s+derivative|partial\s+of|gradient|divergence|curl|"
+    # Sequences, series, indexing & discrete time
+    r"summation|sum\s+from|sum\s+of|discrete[\s-]time|downsampl\w+|upsampl\w+|sampling\s+rate|difference\s+equation|"
     # Greek letters
     r"sigma|omega|theta|alpha|beta|gamma|lambda|phi|psi|delta|epsilon|tau|mu|rho|kappa|zeta|"
     # Linear algebra & transforms
-    r"matrix|matrices|determinant|eigenvalues?|eigenvectors?|"
-    r"z-transform|laplace|fourier|"
+    r"matrix|matrices|determinant|eigenvalues?|eigenvectors?|transpose|"
+    r"z[\s-]transform|laplace|fourier|dtft|"
     # Control systems & signals
     r"transfer\s+function|root\s+locus|poles?|zeros?|characteristic\s+equation|"
     r"frequency\s+response|impulse\s+response|step\s+response|state\s+space|"
     r"bode\s+plot|nyquist|open\s+loop|closed\s+loop|feedback|"
-    # Functional notation: universal [var] of [arg] (e.g. h of s, f of x, g of t, y of t, x of n)
+    # Fluid mechanics, thermodynamics & physics
+    r"navier[\s-]stokes|reynolds|bernoulli|mach\s+number|prandtl|enthalpy|entropy|internal\s+energy|"
+    r"heat\s+transfer|conduction|convection|radiation|stress|strain|shear|viscosity|young\'?s\s+modulus|"
+    # Computer science & probability
+    r"big\s+o|recurrence|bayes|posterior|prior|probability|variance|standard\s+deviation|"
+    # Functional notation: universal [var] of [arg] (e.g. h of s, f of x, g of t, y of t, x of n, T of r)
     r"(?:[a-z]|alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|rho|sigma|tau|phi|psi|omega)\s+of\s+(?:j\s+omega|omega|[a-z0-9]+)|"
     r"sinusoid|kcl|kvl|ohm\'?s\s+law"
     r")\b|"
-    r"\b[0-9]+(?:\.[0-9]+)?\s*(?:hz|khz|mhz|ghz|volts?|amps?|amperes?|ohms?|farads?|henrys?|watts?|kev|mev|ev|db)\b|"
+    r"\b[0-9]+(?:\.[0-9]+)?\s*(?:hz|khz|mhz|ghz|volts?|amps?|amperes?|ohms?|farads?|henrys?|watts?|kev|mev|ev|db|pa|kpa|mpa|gpa|n|kn|j|kj|rad/s)\b|"
     r"[=+\-*/^<>]",
     re.IGNORECASE,
 )
@@ -1091,6 +1134,13 @@ class ContinuousLectureManager:
         self.utterance_count = 0
         self.hpf = HighPassHumFilter()
         self.recent_chunks: list[dict] = []
+        # Universal Syntactic Clause Stitcher & Rolling Context
+        self.pending_text: str = ""
+        self.pending_wav: list[bytes] = []
+        self.pending_duration: float = 0.0
+        self.pending_start_offset: float = 0.0
+        self.pending_count: int = 0
+        self.context_history: collections.deque = collections.deque(maxlen=2)
 
     def get_status(self) -> dict:
         with self.lock:
@@ -1111,6 +1161,12 @@ class ContinuousLectureManager:
             self.start_epoch = time.time()
             self.utterance_count = 0
             self.recent_chunks.clear()
+            self.pending_text = ""
+            self.pending_wav.clear()
+            self.pending_duration = 0.0
+            self.pending_start_offset = 0.0
+            self.pending_count = 0
+            self.context_history.clear()
             while not self.queue.empty():
                 try:
                     self.queue.get_nowait()
@@ -1132,10 +1188,27 @@ class ContinuousLectureManager:
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=2.0)
+        # Flush any pending dangling clause before stopping
+        self._flush_pending()
         if self.worker_thread:
             self.worker_thread.join(timeout=3.0)
         print(f"[Continuous Lecture] Stopped manager. Captured {self.utterance_count} utterances.")
         return self.get_status()
+
+    def _flush_pending(self):
+        with self.lock:
+            if not self.pending_text:
+                return
+            p_text = self.pending_text
+            p_wav = b"".join(self.pending_wav)
+            p_dur = self.pending_duration
+            p_offset = self.pending_start_offset
+            self.pending_text = ""
+            self.pending_wav.clear()
+            self.pending_duration = 0.0
+            self.pending_start_offset = 0.0
+            self.pending_count = 0
+        self._translate_and_broadcast(p_text, p_wav, p_dur, p_offset, asr_ms=0.0)
 
     def _worker_loop(self):
         """Dedicated background worker: processes speech chunks via Whisper & Qwen SLM without blocking audio input."""
@@ -1207,8 +1280,8 @@ class ContinuousLectureManager:
                     else:
                         silence_chunks = 0
 
-                    # Natural lecture pause: 6 chunks = 0.6s, or max chunk = 80 chunks (8.0s)
-                    if silence_chunks >= 6 or len(speech_buffer) >= 80:
+                    # Natural lecture pause: 8 chunks = 0.8s, or max chunk = 90 chunks (9.0s)
+                    if silence_chunks >= 8 or len(speech_buffer) >= 90:
                         if len(speech_buffer) >= 3:  # At least 300ms
                             audio_arr = np.concatenate(speech_buffer)
                             dur_sec = len(audio_arr) / 16000.0
@@ -1257,58 +1330,97 @@ class ContinuousLectureManager:
                 print(f"[Continuous Lecture] Whisper returned blank/silent speech ({duration_sec:.2f}s).")
                 return
 
-            # Fast linguistic gating: bypass SLM in 0.05ms for conversational speech
-            if has_math_indicators(raw_text):
-                if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
-                    print("[SLM] llama-server is offline. Auto-starting daemon...")
-                    ensure_edge_daemons()
-                slm = get_slm_translator()
-                t0 = time.monotonic()
-                num_words = len(raw_text.split())
-                dyn_tokens = min(256, max(64, int(num_words * 3.5)))
-                try:
-                    raw_latex = slm.translate(raw_text, max_new_tokens=dyn_tokens)
-                    latex_text = clean_slm_hallucinations(raw_latex, raw_text)
-                except Exception as e:
-                    print(f"[SLM Translation Error] {e}")
-                    latex_text = raw_text
-                slm_ms = (time.monotonic() - t0) * 1000.0
+            cleaned_speech = clean_speech_disfluencies(raw_text)
+
+            # Syntactic Clause Stitcher:
+            # If we had a previously buffered open/dangling clause, merge it with current speech
+            if self.pending_text:
+                full_text = f"{self.pending_text} {cleaned_speech}".strip()
+                self.pending_wav.append(wav_bytes)
+                total_dur = self.pending_duration + duration_sec
+                start_off = self.pending_start_offset
             else:
-                latex_text = raw_text
-                slm_ms = 0.05
+                full_text = cleaned_speech
+                self.pending_wav = [wav_bytes]
+                total_dur = duration_sec
+                start_off = start_offset
 
-            session = get_active_session()
-            item = session.record_utterance(
-                wav_bytes=wav_bytes,
-                raw_transcript=raw_text,
-                processed_latex=latex_text,
-                duration_sec=duration_sec,
-                start_offset=start_offset,
-            )
+            # If the assembled clause still ends in a dangling operator, buffer it up to 3 chunks
+            if is_dangling_math_clause(full_text) and self.pending_count < 3:
+                self.pending_text = full_text
+                self.pending_duration = total_dur
+                self.pending_start_offset = start_off
+                self.pending_count += 1
+                print(f"[Syntactic Stitcher] Incomplete math clause detected ('{full_text}'). Buffering for completion...")
+                return
 
-            packet = {
-                "type": "lecture_chunk",
-                "index": item["index"],
-                "start_time": format_srt_timestamp(item["start_sec"]),
-                "end_time": format_srt_timestamp(item["end_sec"]),
-                "start_sec": item["start_sec"],
-                "end_sec": item["end_sec"],
-                "duration_sec": item["duration_sec"],
-                "raw_transcript": raw_text,
-                "processed_text": latex_text,
-                "asr_time_ms": round(asr_ms, 1),
-                "router_time_ms": round(slm_ms, 1),
-                "audio_url": f"/live_tests/{session.session_id}/audio/{item['wav_file']}",
-            }
+            # Complete clause reached (or max buffer limit reached)
+            stitched_wav = b"".join(self.pending_wav)
+            self.pending_text = ""
+            self.pending_wav.clear()
+            self.pending_duration = 0.0
+            self.pending_start_offset = 0.0
+            self.pending_count = 0
 
-            with self.lock:
-                self.utterance_count += 1
-                self.recent_chunks.append(packet)
-
-            broadcast_ws_message(packet)
-            print(f"[Live Lecture Broadcast] Chunk #{item['index']}: '{raw_text}' -> '{latex_text}' (ASR: {asr_ms:.1f}ms, SLM: {slm_ms:.1f}ms)")
+            self._translate_and_broadcast(full_text, stitched_wav, total_dur, start_off, asr_ms)
         except Exception as e:
             print(f"[Process Chunk Error] {e}")
+
+    def _translate_and_broadcast(self, text: str, wav_bytes: bytes, duration_sec: float, start_offset: float, asr_ms: float):
+        # Fast linguistic gating: bypass SLM in 0.05ms for conversational speech
+        if has_math_indicators(text):
+            if not is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
+                print("[SLM] llama-server is offline. Auto-starting daemon...")
+                ensure_edge_daemons()
+            slm = get_slm_translator()
+            t0 = time.monotonic()
+            num_words = len(text.split())
+            dyn_tokens = min(384, max(80, int(num_words * 3.5)))
+            recent_context = " ".join(self.context_history) if self.context_history else ""
+            try:
+                raw_latex = slm.translate(text, context=recent_context, max_new_tokens=dyn_tokens)
+                latex_text = clean_slm_hallucinations(raw_latex, text)
+            except Exception as e:
+                print(f"[SLM Translation Error] {e}")
+                latex_text = text
+            slm_ms = (time.monotonic() - t0) * 1000.0
+        else:
+            latex_text = text
+            slm_ms = 0.05
+
+        # Update rolling context for continuous cross-chunk awareness
+        self.context_history.append(latex_text)
+
+        session = get_active_session()
+        item = session.record_utterance(
+            wav_bytes=wav_bytes,
+            raw_transcript=text,
+            processed_latex=latex_text,
+            duration_sec=duration_sec,
+            start_offset=start_offset,
+        )
+
+        packet = {
+            "type": "lecture_chunk",
+            "index": item["index"],
+            "start_time": format_srt_timestamp(item["start_sec"]),
+            "end_time": format_srt_timestamp(item["end_sec"]),
+            "start_sec": item["start_sec"],
+            "end_sec": item["end_sec"],
+            "duration_sec": item["duration_sec"],
+            "raw_transcript": text,
+            "processed_text": latex_text,
+            "asr_time_ms": round(asr_ms, 1),
+            "router_time_ms": round(slm_ms, 1),
+            "audio_url": f"/live_tests/{session.session_id}/audio/{item['wav_file']}",
+        }
+
+        with self.lock:
+            self.utterance_count += 1
+            self.recent_chunks.append(packet)
+
+        broadcast_ws_message(packet)
+        print(f"[Live Lecture Broadcast] Chunk #{item['index']}: '{text}' -> '{latex_text}' (ASR: {asr_ms:.1f}ms, SLM: {slm_ms:.1f}ms)")
 
 
 lecture_mgr = ContinuousLectureManager(hw_recorder)
