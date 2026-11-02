@@ -1,0 +1,2945 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Lecture Transcription: Mod-01 Lec-11 Modeling of Synchronous Machines}
+\author{Automated Jetson Edge Speech-to-LaTeX}
+\date{November 02, 2026}
+
+\begin{document}
+\maketitle
+
+% [00:00 - 00:10]
+
+
+% [00:10 - 00:13]
+
+
+% [00:13 - 00:14]
+
+
+% [00:14 - 00:16]
+
+
+% [00:16 - 00:17]
+
+
+% [00:17 - 00:19]
+
+
+% [00:19 - 00:25]
+Our course so far has concentrated on the general analysis of dynamical systems.
+
+% [00:25 - 00:27]
+We now move on to an important
+
+% [00:27 - 00:33]
+Part of this course that is the modeling of several power system components
+
+% [00:33 - 00:36]
+In particular, we will concentrate
+
+% [00:36 - 00:38]
+In the next few lectures,
+
+% [00:38 - 00:40]
+On the modeling of a synchronous machine.
+
+% [00:40 - 00:46]
+Now, a synchronous machine is a very important; it is the, you could say the most important component.
+
+% [00:46 - 00:48]
+of a power system.
+
+% [00:48 - 00:51]
+The modeling of it
+
+% [00:51 - 00:53]
+It requires some, a little bit of effort.
+
+% [00:53 - 00:57]
+We will actually be taking out the transient model of a synchronous machine.
+
+% [00:57 - 01:02]
+We will of course learn some interesting new concepts.
+
+% [01:02 - 01:06]
+Just like the use of a time variant transformation,
+
+% [01:06 - 01:07]
+In order to make
+
+% [01:07 - 01:11]
+The synchronous machine's flux differential equations
+
+% [01:11 - 01:13]
+Linear time invariant.
+
+% [01:13 - 01:16]
+But to put matters first in perspective,
+
+% [01:16 - 01:20]
+Just let us look at where we stand in relation
+
+% [01:20 - 01:25]
+So, we will go to the content which we intend to cover in this course.
+
+% [01:25 - 01:29]
+So, let us just shift our attention to
+
+% [01:29 - 01:32]
+What point we are exactly in this course at the present time?
+
+% [01:32 - 01:33]
+
+
+% [01:33 - 01:35]
+
+
+% [01:35 - 01:39]
+So, we have actually done the analysis of dynamical systems.
+
+% [01:39 - 01:41]
+In particular, we studied
+
+% [01:41 - 01:46]
+The use of eigenvalue analysis in linear time-invariant systems
+
+% [01:46 - 01:54]
+And we also learned the techniques for numerical integration of ordinary differential equations.
+
+% [01:54 - 01:55]
+We now move to
+
+% [01:55 - 02:04]
+Now, the modeling of a synchronous machine will be further considered, taking into account the modeling of several other components such as excitation systems and prime mover systems.
+
+% [02:04 - 02:07]
+And in fact, transmission lines and so on.
+
+% [02:07 - 02:13]
+Of course, there is a lot more to come. Remember that for part B of this course, you can say
+
+% [02:13 - 02:18]
+We will really try to eventually try to get a few inferences about
+
+% [02:18 - 02:21]
+The nature of the behavior of
+
+% [02:21 - 02:23]
+Interconnected power systems.
+
+% [02:23 - 02:26]
+We shall also look at pass system stability analysis tools.
+
+% [02:26 - 02:29]
+And, how we can use all this analysis?
+
+% [02:29 - 02:31]
+To improving system stability.
+
+% [02:31 - 02:34]
+So, now we really move on.
+
+% [02:34 - 02:40]
+Now, let us look at the first step to modeling of a synchronous machine. It will be instructive to first look at how
+
+% [02:40 - 02:48]
+So, a practical synchronous machine looks like, in fact, what I will show you right now is a steam turbine-driven generator.
+
+% [02:48 - 02:51]
+It is of around 210 megawatts.
+
+% [02:51 - 02:53]
+So, you can look at this photograph.
+
+% [02:53 - 02:57]
+What you see in white here is indeed the synchronous machine.
+
+% [02:57 - 03:01]
+And, what you see in green are the
+
+% [03:01 - 03:02]
+Various stages of the turbine.
+
+% [03:02 - 03:05]
+The steam turbine which drives this machine
+
+% [03:05 - 03:08]
+Alright, on this side,
+
+% [03:08 - 03:13]
+Other bearings and what you will see, what is seen here right at the end.
+
+% [03:13 - 03:19]
+This is actually the slip ring and brushes which convey the excitation voltage to the field winding.
+
+% [03:19 - 03:22]
+So, this is the equation which is of course rotating in this synchronous generator.
+
+% [03:22 - 03:26]
+This is how a steam turbine-driven synchronous machine looks like.
+
+% [03:26 - 03:28]
+Of course our analysis will...
+
+% [03:28 - 03:35]
+Cover all types, including those with steam turbines and hydraulic turbines, for synchronous generators.
+
+% [03:35 - 03:39]
+So, let us move on to the nuts and bolts of this.
+
+% [03:39 - 03:43]
+So, just some basic review.
+
+% [03:43 - 03:46]
+A synchronous machine, indeed,
+
+% [03:46 - 03:52]
+Now, the second point has got two kinds of windings: you can say the armature winding is usually present on the stator.
+
+% [03:52 - 03:57]
+These are in fact three phase windings. They are three sets of windings.
+
+% [03:57 - 04:00]
+And you have got a field winding
+
+% [04:00 - 04:04]
+Which of course is fed with DC voltage.
+
+% [04:04 - 04:06]
+The armature
+
+% [04:06 - 04:11]
+It is laminated, the armature is laminated because the armature winding with a housed
+
+% [04:11 - 04:16]
+On the armature, in fact, see a time varying flux.
+
+% [04:16 - 04:20]
+An important relationship which you should keep in mind is
+
+% [04:20 - 04:22]
+That the
+
+% [04:22 - 04:30]
+The voltages which are generated, the EMFs, the alternating voltages which are generated in the armature due to
+
+% [04:30 - 04:33]
+A rotating field
+
+% [04:33 - 04:37]
+The DC field created by the field winding
+
+% [04:37 - 04:43]
+As well as when the machine is loaded, you will have a rotating field created by three-phase
+
+% [04:43 - 04:45]
+And, major windings.
+
+% [04:45 - 04:50]
+The image generated have the frequency which is given by
+
+% [04:50 - 04:56]
+$\omega_E$, which is the electrical radiant frequency, is $\frac{\pi}{2}$ times
+
+% [04:56 - 04:59]
+The mechanical rotational frequency
+
+% [04:59 - 05:02]
+Where $p$ is the number of poles.
+
+% [05:02 - 05:05]
+Thus, $\omega_e = \frac{p}{2\omega_n}$.
+
+% [05:05 - 05:15]
+Normally, steam turbine driven machines are in fact high speed generators. They run at, in our 50 hertz system, they run at
+
+% [05:15 - 05:22]
+On the other hand, hydro machines are low speed
+
+% [05:22 - 05:24]
+And have salient pole construction
+
+% [05:24 - 05:33]
+This is the problem with many poles; it means many pole pairs. In a stream-turbine-driven machine, of course, we have one pole pair.
+
+% [05:33 - 05:38]
+In salient-pole machines, you can have many, many pole pairs.
+
+% [05:38 - 05:47]
+Now, typically in a salient-pole machine, we refer to another type of magnetic field that surrounds it.
+
+% [05:47 - 05:52]
+See, obviously, the field winding and the armature winding are housed on a ferromagnetic material, but
+
+% [05:52 - 05:58]
+We also have what are known as damper windings or squirrel-cage windings.
+
+% [05:58 - 06:01]
+Squirrel cage, kind of damper bars.
+
+% [06:01 - 06:03]
+On the pole face,
+
+% [06:03 - 06:08]
+So, that is usually seen.
+
+% [06:08 - 06:15]
+In a steam-gas turbine operating at high speeds, you also have a disk-shaped rotor structure.
+
+% [06:15 - 06:18]
+There are only two, you will have only one pole pair; that is two poles.
+
+% [06:18 - 06:21]
+I have got a cylindrical pole or a disk-shaped rotor.
+
+% [06:21 - 06:27]
+The rotor is usually made out of solid steel forging; so, even the
+
+% [06:27 - 06:33]
+The rotating, the rotating field winding is housed on a solid steel disc.
+
+% [06:33 - 06:40]
+Because of that, you can have eddy currents in the rotor during transients.
+
+% [06:40 - 06:44]
+That's an important point: You can have eddy currents in the rotor during transients.
+
+% [06:44 - 06:48]
+In a steam or gas, I mean of course,
+
+% [06:48 - 06:54]
+In a low-speed turbine with salient poles, the pole faces are laminated.
+
+% [06:54 - 06:55]
+Okay.
+
+% [06:55 - 07:02]
+Now, this is how typically a steam turbine or hydraulic turbine's pole faces would appear.
+
+% [07:02 - 07:05]
+So, there is a pole-phase, as you'll see.
+
+% [07:05 - 07:08]
+The field winding will be housed in the stator.
+
+% [07:08 - 07:09]
+Here,
+
+% [07:09 - 07:11]
+Aang,
+
+% [07:11 - 07:17]
+This, on this pole face, you have this damper bar, which is short-circuited at the end of the
+
+% [07:17 - 07:20]
+So, your damper bars, they are not,
+
+% [07:20 - 07:23]
+The damper bars are kind of embedded on the poles.
+
+% [07:23 - 07:25]
+And
+
+% [07:25 - 07:27]
+And then they are short circuited.
+
+% [07:27 - 07:29]
+So, they
+
+% [07:29 - 07:33]
+I like a cage on a induction machine.
+
+% [07:33 - 07:37]
+The basic function of these damper bars is to reduce vibration and improve the performance of the system.
+
+% [07:37 - 07:39]
+This is to
+
+% [07:39 - 07:41]
+, damp out
+
+% [07:41 - 07:44]
+Transients, normally
+
+% [07:44 - 07:48]
+Both the field voltage, the flux created by the field winding
+
+% [07:48 - 07:57]
+As well as the three-phase rotating flux, as well as the rotary motion of the rotor are all of the same speed. Thus, no $M_F$ is generated.
+
+% [07:57 - 08:01]
+On the bars of this
+
+% [08:01 - 08:03]
+This damper bars.
+
+% [08:03 - 08:12]
+But, during transients of course, you have got currents in these and they are intended to damp out any transients which are occurring.
+
+% [08:12 - 08:15]
+So, in fact, in a cylindrical rotor machine,
+
+% [08:15 - 08:20]
+The solid steel body of the rotor itself creates eddy currents which perform the same function.
+
+% [08:20 - 08:23]
+On a cylindrical rotor
+
+% [08:23 - 08:27]
+So, the field winding is housed in slots of this kind.
+
+% [08:27 - 08:34]
+So, of course, the slots have a wedge, which is not very clear in this. They have a wedge to keep the windings in place.
+
+% [08:34 - 08:36]
+So, you have got
+
+% [08:36 - 08:38]
+The windings are
+
+% [08:38 - 08:41]
+Placed in the slots of a cylindrical pole machine.
+
+% [08:41 - 08:42]
+
+
+% [08:42 - 08:45]
+Now, just to give you a good feel,
+
+% [08:45 - 08:48]
+Consider 210 megawatt,
+
+% [08:48 - 08:50]
+Machine,
+
+% [08:50 - 08:52]
+Okay, generator that is.
+
+% [08:52 - 08:58]
+The typical parameters could be, for example, in fact, this 210 megawatt machine is a typical generator which was used.
+
+% [08:58 - 09:03]
+In the electrical power grid, there are many, many, many of them at present in the Indian power grid.
+
+% [09:03 - 09:07]
+The MVA is 247.
+
+% [09:07 - 09:10]
+So, you can actually calculate the rated power factor from this and this.
+
+% [09:10 - 09:16]
+The rated voltage is 15.75 kilo volts, the rated current is almost 1 kilo, well,
+
+% [09:16 - 09:18]
+10 kilo amperes roughly.
+
+% [09:18 - 09:21]
+That is approximately 9000 amperes.
+
+% [09:21 - 09:25]
+And it is of course a 50 hertz machine.
+
+% [09:25 - 09:30]
+Now, when I say rated current, it means it is the maximum continuous rating
+
+% [09:30 - 09:35]
+So, when I say retreat current is the armature current.
+
+% [09:35 - 09:44]
+This of course does not mean that you cannot have currents higher than this. For a short while, every electrical equipment can tolerate about 10 to 15 percent
+
+% [09:44 - 09:48]
+Over current, but only for about 10 to 15 minutes.
+
+% [09:48 - 09:51]
+So, the maximum continuous rating is around 10 kilo amperes.
+
+% [09:51 - 09:58]
+Of course, there is a lot of heating due to this. So, machine like this is cooled by hydrogen.
+
+% [09:58 - 10:06]
+Similarly, the field has got a rated current of 2600 amperes. When I say rated current, what it means is
+
+% [10:06 - 10:15]
+That the current which flows in the field winding in order to get the rated voltage under loaded condition, that is full-load conditions or the rated load conditions.
+
+% [10:15 - 10:19]
+The rated voltage similarly is 310 volts.
+
+% [10:19 - 10:27]
+And the efficiency can be very high, it is in this case around 98.5, this is only of the generator, I am not talking of the turbine, etcetera.
+
+% [10:27 - 10:30]
+So, this is the efficiency only of the generator.
+
+% [10:30 - 10:34]
+One important point which you should note, which we shall again discuss later.
+
+% [10:34 - 10:37]
+Is that the field current, rated current
+
+% [10:37 - 10:41]
+It is 2600, but under no load conditions
+
+% [10:41 - 10:46]
+The amount of current required in the field to generate rated voltage
+
+% [10:46 - 10:49]
+Again, under let me repeat.
+
+% [10:49 - 10:53]
+Under no load conditions, that is open circuit conditions, the amount of current needed
+
+% [10:53 - 10:58]
+To generate this rated voltage at the armature terminals,
+
+% [10:58 - 11:02]
+It is in fact much lower than this, it may be half or slightly lower than half of this.
+
+% [11:02 - 11:05]
+Remember that once we load the machine,
+
+% [11:05 - 11:08]
+The flux picture
+
+% [11:08 - 11:10]
+In the machine gets
+
+% [11:10 - 11:14]
+So, you may actually have to
+
+% [11:14 - 11:18]
+So, we have more current in the field.
+
+% [11:18 - 11:23]
+To get this rated voltage. So, this current in fact
+
+% [11:23 - 11:25]
+The current is the current required under rated conditions.
+
+% [11:25 - 11:31]
+Under no-load conditions, to obtain 15.75 V, you might need less than half of this current.
+
+% [11:31 - 11:34]
+And corresponding less than half of this voltage.
+
+% [11:34 - 11:37]
+So, this is an important point which you should remember.
+
+% [11:37 - 11:40]
+Now, there are three kinds of limits.
+
+% [11:40 - 11:49]
+Which you may encounter, I will just write this on a separate sheet of paper. There are three kinds of limits which you may encounter. One is the
+
+% [11:49 - 11:52]
+In a generator is the armature current limit.
+
+% [11:52 - 11:54]
+So,
+
+% [11:54 - 12:01]
+Or rather I should say the armature heating limit, which is of course determined by the armature current.
+
+% [12:01 - 12:02]
+Okay.
+
+% [12:02 - 12:08]
+Now, the second limit which you will encounter is the field current limit. So, you cannot
+
+% [12:08 - 12:11]
+So, we have current more than a certain value
+
+% [12:11 - 12:13]
+Otherwise, it will cause heating.
+
+% [12:13 - 12:15]
+Simple i square r heating.
+
+% [12:15 - 12:22]
+Which may be more for which there is of course a limit. So, you should ensure of course that the current will never go above
+
+% [12:22 - 12:29]
+The rated current that is in this case in the example which I said 9050. Of course,
+
+% [12:29 - 12:32]
+For a short while, , you can have a slight over rating.
+
+% [12:32 - 12:39]
+Similarly, similar thing applies for the field also, the field current should not exceed its rating, but of course, for a short while you can have
+
+% [12:39 - 12:45]
+So, you can have higher than the rated current for say about 10 to 15 minutes. That is permissible.
+
+% [12:45 - 12:53]
+Now, there is, so these are the two things which prevent you from, , they are, they kind of limit the amount of
+
+% [12:53 - 13:01]
+, power and reactive power you can have. In short, you can never exceed the MVA rating of the machine.
+
+% [13:01 - 13:05]
+So, $p^2 + q^2$, where $p$ is the real power
+
+% [13:05 - 13:07]
+And Q is the reactive power should not exceed.
+
+% [13:07 - 13:13]
+Otherwise, you will find that since the voltage will always be maintained here about this value,
+
+% [13:13 - 13:20]
+So, the current will get, current rate, current will exceed its rating. So, your MVA is typically will always be
+
+% [13:20 - 13:25]
+Of course, you have to maintain $\sqrt{p^2 + q^2} < 247$.
+
+% [13:25 - 13:31]
+Now, the field current limit also prevents you from increasing the Q
+
+% [13:31 - 13:33]
+Beyond a certain point, remember
+
+% [13:33 - 13:35]
+In a synchronous machine,
+
+% [13:35 - 13:40]
+By changing the field current you can change the reactive power, but you cannot go on
+
+% [13:40 - 13:43]
+Increasing the reactive power after a point
+
+% [13:43 - 13:45]
+You will find that the field current hits its limit.
+
+% [13:45 - 13:53]
+So, even though you have very low real power, you cannot have Q very high because for that you require very high field current.
+
+% [13:53 - 13:57]
+So, our p and q in some sense are limited.
+
+% [13:57 - 14:01]
+So, you have to find out the, ,
+
+% [14:01 - 14:06]
+So, we have a safe operating region for a synchronous machine and ensure that these limits are not
+
+% [14:06 - 14:12]
+In some machines, in some steam turbine generator, driven generators,
+
+% [14:12 - 14:15]
+You will find that you have another limit
+
+% [14:15 - 14:18]
+That is called the core and heating limit.
+
+% [14:18 - 14:19]
+
+
+% [14:19 - 14:20]
+
+
+% [14:20 - 14:23]
+This is caused by
+
+% [14:23 - 14:25]
+Higher actual flux.
+
+% [14:25 - 14:26]
+
+
+% [14:26 - 14:27]
+
+
+% [14:27 - 14:29]
+
+
+% [14:29 - 14:31]
+In the end region of
+
+% [14:31 - 14:34]
+If you have a synchronous machine,
+
+% [14:34 - 14:35]
+
+
+% [14:35 - 14:37]
+No.. no...
+
+% [14:37 - 14:44]
+This is called the end region, the end region of a synchronous machine, where actually the windings come out and go in again.
+
+% [14:44 - 14:48]
+That is called an $n$-region of a synchronous machine. Now, it is seen
+
+% [14:48 - 14:52]
+That, under, if you under excite the machine, that is,
+
+% [14:52 - 14:54]
+Reduce the field current.
+
+% [14:54 - 14:58]
+Such that the synchronous machine starts absorbing reactive power
+
+% [14:58 - 15:04]
+You have a situation of higher axial flux. Of course, the explanation of this
+
+% [15:04 - 15:12]
+This is beyond the scope of this course, but I refer you to a paper which appeared quite some time ago.
+
+% [15:12 - 15:14]
+By Farnheim and Swathout.
+
+% [15:14 - 15:16]
+Just a moment.
+
+% [15:16 - 15:17]
+So...
+
+% [15:17 - 15:21]
+I will just write down this reference for you.
+
+% [15:21 - 15:26]
+If you are interested in knowing the effect of all these limits, I refer you to this.
+
+% [15:26 - 15:27]
+So,
+
+% [15:27 - 15:29]
+So,
+
+% [15:29 - 15:31]
+Feel excitation
+
+% [15:31 - 15:33]
+And
+
+% [15:33 - 15:36]
+In relation
+
+% [15:36 - 15:38]
+And
+
+% [15:38 - 15:41]
+Two machine equations, two machine equations, two machine equations, two machine equations,
+
+% [15:41 - 15:43]
+And
+
+% [15:43 - 15:45]
+And, system operation.
+
+% [15:45 - 15:46]
+Okay.
+
+% [15:46 - 15:47]
+thehrn
+
+% [15:47 - 15:49]
+And
+
+% [15:49 - 15:50]
+So,
+
+% [15:50 - 15:54]
+This is the title of the paper by Fahn-Hamm.
+
+% [15:54 - 15:55]
+That's it.
+
+% [15:55 - 15:57]
+And
+
+% [15:57 - 15:59]
+And
+
+% [15:59 - 16:00]
+And
+
+% [16:00 - 16:02]
+Swarth out.
+
+% [16:02 - 16:06]
+And, it appeared in IEEE transactions.
+
+% [16:06 - 16:10]
+A i triple e, because there was no i triple e at that time.
+
+% [16:10 - 16:12]
+In 1953,
+
+% [16:12 - 16:14]
+The page number 1215.
+
+% [16:14 - 16:16]
+So, we have to do this.
+
+% [16:16 - 16:19]
+1, 2, 2, 3.
+
+% [16:19 - 16:20]
+
+
+% [16:20 - 16:23]
+So, this is a
+
+% [16:23 - 16:25]
+A copy of this paper.
+
+% [16:25 - 16:30]
+So, I request you to those who are interested in finding out
+
+% [16:30 - 16:33]
+More about why
+
+% [16:33 - 16:35]
+We have this heating limit
+
+% [16:35 - 16:38]
+You can of course refer to this paper.
+
+% [16:38 - 16:40]
+Now,
+
+% [16:40 - 16:42]
+Of course, the score and heating is not
+
+% [16:42 - 16:49]
+A limit seen by all machines, it is only for specific, usually steam turbine driven machines.
+
+% [16:49 - 16:58]
+Now, one, the main objective of this lecture really is to discuss the modeling of a synchronous machine.
+
+% [16:58 - 17:04]
+So, before we go into modeling, we should of course look at what are the basic assumptions that we have.
+
+% [17:04 - 17:07]
+Now, remember that no modeling can be perfect.
+
+% [17:07 - 17:09]
+In the sense that we, for example,
+
+% [17:09 - 17:12]
+In fact, if we try to
+
+% [17:12 - 17:22]
+So, if you do some kind of perfect modeling, you will find that the problem becomes altogether intractable. So, if somebody says that well, I will use Newton's law as well as Maxwell's equations.
+
+% [17:22 - 17:27]
+And derive all the equations of a synchronous machine right from scratch
+
+% [17:27 - 17:33]
+With no assumptions whatsoever, you will find that it is almost impossible to get anywhere.
+
+% [17:33 - 17:36]
+So, what we will do is do a simplified modeling.
+
+% [17:36 - 17:40]
+With the understanding that the modeling which we are going to do
+
+% [17:40 - 17:47]
+We will be valid for certain kinds of transient responses. Specifically, we will be taking out the lumped circuit model of a synchronous machine.
+
+% [17:47 - 17:51]
+So, obviously this kind of model will not be adequate
+
+% [17:51 - 17:57]
+To study phenomena which are affected by pericetics and so on.
+
+% [17:57 - 18:01]
+So, what we will have is a lumped kind of circuit model and
+
+% [18:01 - 18:05]
+Roughly, you can say that phenomena or phenomena which have rates of change
+
+% [18:05 - 18:07]
+We tattered up.
+
+% [18:07 - 18:11]
+Or which kind of last more than…
+
+% [18:11 - 18:14]
+Say, 1 millisecond can be studied
+
+% [18:14 - 18:16]
+Reasonably well by this kind of model.
+
+% [18:16 - 18:21]
+Now, I will just read out the main assumptions which we are going to make.
+
+% [18:21 - 18:27]
+One of the important assumptions we are going to make is that there is going to be a sinusoidal distribution of MMF in an air gap.
+
+% [18:27 - 18:32]
+So, the air gap in the synchronous machine will see a sinusoidal
+
+% [18:32 - 18:41]
+So, this is an assumption. Actually, we do have almost sinusoidal distribution of MMS because of the winding arrangements which are used
+
+% [18:41 - 18:43]
+In a synchronous machine.
+
+% [18:43 - 18:49]
+Another assumption we will make is that saliency is restricted to the rotor, that is,
+
+% [18:49 - 18:53]
+We will not be considering the saliency due to the slots on the stator winding.
+
+% [18:53 - 18:59]
+As the armature winding is housed on the stator,
+
+% [18:59 - 19:03]
+And you have got slots in it to house the windings.
+
+% [19:03 - 19:05]
+We will neglect the
+
+% [19:05 - 19:15]
+Saliency which occurs or the changes in reluctance which occur due to the slots on the stator. So, only saliency which will be considered is due to the rotor structure.
+
+% [19:15 - 19:16]
+
+
+% [19:16 - 19:26]
+Another very important assumption which we will make is that saturation and hysteresis are neglected. So, we can consider the machine as more as a linear magnetic
+
+% [19:26 - 19:31]
+And because of this assumption, we will be actually be able to
+
+% [19:31 - 19:34]
+Simplifier analysis to a very great extent.
+
+% [19:34 - 19:40]
+Of course, at some point or the other you may have to relax this assumption of saturation.
+
+% [19:40 - 19:42]
+To get realistic answers.
+
+% [19:42 - 19:46]
+But, to get a basic model, we will make this assumption.
+
+% [19:46 - 19:52]
+What we will do is we will create this model based on this assumption and try to have some kind of correction
+
+% [19:52 - 19:58]
+So, this is the kind of pragmatic approach we can follow.
+
+% [19:58 - 20:08]
+And, , sometime we will be getting a lump circuit model. We will not be modeling things like parasitic capacitances or winding capacitances and so on. So, our model is effectively
+
+% [20:08 - 20:12]
+We are restricted to the study of relatively slow transients, not fast transients.
+
+% [20:12 - 20:17]
+One more thing of course, which I have mentioned sometime back is
+
+% [20:17 - 20:22]
+That, if you look at the angular position or the rotor position,
+
+% [20:22 - 20:24]
+And if you look at the phase
+
+% [20:24 - 20:26]
+So, we have seen that $E_m^F$ which are
+
+% [20:26 - 20:30]
+Developed or for example, speed
+
+% [20:30 - 20:34]
+So, the frequency of, or rather the frequency of emfs which are
+
+% [20:34 - 20:42]
+Developed on the armature winding, they have this relationship. This is something which we just did sometime back. The electrical speed or the
+
+% [20:42 - 20:44]
+Frequency of
+
+% [20:44 - 20:48]
+EMF generated on this armature windings
+
+% [20:48 - 20:56]
+So, this is the equation of the equation of the equation. So, we will write the equation of the equation.
+
+% [20:56 - 20:59]
+Before we
+
+% [20:59 - 21:01]
+Go on for…
+
+% [21:01 - 21:03]
+The actual analysis.
+
+% [21:03 - 21:08]
+What we will do initially is kind of do a simplified analysis
+
+% [21:08 - 21:13]
+Now, we will try to infer the second-order system (machine).
+
+% [21:13 - 21:14]
+What would happen if you got
+
+% [21:14 - 21:18]
+So, what we will do essentially is consider first of all
+
+% [21:18 - 21:20]
+A two-pole machine.
+
+% [21:20 - 21:30]
+Actually, whatever we will be doing does not, we do not lose generality because later on we will see that it really does not matter whether it is a two-pole machine or four-pole.
+
+% [21:30 - 21:32]
+machine as long as.
+
+% [21:32 - 21:38]
+Now, we take into account the correct equations, but the basic derivations look practically similar.
+
+% [21:38 - 21:39]
+Okay.
+
+% [21:39 - 21:41]
+Uh...
+
+% [21:41 - 21:47]
+We represent a synchronous machine. This is a schematic representation of a synchronous machine.
+
+% [21:47 - 21:49]
+You have got three.
+
+% [21:49 - 21:54]
+Winding on the stator: This is the A winding, B winding, and C winding.
+
+% [21:54 - 21:58]
+We assume that the rotor moves in this direction.
+
+% [21:58 - 22:07]
+So, whatever happens in the A winding happens to the B winding after some time. So, there is a phase lag of 120 degrees between the B
+
+% [22:07 - 22:11]
+And the A winding and the C and the B winding respectively.
+
+% [22:11 - 22:18]
+Now, one important point: What are the electromagnetic circuits on the rotor?
+
+% [22:18 - 22:23]
+Of course, there is a field winding. So, you have got this as shown here: the field winding.
+
+% [22:23 - 22:25]
+So, it is a very simple equation.
+
+% [22:25 - 22:30]
+That field winding is obviously fed from a DC voltage source.
+
+% [22:30 - 22:38]
+Now, one more interesting point which you should note is that you also have other electromagnetic circuits though they are not necessarily in the form of windings.
+
+% [22:38 - 22:44]
+We have, for example, in a synchronous machine, a steam turbine-driven generator might have
+
+% [22:44 - 22:46]
+Eddy currents on the rotor.
+
+% [22:46 - 22:52]
+In case of hydraulic driven turbines, you have got actually a squirrel cage winding
+
+% [22:52 - 22:56]
+Squirrel-cage-like winding on the pole face.
+
+% [22:56 - 23:00]
+So, what you really see is that the effect of these
+
+% [23:00 - 23:07]
+The eddy currents are what are known as the squirrel-cage currents or dampers, as they're all alternative names.
+
+% [23:07 - 23:11]
+The effect of this is captured using these
+
+% [23:11 - 23:17]
+Coyle coils, which are short-circuited on themselves, after all, dampers and eddy currents are a type of.
+
+% [23:17 - 23:19]
+Circulating current.
+
+% [23:19 - 23:23]
+You have the basic damper winding.
+
+% [23:23 - 23:24]
+This is represented by
+
+% [23:24 - 23:29]
+A coil of this kind, of course, these, this is an approximate representation
+
+% [23:29 - 23:32]
+For example, in steam turbine,
+
+% [23:32 - 23:39]
+So, for the given generators you do not actually have, you may not have any specific damper bars.
+
+% [23:39 - 23:41]
+The eddy currents are there.
+
+% [23:41 - 23:46]
+But, their effect is captured by this winding as well as windings on this axis.
+
+% [23:46 - 23:53]
+So, you can have eddy currents on this axis, you can have circulating currents on this axis as well as this axis.
+
+% [23:53 - 23:56]
+This, let me just clarify one point.
+
+% [23:56 - 23:58]
+The axis
+
+% [23:58 - 24:02]
+On the field on which it is also known as the direct axis.
+
+% [24:02 - 24:07]
+The axis, quadratic with respect to this direct axis is called a
+
+% [24:07 - 24:11]
+So, the quadrature axis, also known as the D-axis.
+
+% [24:11 - 24:15]
+So, what we do is model three windings for
+
+% [24:15 - 24:24]
+The phase windings, which are on the stator, along with your field winding, there are these additional three windings that collectively represent.
+
+% [24:24 - 24:29]
+representing the damper winding and eddy current effects.
+
+% [24:29 - 24:32]
+Now, you may ask why 2, why not 3?
+
+% [24:32 - 24:34]
+Oh, y2, why not 1?
+
+% [24:34 - 24:40]
+The answer to this question is that this is a model and we will try to fit
+
+% [24:40 - 24:48]
+So, our observations into the model, so what we will do is, we will assume that there are two windings, which completely capture the response of
+
+% [24:48 - 24:50]
+A two-winding of the quadrature axis
+
+% [24:50 - 24:53]
+And two windings on the direct axis, which
+
+% [24:53 - 24:56]
+So, we have completely captured the effects of the rotor.
+
+% [24:56 - 24:58]
+So, we will see how these circuits are done.
+
+% [24:58 - 25:05]
+So, this is an assumption in the sense that somebody may say you can have more, the answer is yes, you can have more.
+
+% [25:05 - 25:09]
+But often it is seen as far as steam turbine driven generators are concerned
+
+% [25:09 - 25:14]
+You require these many windings and their parameters
+
+% [25:14 - 25:18]
+To represent the kind of dynamics which you will
+
+% [25:18 - 25:20]
+See you from actual measurements.
+
+% [25:20 - 25:23]
+Observations in actual tests which you will do.
+
+% [25:23 - 25:32]
+In fact, for hydraulic turbine machines, it may be even possible to represent the whole system by a lower order model, that is, using lesser number of circuits. In fact,
+
+% [25:32 - 25:38]
+In some cases, you may neglect the k winding when we are modeling a hydraulic turbine because
+
+% [25:38 - 25:48]
+A model consisting of these number of windings with their parameters can accurately represent the kind of observations which are seen in the tests.
+
+% [25:48 - 25:52]
+So, right now let us derive the model for
+
+% [25:52 - 25:56]
+These three stator windings, a field winding
+
+% [25:56 - 26:02]
+And these other three circuits which represent eddy and cage/damper winding effects.
+
+% [26:02 - 26:04]
+And then
+
+% [26:04 - 26:09]
+If required later, we can simplify things by opening one of these windings.
+
+% [26:09 - 26:17]
+And get a lower order model, but let us initially get a higher order model and try to represent our system. Remember of course,
+
+% [26:17 - 26:21]
+That, when I say that this is a winding, this is a schematic representation.
+
+% [26:21 - 26:29]
+I have talked of the axis of the field winding, this is the axis of the A winding, this is the axis of the B winding, this is the axis of the C winding. What do I mean?
+
+% [26:29 - 26:33]
+For example, when I say that this is the a winding and this is its axis,
+
+% [26:33 - 26:40]
+What I mean is of course, that your A winding is wound like this, this is the overhang portion of the end region of the machine.
+
+% [26:40 - 26:42]
+This is just one winding.
+
+% [26:42 - 26:46]
+So, this winding means
+
+% [26:46 - 26:48]
+It is schematically represented
+
+% [26:48 - 26:50]
+Like this.
+
+% [26:50 - 26:55]
+And its axis is like this. So, this is what I mean by axis of a winding.
+
+% [26:55 - 26:56]
+And
+
+% [26:56 - 27:03]
+Now, a schematic representation like this is actually implying a set of findings which are in this plane
+
+% [27:03 - 27:07]
+And, the flux they cause if current flows through them.
+
+% [27:07 - 27:11]
+It would be like this. So, this is what I mean by axis of a binding.
+
+% [27:11 - 27:17]
+Now, what we need to do of course, when we are representing this as a circuit
+
+% [27:17 - 27:20]
+Now, is compute the various
+
+% [27:20 - 27:24]
+Mutual and self-inductances between all these windings.
+
+% [27:24 - 27:30]
+So, you may want to for example, have the mutual inductance between this winding and this winding or this winding and this winding.
+
+% [27:30 - 27:34]
+And of course, these things will be dependent upon
+
+% [27:34 - 27:36]
+The angle $\theta$.
+
+% [27:36 - 27:42]
+Right now, we are talking about a two-pole machine. So, there is no distinction between the mechanical and electrical angles.
+
+% [27:42 - 27:51]
+And physical angle, electrical angle or the mechanical speed and the frequency of the EMF which are generated. So, they are exactly equivalent.
+
+% [27:51 - 27:53]
+So, right now let us
+
+% [27:53 - 27:57]
+Restrict our attention to a four-pole machine, two-pole machine, I apologize.
+
+% [27:57 - 27:59]
+Okay.
+
+% [27:59 - 28:09]
+Now, so what we need to do if you want to describe the machine is obtain a relationship between flux $\psi$, $H(s)$, and impedance $Z(s)$.
+
+% [28:09 - 28:10]
+E
+
+% [28:10 - 28:13]
+And the rest of the currents.
+
+% [28:13 - 28:15]
+Ia, Ib, Ic.
+
+% [28:15 - 28:19]
+I f, i h, i g, i k are in fact the three
+
+% [28:19 - 28:20]
+Windings which
+
+% [28:20 - 28:22]
+Capture the effect of eddy currents.
+
+% [28:22 - 28:26]
+As well as damper bar currents.
+
+% [28:26 - 28:29]
+$\psi_a = \psi_a = \psi_a = \psi_a = \psi$
+
+% [28:29 - 28:34]
+A matrix or rather you can say psi a, psi b, psi c, psi f, psi g, psi k.
+
+% [28:34 - 28:38]
+These are equal to $L \mathbf{I}$.
+
+% [28:38 - 28:42]
+So, the structure of this $L$ matrix is indeed
+
+% [28:42 - 28:44]
+LSS,
+
+% [28:44 - 28:46]
+LSR, LSR,
+
+% [28:46 - 28:54]
+$R_s \text{ and } L_r$, remember $I_a, I_b, I_c$ are what are known as the stator currents, so I will call them as $I_s$.
+
+% [28:54 - 28:57]
+Together they are what are known as I s.
+
+% [28:57 - 29:04]
+I R is consisting of I f, I h, I g and I k. These are the different windings which we have seen in the previous slide.
+
+% [29:04 - 29:07]
+Similarly, of $\psi_s$ and $\psi_r$.
+
+% [29:07 - 29:15]
+So, LSS is the matrix relating $\psi_s$ and $i_s$, and it is a 3x3 matrix. Similarly,
+
+% [29:15 - 29:22]
+$L_R$ is a 4x4 matrix because it is the relationship between $L_S$ and $R_L$.
+
+% [29:22 - 29:26]
+$\psi_r$, which has four components, and $i_r$, which also has four components.
+
+% [29:26 - 29:30]
+So, now the important thing we need to derive
+
+% [29:30 - 29:32]
+Are these components
+
+% [29:32 - 29:36]
+So, that is the key challenge now.
+
+% [29:36 - 29:38]
+Now, why is it a challenge?
+
+% [29:38 - 29:41]
+One of the reasons why it is a challenge
+
+% [29:41 - 29:45]
+The mutual inductances in some cases
+
+% [29:45 - 29:49]
+Or even sometimes the self-inductances are dependent on the rotor position.
+
+% [29:49 - 29:52]
+Why is that so?
+
+% [29:52 - 30:01]
+Well, you can easily imagine that the amount of flux linked in for example, these coils here
+
+% [30:01 - 30:03]
+Due to a current here,
+
+% [30:03 - 30:06]
+We will change according to the position of the rotor.
+
+% [30:06 - 30:11]
+These are indeed on the rotor; therefore, they will change in accordance with the rotor's position, which is a notable point.
+
+% [30:11 - 30:12]
+Okay.
+
+% [30:12 - 30:13]
+
+
+% [30:13 - 30:18]
+Another problem which may occur is because of saliency
+
+% [30:18 - 30:25]
+You will find that the mutual inductance between even the self-inductances may change. For example,
+
+% [30:25 - 30:27]
+If you look at, if you look at the, if you look at the, if you look at the
+
+% [30:27 - 30:30]
+Suppose, you have got the
+
+% [30:30 - 30:36]
+So, A winding housed in say just for the timing let us assume it is housed in one slot
+
+% [30:36 - 30:39]
+So, we have got the A winding housed in this slot.
+
+% [30:39 - 30:45]
+If try to, if there is a current flow in this A winding, so the A winding, the current say enters here,
+
+% [30:45 - 30:47]
+Gauss in the machine
+
+% [30:47 - 30:52]
+Comes out at the end region at the other end and then again enters the machine slot
+
+% [30:52 - 30:56]
+And comes out here. So, if you look at this kind of
+
+% [30:56 - 31:01]
+Suppose, this is the A winding, it will create a flux in this
+
+% [31:01 - 31:04]
+So, you will have a flux like this.
+
+% [31:04 - 31:05]
+
+
+% [31:05 - 31:07]
+Flux of this kind.
+
+% [31:07 - 31:11]
+This is an open circuit that tends to cause a current flow in this direction.
+
+% [31:11 - 31:18]
+Of course, the amount of flux you will you can barely imagine that the amount of flux which you will get under in this condition
+
+% [31:18 - 31:23]
+It will be much more than the flux you will have under this situation. Why is it so?
+
+% [31:23 - 31:27]
+Because, the reluctance of path is going to be more. So, if you have got
+
+% [31:27 - 31:28]
+
+
+% [31:28 - 31:30]
+Again,
+
+% [31:30 - 31:34]
+Current in the A winding, suppose it is just one winding,
+
+% [31:34 - 31:42]
+You will find that the current, the flux which will be induced tends to align with the magnetic paths, including the air gap.
+
+% [31:42 - 31:44]
+This air gap is more on this axis.
+
+% [31:44 - 31:49]
+And, less here, so you will find it, there is flux which is
+
+% [31:49 - 31:50]
+
+
+% [31:50 - 31:53]
+It goes like this.
+
+% [31:53 - 31:57]
+But the flux here will try to tend to stick to this.
+
+% [31:57 - 31:59]
+Now, of course,
+
+% [31:59 - 32:06]
+Trying to find out the flux path requires you to do a full electromagnetic analysis, but you will notice that the reluctance
+
+% [32:06 - 32:10]
+It is likely to be more
+
+% [32:10 - 32:20]
+And the flux created is likely to be less if the rotor is in this position for a salient pole machine. This is not true, however, for a cylindrical
+
+% [32:20 - 32:24]
+So, this is a pole machine because we will find that practically
+
+% [32:24 - 32:28]
+The reluctance is the same for a cylindrical machine.
+
+% [32:28 - 32:30]
+So, the self-inductance of
+
+% [32:30 - 32:37]
+This is a winding will also depend on the rotor position. So, that is one important point which you should
+
+% [32:37 - 32:38]
+Remember.
+
+% [32:38 - 32:42]
+Now, let us first let us just speak
+
+% [32:42 - 32:44]
+To a cylindrical pole machine,
+
+% [32:44 - 32:47]
+Now, one of the important things which
+
+% [32:47 - 32:48]
+What we wish to do is
+
+% [32:48 - 32:50]
+Try to see how
+
+% [32:50 - 32:59]
+The flux will be in case for under several circumstances. See what we need to do is if you want to find out the inductance
+
+% [32:59 - 33:04]
+So, of self-inductance or mutual inductance, what we need to do is first of all,
+
+% [33:04 - 33:07]
+For example, if I want to find out
+
+% [33:07 - 33:10]
+The mutual inductance
+
+% [33:10 - 33:11]
+
+
+% [33:11 - 33:13]
+
+
+% [33:13 - 33:14]
+
+
+% [33:14 - 33:16]
+The mutual
+
+% [33:16 - 33:18]
+Inductance,
+
+% [33:18 - 33:20]
+
+
+% [33:20 - 33:21]
+
+
+% [33:21 - 33:24]
+Between the a winding
+
+% [33:24 - 33:28]
+The phase angle $a$ winding and say the field winding
+
+% [33:28 - 33:30]
+Then what you need to do is, you need to know that the
+
+% [33:30 - 33:34]
+Assume that a current flows
+
+% [33:34 - 33:36]
+In the A winding,
+
+% [33:36 - 33:40]
+That will of course create a flux, an MMF.
+
+% [33:40 - 33:43]
+In the air gap,
+
+% [33:43 - 33:50]
+So, let us assume that there is only current in the A binding. So, you will have current in the A binding that will create an mmf.
+
+% [33:50 - 33:55]
+That will be N A into I A, but of course, this I should call this, this is not the
+
+% [33:55 - 33:57]
+This is equivalent number of turns.
+
+% [33:57 - 34:04]
+So, you will have some constant into I A is the m f which is caused in the air gap. Of course,
+
+% [34:04 - 34:07]
+When I say M F is caused,
+
+% [34:07 - 34:12]
+In the core, it is a function of the angular position. I will just
+
+% [34:12 - 34:15]
+Try to elaborate on this in a few seconds from now.
+
+% [34:15 - 34:21]
+Now, this is the M F which is caused, which is proportional to by some constant N A into I A.
+
+% [34:21 - 34:24]
+The MMF will cause some flux.
+
+% [34:24 - 34:31]
+But, this is all, this is the function of the angular position, let us say I call this angular position
+
+% [34:31 - 34:33]
+$\phi$ for the time being.
+
+% [34:33 - 34:41]
+This will cause a flux.
+
+% [34:41 - 34:43]
+This also will have a
+
+% [34:43 - 34:48]
+Angular distribution, it is not a constant value everywhere in the air gap.
+
+% [34:48 - 34:54]
+Then, you will have to find out what is the component of flux which is linked
+
+% [34:54 - 34:56]
+With the field winding,
+
+% [34:56 - 34:57]
+
+
+% [34:57 - 35:02]
+So, once you calculate the component of flux which is linked with the
+
+% [35:02 - 35:06]
+Field winding, while we will be able to compute the mutual inductance between
+
+% [35:06 - 35:09]
+So, that is the basic
+
+% [35:09 - 35:18]
+procedure we need to apply before we get actually what is the mutual inductance between the winding A and the winding F.
+
+% [35:18 - 35:22]
+Now, so how do I actually proceed?
+
+% [35:22 - 35:29]
+For example, let us just start off with trying to find out the mutual inductance between the winding A and the winding F.
+
+% [35:29 - 35:33]
+So, if I want to find out this mutual inductance of the winding,
+
+% [35:33 - 35:36]
+So, actually I am trying to take out
+
+% [35:36 - 35:38]
+The first component
+
+% [35:38 - 35:39]
+of
+
+% [35:39 - 35:45]
+This, rather, yes, the first component of this $LSR$ matrix.
+
+% [35:45 - 35:49]
+So, I am trying to get the relationship between flux linked
+
+% [35:49 - 35:51]
+I am sorry.
+
+% [35:51 - 35:55]
+I am trying to get the value of the flux linked with the field winding
+
+% [35:55 - 35:59]
+Due to a current iA, so I am sorry, what I should be saying is
+
+% [35:59 - 36:01]
+I am trying to find out.
+
+% [36:01 - 36:03]
+So, let us write this component first.
+
+% [36:03 - 36:08]
+So, just let us see the steps which we need to apply. So, if you have got
+
+% [36:08 - 36:13]
+A current in the A winding, let us say the A winding is
+
+% [36:13 - 36:23]
+Present in this slot, we will just assume for the time being it is concentrated, though a concentrated winding strictly speaking will never cause a sinusoidal M F in the code.
+
+% [36:23 - 36:26]
+But, let us say you have got this A winding in this slot.
+
+% [36:26 - 36:32]
+Now, we need to find out what is the MMF due to this $A$-minding first step.
+
+% [36:32 - 36:34]
+So, I am going to do this.
+
+% [36:34 - 36:43]
+To do that, of course, it is going to be proportional to the current and the number of turns and how these windings of the, how these A winding is distributed.
+
+% [36:43 - 36:45]
+So, let me just
+
+% [36:45 - 36:50]
+Redo this in the slightly smaller sheet, so that smaller diagram.
+
+% [36:50 - 36:51]
+So, if you have got
+
+% [36:51 - 37:01]
+So, we have a current flowing in the A winding, let us say it is distributed actually, but let me just represent it right now by a concentrator winding. So, this is your A
+
+% [37:01 - 37:03]
+Winding.
+
+% [37:03 - 37:06]
+And a current flows through this. Now, what I have told you before
+
+% [37:06 - 37:10]
+Now, the problem is that the MMS will assume caused by any winding
+
+% [37:10 - 37:14]
+This is going to be sinusoidally distributed in the core.
+
+% [37:14 - 37:16]
+In the air gap,
+
+% [37:16 - 37:25]
+So, what we will assume is that the MMF which is created by the A winding is going to be sinusoidally distributed, but of course, the B winding also causes the sinusoidally
+
+% [37:25 - 37:30]
+Distributed MMF in the air gap, but one difference is there.
+
+% [37:30 - 37:34]
+The MMF which is caused by the A winding will be maximum
+
+% [37:34 - 37:37]
+Or it tends to cause
+
+% [37:37 - 37:42]
+If you have got a cylindrical rotor, of course, it will cause maximum flux in this direction.
+
+% [37:42 - 37:47]
+So, we expect the MMF to be maximum here.
+
+% [37:47 - 37:48]
+
+
+% [37:48 - 37:54]
+So, then it tries to cause a flux like this. So, your flux caused is
+
+% [37:54 - 37:56]
+Like this.
+
+% [37:56 - 37:59]
+So, what we see is that the MMF
+
+% [37:59 - 38:00]
+
+
+% [38:00 - 38:01]
+
+
+% [38:01 - 38:03]
+Okay.
+
+% [38:03 - 38:04]
+Caused
+
+% [38:04 - 38:06]
+
+
+% [38:06 - 38:07]
+
+
+% [38:07 - 38:08]
+
+
+% [38:08 - 38:10]
+
+
+% [38:10 - 38:13]
+So, is maximum here?
+
+% [38:13 - 38:17]
+Let us call this position as the $\beta$ position.
+
+% [38:17 - 38:19]
+So, maximum here.
+
+% [38:19 - 38:21]
+And it
+
+% [38:21 - 38:23]
+Tends to drop
+
+% [38:23 - 38:25]
+As $\beta$ increases,
+
+% [38:25 - 38:31]
+It becomes 0 here because there is very little flux which is caused in these directions
+
+% [38:31 - 38:32]
+By the current A,
+
+% [38:32 - 38:36]
+In fact, it is practically 0.
+
+% [38:36 - 38:38]
+So, there will be no flux entering the
+
+% [38:38 - 38:40]
+Go in this direction.
+
+% [38:40 - 38:43]
+So, what we will assume is that
+
+% [38:43 - 38:46]
+What we really see is that the MMF is
+
+% [38:46 - 38:51]
+Tends to cause a flux, maximum flux. So, $M_F$ will be maximum.
+
+% [38:51 - 38:53]
+In this direction, in fact,
+
+% [38:53 - 38:58]
+It tends to cause maximum flux in a cylindrical machine also in this direction. So,
+
+% [38:58 - 39:02]
+It is maximum when $\beta = 0$. So, I will just
+
+% [39:02 - 39:05]
+I will just take this $\beta = 0$ here.
+
+% [39:05 - 39:11]
+This is $\beta = 0$, so MMF is maximum here.
+
+% [39:11 - 39:14]
+It becomes 0.
+
+% [39:14 - 39:17]
+When $\beta$ equals $90^\circ$,
+
+% [39:17 - 39:21]
+And it tends to cause flux.
+
+% [39:21 - 39:24]
+In the opposite direction because it kind of
+
+% [39:24 - 39:31]
+It causes a flux which comes out of the air gap here and goes in here. So, the M F is negative after 90 degrees.
+
+% [39:31 - 39:32]
+In this region,
+
+% [39:32 - 39:35]
+This is the peak here.
+
+% [39:35 - 39:36]
+
+
+% [39:36 - 39:38]
+Okay.
+
+% [39:38 - 39:40]
+So, this is
+
+% [39:40 - 39:43]
+How your MMF looks like?
+
+% [39:43 - 39:45]
+
+
+% [39:45 - 39:47]
+90,
+
+% [39:47 - 39:49]
+180, 180.
+
+% [39:49 - 39:51]
+And back here.
+
+% [39:51 - 39:55]
+So, just to make our analysis a bit simplified,
+
+% [39:55 - 40:05]
+Whenever I say that the MMF, whenever I will kind of represent this kind of MMF by a vector in this direction. So, if I show a MMF by a vector in
+
+% [40:05 - 40:10]
+In this direction, what does it mean? Its maximum M F is in this direction and drops off sinusoidally like this.
+
+% [40:10 - 40:13]
+So, the MMF of the B winding will be
+
+% [40:13 - 40:15]
+Can be represented
+
+% [40:15 - 40:18]
+Like this, in this direction.
+
+% [40:18 - 40:22]
+So, when I show a vector like this, it means this.
+
+% [40:22 - 40:25]
+If I show a vector like this, what does it mean?
+
+% [40:25 - 40:28]
+It reaches its peak value
+
+% [40:28 - 40:29]
+Act.
+
+% [40:29 - 40:33]
+120 degrees here, this is 120 degrees.
+
+% [40:33 - 40:35]
+So,
+
+% [40:35 - 40:38]
+An MMF caused by the B winding
+
+% [40:38 - 40:47]
+Current in the B winding will be in this, will be represented by this arrow. So, when I should represent a mmf by this arrow, I really mean that the flux
+
+% [40:47 - 40:51]
+So, distribution in the core is something like this. It is speaking here
+
+% [40:51 - 40:53]
+At 120 degrees.
+
+% [40:53 - 40:55]
+Thanks.
+
+% [40:55 - 40:58]
+This is due to B winding, this is due to the A winding.
+
+% [40:58 - 41:07]
+So, this will simplify our analysis a bit by if we represent the M M by a single arrow, but a single arrow means this.
+
+% [41:07 - 41:11]
+So, that is something which you should remember and the distribution we assume is sinusoidal.
+
+% [41:11 - 41:15]
+So, suppose I want to take out the mutual inductance between
+
+% [41:15 - 41:20]
+So, the $A$-winding and the field-winding, what do I need to do is first
+
+% [41:20 - 41:22]
+Take out the M F.
+
+% [41:22 - 41:24]
+Is that ok?
+
+% [41:24 - 41:29]
+Now, once I take out the MMF, I need to compute the flux.
+
+% [41:29 - 41:33]
+So, the next step is compute the flux.
+
+% [41:33 - 41:38]
+Now, the flux if it is a cylindrical rotor machine is quite straightforward because
+
+% [41:38 - 41:40]
+Reluctance of a cylindrical
+
+% [41:40 - 41:43]
+Rotor, cylindrical rotor machine,
+
+% [41:43 - 41:49]
+It does not change with $\beta$. Thus, the flux is practically, for all practical purposes,
+
+% [41:49 - 41:50]
+
+
+% [41:50 - 41:54]
+If the, if there is a current flow only in the A winding,
+
+% [41:54 - 41:59]
+Then, the flux will be simply a replica or scaled
+
+% [41:59 - 42:03]
+, scaled waveform which is simply going to be
+
+% [42:03 - 42:06]
+Similar to this blue waveform which I have drawn here,
+
+% [42:06 - 42:09]
+So, flux also will be something like this.
+
+% [42:09 - 42:10]
+
+
+% [42:10 - 42:12]
+
+
+% [42:12 - 42:13]
+
+
+% [42:13 - 42:15]
+In the area.
+
+% [42:15 - 42:19]
+So, this is what a cylindrical
+
+% [42:19 - 42:20]
+Rotor machine,
+
+% [42:20 - 42:24]
+The kind of flux which will be created in the air gap
+
+% [42:24 - 42:26]
+Due to the current
+
+% [42:26 - 42:29]
+In winding A,
+
+% [42:29 - 42:32]
+Now, whenever I am going to try to take out
+
+% [42:32 - 42:41]
+Now, the flux linked to the field winding, $F_s$, is given by: $F_s = \Phi_{airgap}$.
+
+% [42:41 - 42:45]
+Now, what I want to do is how much of this flux links with the
+
+% [42:45 - 42:48]
+So, what do I do is, I
+
+% [42:48 - 42:49]
+
+
+% [42:49 - 42:53]
+Where is the field mining? Suppose at
+
+% [42:53 - 42:55]
+I want to take out
+
+% [42:55 - 43:00]
+The mutual inductance when the field winding is aligned
+
+% [43:00 - 43:01]
+At an angle
+
+% [43:01 - 43:04]
+Now, let us look at the equation of $\theta$.
+
+% [43:04 - 43:05]
+
+
+% [43:05 - 43:06]
+
+
+% [43:06 - 43:08]
+
+
+% [43:08 - 43:09]
+
+
+% [43:09 - 43:10]
+
+
+% [43:10 - 43:18]
+Suppose the field winding is aligned at an angle $\theta$, what does it mean for it to be aligned at an angle of $\theta$?
+
+% [43:18 - 43:20]
+The field winding is located here.
+
+% [43:20 - 43:22]
+It is wound here.
+
+% [43:22 - 43:25]
+So, the field winding is
+
+% [43:25 - 43:27]
+Here,
+
+% [43:27 - 43:31]
+At an angle $\theta$, so how much of this flux?
+
+% [43:31 - 43:36]
+So, this is actually linking this field winding. So, I will just redraw this again.
+
+% [43:36 - 43:38]
+Say I have got a
+
+% [43:38 - 43:40]
+The a winding
+
+% [43:40 - 43:43]
+It is causing a flux which is
+
+% [43:43 - 43:49]
+As I mentioned, I am representing it by an arrow like this. What it means of course, is the peak value is in this direction.
+
+% [43:49 - 43:53]
+And drops of sinusoidally as $\beta$ increases.
+
+% [43:53 - 43:55]
+Suppose the field winding is
+
+% [43:55 - 43:57]
+Here
+
+% [43:57 - 43:58]
+
+
+% [43:58 - 43:59]
+
+
+% [43:59 - 44:01]
+
+
+% [44:01 - 44:02]
+
+
+% [44:02 - 44:06]
+This is wound here, I am showing it again as just
+
+% [44:06 - 44:10]
+One winding, one turn, but normally it is
+
+% [44:10 - 44:14]
+Wound over the periphery and has an axis here.
+
+% [44:14 - 44:16]
+Similarly, the A winding though I have shown it as
+
+% [44:16 - 44:19]
+Just two conductors actually
+
+% [44:19 - 44:24]
+It is wound over the periphery of the machine and it has its axis like this.
+
+% [44:24 - 44:26]
+So, the field winding axis says
+
+% [44:26 - 44:29]
+At a given point of time, the field is aligned
+
+% [44:29 - 44:35]
+Remember the field is rotating; this rotor is also rotating, so this field is aligned at an angle $\theta$.
+
+% [44:35 - 44:36]
+
+
+% [44:36 - 44:37]
+
+
+% [44:37 - 44:39]
+
+
+% [44:39 - 44:41]
+And the flux
+
+% [44:41 - 44:42]
+
+
+% [44:42 - 44:44]
+
+
+% [44:44 - 44:45]
+
+
+% [44:45 - 44:46]
+
+
+% [44:46 - 44:48]
+
+
+% [44:48 - 44:49]
+
+
+% [44:49 - 44:50]
+And
+
+% [44:50 - 44:52]
+
+
+% [44:52 - 44:53]
+Okay.
+
+% [44:53 - 44:55]
+Okay.
+
+% [44:55 - 44:56]
+So,
+
+% [44:56 - 44:57]
+
+
+% [44:57 - 45:01]
+And this is the angular position $\theta$.
+
+% [45:01 - 45:03]
+Okay.
+
+% [45:03 - 45:07]
+This is $\beta = 0$, and $\beta = \theta$.
+
+% [45:07 - 45:12]
+Now, the thing is how much of this flux is actually linking with this winding?
+
+% [45:12 - 45:16]
+So, a flux is going in, actually if you look at the flux, it is
+
+% [45:16 - 45:19]
+It's in this direction.
+
+% [45:19 - 45:22]
+I will just redraw it here.
+
+% [45:22 - 45:24]
+So, that it becomes easy to understand.
+
+% [45:24 - 45:29]
+The flux due to the a winding is going in is
+
+% [45:29 - 45:30]
+So, this is the definition of this kind.
+
+% [45:30 - 45:32]
+
+
+% [45:32 - 45:33]
+
+
+% [45:33 - 45:34]
+
+
+% [45:34 - 45:37]
+Like this.
+
+% [45:37 - 45:38]
+And maximum of course here.
+
+% [45:38 - 45:39]
+
+
+% [45:39 - 45:41]
+
+
+% [45:41 - 45:46]
+Now, if you have got a coil which is aligned at $\theta$,
+
+% [45:46 - 45:50]
+How much of the flux will actually get linked with it?
+
+% [45:50 - 45:57]
+The answer is that the flux, total flux, you will have to compute this
+
+% [45:57 - 45:58]
+The flux density
+
+% [45:58 - 46:02]
+And integrate it over this area, this whole area.
+
+% [46:02 - 46:06]
+You can imagine that it is going to be
+
+% [46:06 - 46:09]
+This is dependent upon this $\theta$.
+
+% [46:09 - 46:14]
+What is it going to be? For example, if $\theta = 0$,
+
+% [46:14 - 46:16]
+All this, almost all of this flux
+
+% [46:16 - 46:18]
+We will get link with
+
+% [46:18 - 46:21]
+The field winding, indeed there will be some leakage, but
+
+% [46:21 - 46:24]
+It will be maximum, the linkage will be maximum here.
+
+% [46:24 - 46:27]
+Reduce, reduce, reduce and in fact,
+
+% [46:27 - 46:30]
+So, if you are
+
+% [46:30 - 46:32]
+$\theta =$
+
+% [46:32 - 46:33]
+Okay.
+
+% [46:33 - 46:35]
+
+
+% [46:35 - 46:37]
+90 degrees, you will find it.
+
+% [46:37 - 46:39]
+
+
+% [46:39 - 46:40]
+So,
+
+% [46:40 - 46:49]
+The total flux linking this winding, so to link what you need to have is the flux goals, suppose this is the winding, the flux needs to go in.
+
+% [46:49 - 46:52]
+Now, if you look, if the flux is like this,
+
+% [46:52 - 46:56]
+And the winding is like this, nothing is going in it, just
+
+% [46:56 - 47:03]
+The flux is in this direction. So, no flux is actually linking this winding if $\theta = 90^\circ$.
+
+% [47:03 - 47:09]
+So, you can imagine that your flux, in fact, the linkage of flux is dependent on $\theta$.
+
+% [47:09 - 47:11]
+So, it is maximum here.
+
+% [47:11 - 47:20]
+Minimum here, $0$ here, in fact the linkage becomes negative because the flux direction is reversed as far as the field winding is concerned when the
+
+% [47:20 - 47:22]
+Field becomes 180 degrees.
+
+% [47:22 - 47:25]
+So, one can expect that
+
+% [47:25 - 47:27]
+The mutual inductance between
+
+% [47:27 - 47:31]
+That is the mutual inductance between
+
+% [47:31 - 47:32]
+
+
+% [47:32 - 47:36]
+A winding and the field winding will indeed be
+
+% [47:36 - 47:38]
+Have the form
+
+% [47:38 - 47:41]
+MAF,
+
+% [47:41 - 47:43]
+$\cos(\theta)$
+
+% [47:43 - 47:44]
+Now, we're going to do a little bit of a quick check of the equation.
+
+% [47:44 - 47:51]
+So, that is the most, this is the important point that the variation of the mutual inductance between
+
+% [47:51 - 47:56]
+The A winding and the field winding are likely to have a mutual inductance of this type.
+
+% [47:56 - 48:00]
+Let us now look at another term in our inductance matrix, which is
+
+% [48:00 - 48:08]
+The mutual inductance, the self-inductance of the A winding, this is again a simple, relatively simple
+
+% [48:08 - 48:10]
+Thing to, , imagine
+
+% [48:10 - 48:12]
+For example,
+
+% [48:12 - 48:14]
+You got the A winding.
+
+% [48:14 - 48:15]
+
+
+% [48:15 - 48:22]
+Again, I have shown it as a packed or concentrated winding. Actually, it is distributed along the periphery.
+
+% [48:22 - 48:27]
+Now, if you have got the A winding like this, it causes an MMF
+
+% [48:27 - 48:33]
+Whose vector representation, I have just discussed the vector representation some time ago is this.
+
+% [48:33 - 48:36]
+Now, if it is a salient pole machine,
+
+% [48:36 - 48:38]
+
+
+% [48:38 - 48:39]
+.
+
+% [48:39 - 48:45]
+Again, the flux caused will depend on this position because some time back,
+
+% [48:45 - 48:47]
+Yarrr.
+
+% [48:47 - 48:49]
+So,
+
+% [48:49 - 48:54]
+The flux length will be position dependent something here like this.
+
+% [48:54 - 48:56]
+No flux.
+
+% [48:56 - 48:58]
+Will you maximum here?
+
+% [48:58 - 49:00]
+There will be minimum here.
+
+% [49:00 - 49:02]
+And then again maximum here.
+
+% [49:02 - 49:04]
+So, if you have got a current
+
+% [49:04 - 49:11]
+Flow, and you have got a salient-pole machine, you will, you are, again your flux linkage is equal to the product of the number of poles N times the magnetic field strength H.
+
+% [49:11 - 49:21]
+With the A winding, due to a current in the A winding, it will be dependent on the rotor position in case of a cylindrical-pole machine. This is not true for a cylindrical-pole machine.
+
+% [49:21 - 49:25]
+You are likely to have practically the same flux even in
+
+% [49:25 - 49:32]
+This, even when the field winding is rotated by 90 degrees. So, it is a cylindrical-pole machine that will not be much of an issue.
+
+% [49:32 - 49:34]
+But if it is a salient-pole machine,
+
+% [49:34 - 49:36]
+You will find
+
+% [49:36 - 49:38]
+I'll just use this itself.
+
+% [49:38 - 49:41]
+We will find that the flux link
+
+% [49:41 - 49:45]
+It is dependent on position. So, you expect the self-inductance
+
+% [49:45 - 49:46]
+So, this is the definition of the A winding
+
+% [49:46 - 49:48]
+Due to
+
+% [49:48 - 49:49]
+
+
+% [49:49 - 49:51]
+
+
+% [49:51 - 49:57]
+Of the $A$-winding, in a salient-pole machine, it will be maximum at
+
+% [49:57 - 49:59]
+$\theta = \phi,$
+
+% [49:59 - 50:02]
+When the rotor position $\theta$ equals $0$,
+
+% [50:02 - 50:03]
+
+
+% [50:03 - 50:10]
+There will be a minimum at this position, which occurs when $\theta = 90^\circ$. Thus, this is $\theta$.
+
+% [50:10 - 50:12]
+And then,
+
+% [50:12 - 50:13]
+
+
+% [50:13 - 50:17]
+Maximum again when it is 180 degrees.
+
+% [50:17 - 50:19]
+So, one can expect
+
+% [50:19 - 50:25]
+That, the self-inductance of the A winding in general will be of this form.
+
+% [50:25 - 50:27]
+It will be
+
+% [50:27 - 50:28]
+L
+
+% [50:28 - 50:30]
+a
+
+% [50:30 - 50:33]
+$H_A$
+
+% [50:33 - 50:35]
+So, this is the equation of the equation of the equation.
+
+% [50:35 - 50:38]
+LAA0,
+
+% [50:38 - 50:40]
+$+$
+
+% [50:40 - 50:41]
+
+
+% [50:41 - 50:45]
+Now, some other term LAA2 let us say.
+
+% [50:45 - 50:49]
+We have $x(t) = \cos(2\theta)$.
+
+% [50:49 - 50:53]
+So, our variation will be something like this.
+
+% [50:53 - 50:58]
+In fact, of course, I have not proved it should be a sinusoidal or cosinusoidal variation.
+
+% [50:58 - 51:06]
+But, this follows if you assume that the MMF is actually distributed sinusoidally, MMF, fluxes, etcetera all distributed sinusoidally.
+
+% [51:06 - 51:08]
+You will find that in fact
+
+% [51:08 - 51:10]
+The flux linked
+
+% [51:10 - 51:15]
+And, the MMFs are distributed sinusoidally. You will find that this is the kind of
+
+% [51:15 - 51:17]
+Thing you can expect.
+
+% [51:17 - 51:25]
+So, your self-inductance term will look like this. Now, more difficult perhaps to imagine
+
+% [51:25 - 51:27]
+What is the self-inductance?
+
+% [51:27 - 51:30]
+Or rather the mutual inductance between
+
+% [51:30 - 51:33]
+The a winding
+
+% [51:33 - 51:39]
+And the B winding, so if what is the mutual inductance between the winding, the B winding
+
+% [51:39 - 51:43]
+So, if you are looking at current flow like this.
+
+% [51:43 - 51:45]
+What?
+
+% [51:45 - 51:50]
+Now, is the flux linked with the B winding, remember the B or the C winding, sorry, I will just
+
+% [51:50 - 51:54]
+This is the B winding, I am sorry, this is the C winding.
+
+% [51:54 - 51:57]
+The axis of the B winding is in this direction.
+
+% [51:57 - 51:58]
+
+
+% [51:58 - 51:59]
+Okay.
+
+% [51:59 - 52:03]
+So, when I am talking of
+
+% [52:03 - 52:05]
+Flux linked.
+
+% [52:05 - 52:07]
+In this
+
+% [52:07 - 52:08]
+
+
+% [52:08 - 52:09]
+
+
+% [52:09 - 52:11]
+
+
+% [52:11 - 52:15]
+B winding which is housed here,
+
+% [52:15 - 52:20]
+Again, I am showing it as a concentrated winding. Actually, it is distributed.
+
+% [52:20 - 52:21]
+This is the B winding.
+
+% [52:21 - 52:23]
+In green.
+
+% [52:23 - 52:26]
+The B winding, what is the flux link with the B winding?
+
+% [52:26 - 52:31]
+When current is I A flows through the A winding.
+
+% [52:31 - 52:35]
+So, how do you solve this problem?
+
+% [52:35 - 52:42]
+Now, with a cylindrical rotor machine, there is no major problem as far as deriving
+
+% [52:42 - 52:47]
+So, if you take a cylindrical rotor machine,
+
+% [52:47 - 52:48]
+
+
+% [52:48 - 52:49]
+
+
+% [52:49 - 52:52]
+You have got the A winding.
+
+% [52:52 - 52:53]
+Okay.
+
+% [52:53 - 52:54]
+
+
+% [52:54 - 52:56]
+And you have got
+
+% [52:56 - 52:57]
+
+
+% [52:57 - 53:00]
+The B winding
+
+% [53:00 - 53:01]
+
+
+% [53:01 - 53:02]
+Okay.
+
+% [53:02 - 53:09]
+The a winding causes an mmf in this direction represented by this vector
+
+% [53:09 - 53:14]
+It means that of course, the maximum is in this direction, it drops off sinusoidally.
+
+% [53:14 - 53:18]
+And the flux also, since actually the
+
+% [53:18 - 53:23]
+Reluctance is the same all throughout the air gap in a cylindrical pole machine. The flux also is
+
+% [53:23 - 53:24]
+
+
+% [53:24 - 53:28]
+Can be represented by this vector.
+
+% [53:28 - 53:32]
+But as I mentioned in case of the mutual
+
+% [53:32 - 53:35]
+Inductance between the $A$ winding and the field winding,
+
+% [53:35 - 53:40]
+The flux which is flowing in this direction, not the amount it links with
+
+% [53:40 - 53:43]
+So, the B winding is
+
+% [53:43 - 53:45]
+Not the same, I mean for example,
+
+% [53:45 - 53:47]
+We had discussed this before.
+
+% [53:47 - 53:50]
+If a flux like this is caused,
+
+% [53:50 - 53:51]
+
+
+% [53:51 - 53:53]
+
+
+% [53:53 - 53:54]
+
+
+% [53:54 - 53:55]
+
+
+% [53:55 - 53:57]
+
+
+% [53:57 - 53:58]
+And
+
+% [53:58 - 54:02]
+Due to the current in the A winding,
+
+% [54:02 - 54:05]
+How much of it links?
+
+% [54:05 - 54:08]
+Now, what is the B winding C?
+
+% [54:08 - 54:12]
+, the B winding, when I say linked means, what is the flux which is
+
+% [54:12 - 54:16]
+Passing through the B winding in this direction, in this direction.
+
+% [54:16 - 54:25]
+So, only a, you can say a component of this is actually in this direction. To get this, what we do is
+
+% [54:25 - 54:26]
+Compute
+
+% [54:26 - 54:35]
+So, this flux vector which I have drawn here, it represents actually a sinusoidal variation with a maximum here.
+
+% [54:35 - 54:37]
+Can be resolved.
+
+% [54:37 - 54:39]
+So, I have to write this equation into a vector in this direction.
+
+% [54:39 - 54:40]
+
+
+% [54:40 - 54:42]
+
+
+% [54:42 - 54:44]
+That is
+
+% [54:44 - 54:47]
+You take this direction which is the axis of the B winding.
+
+% [54:47 - 54:48]
+
+
+% [54:48 - 54:49]
+
+
+% [54:49 - 54:51]
+
+
+% [54:51 - 54:52]
+
+
+% [54:52 - 54:53]
+
+
+% [54:53 - 54:57]
+It can be resolved in this fashion.
+
+% [54:57 - 55:00]
+So I don't know whether it's very clearly visible or not.
+
+% [55:00 - 55:03]
+, what I am saying is that the flux
+
+% [55:03 - 55:06]
+In a cylindrical pole machine,
+
+% [55:06 - 55:09]
+Caused by the A winding,
+
+% [55:09 - 55:14]
+So, this is the direction, I will just draw it by a slightly thicker line, so that you can see it there.
+
+% [55:14 - 55:17]
+So, the flux vector
+
+% [55:17 - 55:21]
+Remove a vector means that
+
+% [55:21 - 55:25]
+The flux is maximum here and drops off sinusoidally here.
+
+% [55:25 - 55:28]
+So, the flux vector
+
+% [55:28 - 55:32]
+So, this is this. I can resolve this flux
+
+% [55:32 - 55:35]
+In the $B$-axis direction,
+
+% [55:35 - 55:37]
+And the direction 90 degrees to it.
+
+% [55:37 - 55:39]
+This is the $B$-axis.
+
+% [55:39 - 55:46]
+What you see is that if there is a current in the $A_{min}$ and it causes
+
+% [55:46 - 55:48]
+Flux like this.
+
+% [55:48 - 55:51]
+Only a component of this
+
+% [55:51 - 55:53]
+We actually
+
+% [55:53 - 55:55]
+Be there.
+
+% [55:55 - 55:58]
+So, this is the equation which will link with the B binding, remember
+
+% [55:58 - 56:04]
+If I am trying to look at the fluxes linked to the B winding, I should not look at the fluxes which are like this.
+
+% [56:04 - 56:12]
+I should which I entering B after all eventually I will be using Faraday's law and Faraday's law relates the flux which is going like this into the winding.
+
+% [56:12 - 56:16]
+So, even if you have got a flux which is maximum here and it is
+
+% [56:16 - 56:22]
+Dropping down like this, the amount of flux which is linked to the B winding in fact
+
+% [56:22 - 56:25]
+It is only a component of this flux.
+
+% [56:25 - 56:27]
+So, how much is that component?
+
+% [56:27 - 56:32]
+Well, that the angle between this and this is 120 degrees,
+
+% [56:32 - 56:34]
+
+
+% [56:34 - 56:36]
+So, the flux linking
+
+% [56:36 - 56:41]
+The B winding due to a current in the A winding for a cylindrical pole machine is given by: $B = \mu_0 I L$.
+
+% [56:41 - 56:43]
+We will be simply
+
+% [56:43 - 56:46]
+Is it going to be a constant?
+
+% [56:46 - 56:48]
+The answer is yes because
+
+% [56:48 - 56:52]
+Even if this rotor position moves, if this rotor moves,
+
+% [56:52 - 56:54]
+This will not change.
+
+% [56:54 - 56:57]
+So, for a cylindrical rotor machine,
+
+% [56:57 - 56:58]
+
+
+% [56:58 - 57:00]
+
+
+% [57:00 - 57:06]
+L a b, that is the inductance between the a and the b winding,
+
+% [57:06 - 57:08]
+will be lesser.
+
+% [57:08 - 57:11]
+Then the self-inductance, that is certainly.
+
+% [57:11 - 57:14]
+For a cylindrical pole machine,
+
+% [57:14 - 57:18]
+This L a b will be constant.
+
+% [57:18 - 57:28]
+Now, you may ask the question: What happens when you have got a salient pole machine? Is then the mutual inductance between the A and B equal to zero or not?
+
+% [57:28 - 57:33]
+Is the B winding a function of the position? The answer is yes.
+
+% [57:33 - 57:41]
+The A winding and the B, the inductance between the A winding and the B winding is in fact
+
+% [57:41 - 57:44]
+A function of the position because
+
+% [57:44 - 57:48]
+Even of the A winding produces a flux
+
+% [57:48 - 57:50]
+MMF in this direction.
+
+% [57:50 - 57:57]
+The flux need not be having a vector representation in this direction because
+
+% [57:57 - 58:00]
+Even though M F is like this,
+
+% [58:00 - 58:04]
+The flux is depends on the reluctance
+
+% [58:04 - 58:08]
+So, the inductance of the path is not uniform.
+
+% [58:08 - 58:13]
+So, what we will do in the next lecture is try to get
+
+% [58:13 - 58:16]
+The mutual inductance between
+
+% [58:16 - 58:20]
+The A winding and the B winding in case
+
+% [58:20 - 58:22]
+You have got
+
+% [58:22 - 58:24]
+Selle and pole machine.
+
+% [58:24 - 58:27]
+So, just to summarize everything quickly.
+
+% [58:27 - 58:29]
+The mutual
+
+% [58:29 - 58:35]
+$H_{AB} = \mu_0 l N^2 (\cos\theta)$
+
+% [58:35 - 58:36]
+
+
+% [58:36 - 58:40]
+$L_A = \mu_0 l N^2 \cos\theta$
+
+% [58:40 - 58:43]
+Or in fact, the B winding or the C winding.
+
+% [58:43 - 58:45]
+For a salient pole machine,
+
+% [58:45 - 58:48]
+It is actually a function of $\cos(2\theta)$.
+
+% [58:48 - 58:53]
+For a cylindrical pole machine, it is indeed a constant. It is not dependent on $\theta$ at all.
+
+% [58:53 - 59:02]
+So, we will actually take a few more representative cases. In fact, what we are doing now is finding out the mutual inductance between the A winding and the B winding.
+
+% [59:02 - 59:04]
+When there is saliency in the rotor,
+
+% [59:04 - 59:12]
+So, that is something we will resolve in the next class and there on we will then calculate the, we will get the differential equations of the machine
+
+% [59:12 - 59:19]
+And, then I will introduce you to a very interesting and important transformation of variables called the DQ transformation.
+
+% [59:19 - 59:29]
+
+
+% [59:29 - 59:33]
+
+
+\end{document}

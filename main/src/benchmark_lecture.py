@@ -81,6 +81,8 @@ except ImportError:
             r"matrix|eigenvalue|z[\s-]transform|roc|region\s+of\s+convergence|poles?|zeros?|z[\s-]plane|unit\s+circle|"
             r"transfer\s+function|convolution|laplace|fourier|frequency\s+response|difference\s+equation|"
             r"partial\s+fraction|polynomials?|magnitude|modulus|infinity|discrete[\s-]time|"
+            r"synchronous|rotor|stator|flux\s+linkage|direct\s+axis|quadrature\s+axis|d[\s-]axis|q[\s-]axis|"
+            r"field\s+winding|damper|reactance|impedance|park\'?s\s+transform\w*|"
             r"z\s+to\s+the\s+minus|z\s+inverse|inverse\s+z|"
             r"[a-zA-Z]\s+of\s+[a-zA-Z0-9_\-\+]+|u\s+of\s+n|delta\s+of\s+n)\b|[=+\-*/^<>≤≥≠∑∫|]",
             re.IGNORECASE
@@ -265,7 +267,7 @@ def main():
     print("=" * 80)
     print(f"📁 Input File:        {audio_path.name}")
     print(f"🏷️ Test Session:      {base_name}")
-    print(f"⏱️ Test Duration:     {args.duration_sec:.1f}s ({args.duration_sec/60:.2f} min)" if args.duration_sec > 0 else "⏱️ Test Duration:     Full Recording (~32 minutes)")
+    print(f"⏱️ Test Duration:     {args.duration_sec:.1f}s ({args.duration_sec/60:.2f} min)" if args.duration_sec > 0 else "⏱️ Test Duration:     Full Recording")
     print(f"⚡ ASR Engine:        Whisper-Small (Flash Attention on CUDA SM87, port 8081)")
     print(f"🧠 SLM Engine:        Qwen2.5-1.5B-Instruct-GGUF (CUDA SM87, port 8080)")
     print(f"📂 Output Dir:        {out_dir}")

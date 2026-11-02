@@ -1,0 +1,3908 @@
+1
+00:00:00,000 --> 00:00:10,000
+
+
+2
+00:00:10,000 --> 00:00:13,840
+
+
+3
+00:00:13,840 --> 00:00:14,940
+
+
+4
+00:00:14,940 --> 00:00:16,400
+
+
+5
+00:00:16,400 --> 00:00:17,680
+
+
+6
+00:00:17,680 --> 00:00:19,040
+
+
+7
+00:00:19,040 --> 00:00:25,440
+Our course so far has concentrated on the general analysis of dynamical systems.
+
+8
+00:00:25,440 --> 00:00:27,660
+We now move on to an important
+
+9
+00:00:27,660 --> 00:00:33,880
+Part of this course that is the modeling of several power system components
+
+10
+00:00:33,880 --> 00:00:36,900
+In particular, we will concentrate
+
+11
+00:00:36,900 --> 00:00:38,600
+In the next few lectures,
+
+12
+00:00:38,600 --> 00:00:40,980
+On the modeling of a synchronous machine.
+
+13
+00:00:40,980 --> 00:00:46,820
+Now, a synchronous machine is a very important; it is the, you could say the most important component.
+
+14
+00:00:46,820 --> 00:00:48,920
+of a power system.
+
+15
+00:00:48,920 --> 00:00:51,520
+The modeling of it
+
+16
+00:00:51,520 --> 00:00:53,740
+It requires some, a little bit of effort.
+
+17
+00:00:53,740 --> 00:00:57,720
+We will actually be taking out the transient model of a synchronous machine.
+
+18
+00:00:57,720 --> 00:01:02,140
+We will of course learn some interesting new concepts.
+
+19
+00:01:02,140 --> 00:01:06,020
+Just like the use of a time variant transformation,
+
+20
+00:01:06,020 --> 00:01:07,700
+In order to make
+
+21
+00:01:07,700 --> 00:01:11,820
+The synchronous machine's flux differential equations
+
+22
+00:01:11,820 --> 00:01:13,560
+Linear time invariant.
+
+23
+00:01:13,560 --> 00:01:16,620
+But to put matters first in perspective,
+
+24
+00:01:16,620 --> 00:01:20,880
+Just let us look at where we stand in relation
+
+25
+00:01:20,880 --> 00:01:25,300
+So, we will go to the content which we intend to cover in this course.
+
+26
+00:01:25,300 --> 00:01:29,200
+So, let us just shift our attention to
+
+27
+00:01:29,200 --> 00:01:32,540
+What point we are exactly in this course at the present time?
+
+28
+00:01:32,540 --> 00:01:33,640
+
+
+29
+00:01:33,640 --> 00:01:35,100
+
+
+30
+00:01:35,100 --> 00:01:39,080
+So, we have actually done the analysis of dynamical systems.
+
+31
+00:01:39,080 --> 00:01:41,500
+In particular, we studied
+
+32
+00:01:41,500 --> 00:01:46,200
+The use of eigenvalue analysis in linear time-invariant systems
+
+33
+00:01:46,200 --> 00:01:54,100
+And we also learned the techniques for numerical integration of ordinary differential equations.
+
+34
+00:01:54,100 --> 00:01:55,980
+We now move to
+
+35
+00:01:55,980 --> 00:02:04,620
+Now, the modeling of a synchronous machine will be further considered, taking into account the modeling of several other components such as excitation systems and prime mover systems.
+
+36
+00:02:04,620 --> 00:02:07,200
+And in fact, transmission lines and so on.
+
+37
+00:02:07,200 --> 00:02:13,260
+Of course, there is a lot more to come. Remember that for part B of this course, you can say
+
+38
+00:02:13,260 --> 00:02:18,860
+We will really try to eventually try to get a few inferences about
+
+39
+00:02:18,860 --> 00:02:21,500
+The nature of the behavior of
+
+40
+00:02:21,500 --> 00:02:23,300
+Interconnected power systems.
+
+41
+00:02:23,300 --> 00:02:26,700
+We shall also look at pass system stability analysis tools.
+
+42
+00:02:26,700 --> 00:02:29,740
+And, how we can use all this analysis?
+
+43
+00:02:29,740 --> 00:02:31,760
+To improving system stability.
+
+44
+00:02:31,760 --> 00:02:34,360
+So, now we really move on.
+
+45
+00:02:34,360 --> 00:02:40,420
+Now, let us look at the first step to modeling of a synchronous machine. It will be instructive to first look at how
+
+46
+00:02:40,420 --> 00:02:48,300
+So, a practical synchronous machine looks like, in fact, what I will show you right now is a steam turbine-driven generator.
+
+47
+00:02:48,300 --> 00:02:51,400
+It is of around 210 megawatts.
+
+48
+00:02:51,400 --> 00:02:53,940
+So, you can look at this photograph.
+
+49
+00:02:53,940 --> 00:02:57,800
+What you see in white here is indeed the synchronous machine.
+
+50
+00:02:57,800 --> 00:03:01,100
+And, what you see in green are the
+
+51
+00:03:01,100 --> 00:03:02,980
+Various stages of the turbine.
+
+52
+00:03:02,980 --> 00:03:05,900
+The steam turbine which drives this machine
+
+53
+00:03:05,900 --> 00:03:08,060
+Alright, on this side,
+
+54
+00:03:08,060 --> 00:03:13,460
+Other bearings and what you will see, what is seen here right at the end.
+
+55
+00:03:13,460 --> 00:03:19,000
+This is actually the slip ring and brushes which convey the excitation voltage to the field winding.
+
+56
+00:03:19,000 --> 00:03:22,120
+So, this is the equation which is of course rotating in this synchronous generator.
+
+57
+00:03:22,120 --> 00:03:26,660
+This is how a steam turbine-driven synchronous machine looks like.
+
+58
+00:03:26,660 --> 00:03:28,520
+Of course our analysis will...
+
+59
+00:03:28,520 --> 00:03:35,920
+Cover all types, including those with steam turbines and hydraulic turbines, for synchronous generators.
+
+60
+00:03:35,920 --> 00:03:39,940
+So, let us move on to the nuts and bolts of this.
+
+61
+00:03:39,940 --> 00:03:43,600
+So, just some basic review.
+
+62
+00:03:43,600 --> 00:03:46,080
+A synchronous machine, indeed,
+
+63
+00:03:46,080 --> 00:03:52,000
+Now, the second point has got two kinds of windings: you can say the armature winding is usually present on the stator.
+
+64
+00:03:52,000 --> 00:03:57,100
+These are in fact three phase windings. They are three sets of windings.
+
+65
+00:03:57,100 --> 00:04:00,540
+And you have got a field winding
+
+66
+00:04:00,540 --> 00:04:04,180
+Which of course is fed with DC voltage.
+
+67
+00:04:04,180 --> 00:04:06,760
+The armature
+
+68
+00:04:06,760 --> 00:04:11,820
+It is laminated, the armature is laminated because the armature winding with a housed
+
+69
+00:04:11,820 --> 00:04:16,580
+On the armature, in fact, see a time varying flux.
+
+70
+00:04:16,580 --> 00:04:20,600
+An important relationship which you should keep in mind is
+
+71
+00:04:20,600 --> 00:04:22,780
+That the
+
+72
+00:04:22,780 --> 00:04:30,740
+The voltages which are generated, the EMFs, the alternating voltages which are generated in the armature due to
+
+73
+00:04:30,740 --> 00:04:33,660
+A rotating field
+
+74
+00:04:33,660 --> 00:04:37,520
+The DC field created by the field winding
+
+75
+00:04:37,520 --> 00:04:43,500
+As well as when the machine is loaded, you will have a rotating field created by three-phase
+
+76
+00:04:43,500 --> 00:04:45,560
+And, major windings.
+
+77
+00:04:45,560 --> 00:04:50,700
+The image generated have the frequency which is given by
+
+78
+00:04:50,700 --> 00:04:56,220
+$\omega_E$, which is the electrical radiant frequency, is $\frac{\pi}{2}$ times
+
+79
+00:04:56,220 --> 00:04:59,580
+The mechanical rotational frequency
+
+80
+00:04:59,580 --> 00:05:02,320
+Where $p$ is the number of poles.
+
+81
+00:05:02,320 --> 00:05:05,880
+Thus, $\omega_e = \frac{p}{2\omega_n}$.
+
+82
+00:05:05,880 --> 00:05:15,880
+Normally, steam turbine driven machines are in fact high speed generators. They run at, in our 50 hertz system, they run at
+
+83
+00:05:15,880 --> 00:05:22,220
+On the other hand, hydro machines are low speed
+
+84
+00:05:22,220 --> 00:05:24,640
+And have salient pole construction
+
+85
+00:05:24,640 --> 00:05:33,660
+This is the problem with many poles; it means many pole pairs. In a stream-turbine-driven machine, of course, we have one pole pair.
+
+86
+00:05:33,660 --> 00:05:38,120
+In salient-pole machines, you can have many, many pole pairs.
+
+87
+00:05:38,120 --> 00:05:47,080
+Now, typically in a salient-pole machine, we refer to another type of magnetic field that surrounds it.
+
+88
+00:05:47,080 --> 00:05:52,620
+See, obviously, the field winding and the armature winding are housed on a ferromagnetic material, but
+
+89
+00:05:52,620 --> 00:05:58,280
+We also have what are known as damper windings or squirrel-cage windings.
+
+90
+00:05:58,280 --> 00:06:01,180
+Squirrel cage, kind of damper bars.
+
+91
+00:06:01,180 --> 00:06:03,660
+On the pole face,
+
+92
+00:06:03,660 --> 00:06:08,780
+So, that is usually seen.
+
+93
+00:06:08,780 --> 00:06:15,280
+In a steam-gas turbine operating at high speeds, you also have a disk-shaped rotor structure.
+
+94
+00:06:15,280 --> 00:06:18,900
+There are only two, you will have only one pole pair; that is two poles.
+
+95
+00:06:18,900 --> 00:06:21,760
+I have got a cylindrical pole or a disk-shaped rotor.
+
+96
+00:06:21,760 --> 00:06:27,400
+The rotor is usually made out of solid steel forging; so, even the
+
+97
+00:06:27,400 --> 00:06:33,800
+The rotating, the rotating field winding is housed on a solid steel disc.
+
+98
+00:06:33,800 --> 00:06:40,200
+Because of that, you can have eddy currents in the rotor during transients.
+
+99
+00:06:40,200 --> 00:06:44,680
+That's an important point: You can have eddy currents in the rotor during transients.
+
+100
+00:06:44,680 --> 00:06:48,760
+In a steam or gas, I mean of course,
+
+101
+00:06:48,760 --> 00:06:54,200
+In a low-speed turbine with salient poles, the pole faces are laminated.
+
+102
+00:06:54,200 --> 00:06:55,420
+Okay.
+
+103
+00:06:55,420 --> 00:07:02,860
+Now, this is how typically a steam turbine or hydraulic turbine's pole faces would appear.
+
+104
+00:07:02,860 --> 00:07:05,360
+So, there is a pole-phase, as you'll see.
+
+105
+00:07:05,360 --> 00:07:08,200
+The field winding will be housed in the stator.
+
+106
+00:07:08,200 --> 00:07:09,520
+Here,
+
+107
+00:07:09,520 --> 00:07:11,100
+Aang,
+
+108
+00:07:11,100 --> 00:07:17,460
+This, on this pole face, you have this damper bar, which is short-circuited at the end of the
+
+109
+00:07:17,460 --> 00:07:20,600
+So, your damper bars, they are not,
+
+110
+00:07:20,600 --> 00:07:23,640
+The damper bars are kind of embedded on the poles.
+
+111
+00:07:23,640 --> 00:07:25,000
+And
+
+112
+00:07:25,000 --> 00:07:27,420
+And then they are short circuited.
+
+113
+00:07:27,420 --> 00:07:29,560
+So, they
+
+114
+00:07:29,560 --> 00:07:33,120
+I like a cage on a induction machine.
+
+115
+00:07:33,120 --> 00:07:37,720
+The basic function of these damper bars is to reduce vibration and improve the performance of the system.
+
+116
+00:07:37,720 --> 00:07:39,360
+This is to
+
+117
+00:07:39,360 --> 00:07:41,780
+, damp out
+
+118
+00:07:41,780 --> 00:07:44,480
+Transients, normally
+
+119
+00:07:44,480 --> 00:07:48,020
+Both the field voltage, the flux created by the field winding
+
+120
+00:07:48,020 --> 00:07:57,700
+As well as the three-phase rotating flux, as well as the rotary motion of the rotor are all of the same speed. Thus, no $M_F$ is generated.
+
+121
+00:07:57,700 --> 00:08:01,100
+On the bars of this
+
+122
+00:08:01,100 --> 00:08:03,480
+This damper bars.
+
+123
+00:08:03,480 --> 00:08:12,240
+But, during transients of course, you have got currents in these and they are intended to damp out any transients which are occurring.
+
+124
+00:08:12,240 --> 00:08:15,440
+So, in fact, in a cylindrical rotor machine,
+
+125
+00:08:15,440 --> 00:08:20,880
+The solid steel body of the rotor itself creates eddy currents which perform the same function.
+
+126
+00:08:20,880 --> 00:08:23,240
+On a cylindrical rotor
+
+127
+00:08:23,240 --> 00:08:27,960
+So, the field winding is housed in slots of this kind.
+
+128
+00:08:27,960 --> 00:08:34,480
+So, of course, the slots have a wedge, which is not very clear in this. They have a wedge to keep the windings in place.
+
+129
+00:08:34,480 --> 00:08:36,200
+So, you have got
+
+130
+00:08:36,200 --> 00:08:38,720
+The windings are
+
+131
+00:08:38,720 --> 00:08:41,320
+Placed in the slots of a cylindrical pole machine.
+
+132
+00:08:41,320 --> 00:08:42,420
+
+
+133
+00:08:42,420 --> 00:08:45,700
+Now, just to give you a good feel,
+
+134
+00:08:45,700 --> 00:08:48,560
+Consider 210 megawatt,
+
+135
+00:08:48,560 --> 00:08:50,180
+Machine,
+
+136
+00:08:50,180 --> 00:08:52,140
+Okay, generator that is.
+
+137
+00:08:52,140 --> 00:08:58,580
+The typical parameters could be, for example, in fact, this 210 megawatt machine is a typical generator which was used.
+
+138
+00:08:58,580 --> 00:09:03,580
+In the electrical power grid, there are many, many, many of them at present in the Indian power grid.
+
+139
+00:09:03,580 --> 00:09:07,000
+The MVA is 247.
+
+140
+00:09:07,000 --> 00:09:10,340
+So, you can actually calculate the rated power factor from this and this.
+
+141
+00:09:10,340 --> 00:09:16,560
+The rated voltage is 15.75 kilo volts, the rated current is almost 1 kilo, well,
+
+142
+00:09:16,560 --> 00:09:18,720
+10 kilo amperes roughly.
+
+143
+00:09:18,720 --> 00:09:21,800
+That is approximately 9000 amperes.
+
+144
+00:09:21,800 --> 00:09:25,280
+And it is of course a 50 hertz machine.
+
+145
+00:09:25,280 --> 00:09:30,760
+Now, when I say rated current, it means it is the maximum continuous rating
+
+146
+00:09:30,760 --> 00:09:35,200
+So, when I say retreat current is the armature current.
+
+147
+00:09:35,200 --> 00:09:44,360
+This of course does not mean that you cannot have currents higher than this. For a short while, every electrical equipment can tolerate about 10 to 15 percent
+
+148
+00:09:44,360 --> 00:09:48,100
+Over current, but only for about 10 to 15 minutes.
+
+149
+00:09:48,100 --> 00:09:51,900
+So, the maximum continuous rating is around 10 kilo amperes.
+
+150
+00:09:51,900 --> 00:09:58,740
+Of course, there is a lot of heating due to this. So, machine like this is cooled by hydrogen.
+
+151
+00:09:58,740 --> 00:10:06,040
+Similarly, the field has got a rated current of 2600 amperes. When I say rated current, what it means is
+
+152
+00:10:06,040 --> 00:10:15,460
+That the current which flows in the field winding in order to get the rated voltage under loaded condition, that is full-load conditions or the rated load conditions.
+
+153
+00:10:15,460 --> 00:10:19,780
+The rated voltage similarly is 310 volts.
+
+154
+00:10:19,780 --> 00:10:27,660
+And the efficiency can be very high, it is in this case around 98.5, this is only of the generator, I am not talking of the turbine, etcetera.
+
+155
+00:10:27,660 --> 00:10:30,360
+So, this is the efficiency only of the generator.
+
+156
+00:10:30,360 --> 00:10:34,680
+One important point which you should note, which we shall again discuss later.
+
+157
+00:10:34,680 --> 00:10:37,720
+Is that the field current, rated current
+
+158
+00:10:37,720 --> 00:10:41,880
+It is 2600, but under no load conditions
+
+159
+00:10:41,880 --> 00:10:46,240
+The amount of current required in the field to generate rated voltage
+
+160
+00:10:46,240 --> 00:10:49,300
+Again, under let me repeat.
+
+161
+00:10:49,300 --> 00:10:53,720
+Under no load conditions, that is open circuit conditions, the amount of current needed
+
+162
+00:10:53,720 --> 00:10:58,420
+To generate this rated voltage at the armature terminals,
+
+163
+00:10:58,420 --> 00:11:02,960
+It is in fact much lower than this, it may be half or slightly lower than half of this.
+
+164
+00:11:02,960 --> 00:11:05,640
+Remember that once we load the machine,
+
+165
+00:11:05,640 --> 00:11:08,020
+The flux picture
+
+166
+00:11:08,020 --> 00:11:10,580
+In the machine gets
+
+167
+00:11:10,580 --> 00:11:14,620
+So, you may actually have to
+
+168
+00:11:14,620 --> 00:11:18,500
+So, we have more current in the field.
+
+169
+00:11:18,500 --> 00:11:23,140
+To get this rated voltage. So, this current in fact
+
+170
+00:11:23,140 --> 00:11:25,880
+The current is the current required under rated conditions.
+
+171
+00:11:25,880 --> 00:11:31,020
+Under no-load conditions, to obtain 15.75 V, you might need less than half of this current.
+
+172
+00:11:31,020 --> 00:11:34,340
+And corresponding less than half of this voltage.
+
+173
+00:11:34,340 --> 00:11:37,500
+So, this is an important point which you should remember.
+
+174
+00:11:37,500 --> 00:11:40,820
+Now, there are three kinds of limits.
+
+175
+00:11:40,820 --> 00:11:49,380
+Which you may encounter, I will just write this on a separate sheet of paper. There are three kinds of limits which you may encounter. One is the
+
+176
+00:11:49,380 --> 00:11:52,580
+In a generator is the armature current limit.
+
+177
+00:11:52,580 --> 00:11:54,700
+So,
+
+178
+00:11:54,700 --> 00:12:01,260
+Or rather I should say the armature heating limit, which is of course determined by the armature current.
+
+179
+00:12:01,260 --> 00:12:02,580
+Okay.
+
+180
+00:12:02,580 --> 00:12:08,500
+Now, the second limit which you will encounter is the field current limit. So, you cannot
+
+181
+00:12:08,500 --> 00:12:11,240
+So, we have current more than a certain value
+
+182
+00:12:11,240 --> 00:12:13,040
+Otherwise, it will cause heating.
+
+183
+00:12:13,040 --> 00:12:15,100
+Simple i square r heating.
+
+184
+00:12:15,100 --> 00:12:22,400
+Which may be more for which there is of course a limit. So, you should ensure of course that the current will never go above
+
+185
+00:12:22,400 --> 00:12:29,120
+The rated current that is in this case in the example which I said 9050. Of course,
+
+186
+00:12:29,120 --> 00:12:32,240
+For a short while, , you can have a slight over rating.
+
+187
+00:12:32,240 --> 00:12:39,340
+Similarly, similar thing applies for the field also, the field current should not exceed its rating, but of course, for a short while you can have
+
+188
+00:12:39,340 --> 00:12:45,920
+So, you can have higher than the rated current for say about 10 to 15 minutes. That is permissible.
+
+189
+00:12:45,920 --> 00:12:53,180
+Now, there is, so these are the two things which prevent you from, , they are, they kind of limit the amount of
+
+190
+00:12:53,180 --> 00:13:01,520
+, power and reactive power you can have. In short, you can never exceed the MVA rating of the machine.
+
+191
+00:13:01,520 --> 00:13:05,180
+So, $p^2 + q^2$, where $p$ is the real power
+
+192
+00:13:05,180 --> 00:13:07,740
+And Q is the reactive power should not exceed.
+
+193
+00:13:07,740 --> 00:13:13,480
+Otherwise, you will find that since the voltage will always be maintained here about this value,
+
+194
+00:13:13,480 --> 00:13:20,900
+So, the current will get, current rate, current will exceed its rating. So, your MVA is typically will always be
+
+195
+00:13:20,900 --> 00:13:25,780
+Of course, you have to maintain $\sqrt{p^2 + q^2} < 247$.
+
+196
+00:13:25,780 --> 00:13:31,580
+Now, the field current limit also prevents you from increasing the Q
+
+197
+00:13:31,580 --> 00:13:33,680
+Beyond a certain point, remember
+
+198
+00:13:33,680 --> 00:13:35,420
+In a synchronous machine,
+
+199
+00:13:35,420 --> 00:13:40,320
+By changing the field current you can change the reactive power, but you cannot go on
+
+200
+00:13:40,320 --> 00:13:43,000
+Increasing the reactive power after a point
+
+201
+00:13:43,000 --> 00:13:45,840
+You will find that the field current hits its limit.
+
+202
+00:13:45,840 --> 00:13:53,940
+So, even though you have very low real power, you cannot have Q very high because for that you require very high field current.
+
+203
+00:13:53,940 --> 00:13:57,140
+So, our p and q in some sense are limited.
+
+204
+00:13:57,140 --> 00:14:01,040
+So, you have to find out the, ,
+
+205
+00:14:01,040 --> 00:14:06,360
+So, we have a safe operating region for a synchronous machine and ensure that these limits are not
+
+206
+00:14:06,360 --> 00:14:12,600
+In some machines, in some steam turbine generator, driven generators,
+
+207
+00:14:12,600 --> 00:14:15,740
+You will find that you have another limit
+
+208
+00:14:15,740 --> 00:14:18,280
+That is called the core and heating limit.
+
+209
+00:14:18,280 --> 00:14:19,380
+
+
+210
+00:14:19,380 --> 00:14:20,840
+
+
+211
+00:14:20,840 --> 00:14:23,100
+This is caused by
+
+212
+00:14:23,100 --> 00:14:25,180
+Higher actual flux.
+
+213
+00:14:25,180 --> 00:14:26,280
+
+
+214
+00:14:26,280 --> 00:14:27,740
+
+
+215
+00:14:27,740 --> 00:14:29,020
+
+
+216
+00:14:29,020 --> 00:14:31,740
+In the end region of
+
+217
+00:14:31,740 --> 00:14:34,480
+If you have a synchronous machine,
+
+218
+00:14:34,480 --> 00:14:35,580
+
+
+219
+00:14:35,580 --> 00:14:37,060
+No.. no...
+
+220
+00:14:37,060 --> 00:14:44,080
+This is called the end region, the end region of a synchronous machine, where actually the windings come out and go in again.
+
+221
+00:14:44,080 --> 00:14:48,340
+That is called an $n$-region of a synchronous machine. Now, it is seen
+
+222
+00:14:48,340 --> 00:14:52,880
+That, under, if you under excite the machine, that is,
+
+223
+00:14:52,880 --> 00:14:54,660
+Reduce the field current.
+
+224
+00:14:54,660 --> 00:14:58,460
+Such that the synchronous machine starts absorbing reactive power
+
+225
+00:14:58,460 --> 00:15:04,400
+You have a situation of higher axial flux. Of course, the explanation of this
+
+226
+00:15:04,400 --> 00:15:12,240
+This is beyond the scope of this course, but I refer you to a paper which appeared quite some time ago.
+
+227
+00:15:12,240 --> 00:15:14,760
+By Farnheim and Swathout.
+
+228
+00:15:14,760 --> 00:15:16,420
+Just a moment.
+
+229
+00:15:16,420 --> 00:15:17,840
+So...
+
+230
+00:15:17,840 --> 00:15:21,440
+I will just write down this reference for you.
+
+231
+00:15:21,440 --> 00:15:26,640
+If you are interested in knowing the effect of all these limits, I refer you to this.
+
+232
+00:15:26,640 --> 00:15:27,740
+So,
+
+233
+00:15:27,740 --> 00:15:29,200
+So,
+
+234
+00:15:29,200 --> 00:15:31,800
+Feel excitation
+
+235
+00:15:31,800 --> 00:15:33,660
+And
+
+236
+00:15:33,660 --> 00:15:36,520
+In relation
+
+237
+00:15:36,520 --> 00:15:38,600
+And
+
+238
+00:15:38,600 --> 00:15:41,320
+Two machine equations, two machine equations, two machine equations, two machine equations,
+
+239
+00:15:41,320 --> 00:15:43,380
+And
+
+240
+00:15:43,380 --> 00:15:45,260
+And, system operation.
+
+241
+00:15:45,260 --> 00:15:46,360
+Okay.
+
+242
+00:15:46,360 --> 00:15:47,820
+thehrn
+
+243
+00:15:47,820 --> 00:15:49,100
+And
+
+244
+00:15:49,100 --> 00:15:50,460
+So,
+
+245
+00:15:50,460 --> 00:15:54,400
+This is the title of the paper by Fahn-Hamm.
+
+246
+00:15:54,400 --> 00:15:55,500
+That's it.
+
+247
+00:15:55,500 --> 00:15:57,300
+And
+
+248
+00:15:57,300 --> 00:15:59,200
+And
+
+249
+00:15:59,200 --> 00:16:00,300
+And
+
+250
+00:16:00,300 --> 00:16:02,520
+Swarth out.
+
+251
+00:16:02,520 --> 00:16:06,520
+And, it appeared in IEEE transactions.
+
+252
+00:16:06,520 --> 00:16:10,200
+A i triple e, because there was no i triple e at that time.
+
+253
+00:16:10,200 --> 00:16:12,160
+In 1953,
+
+254
+00:16:12,160 --> 00:16:14,760
+The page number 1215.
+
+255
+00:16:14,760 --> 00:16:16,720
+So, we have to do this.
+
+256
+00:16:16,720 --> 00:16:19,240
+1, 2, 2, 3.
+
+257
+00:16:19,240 --> 00:16:20,340
+
+
+258
+00:16:20,340 --> 00:16:23,040
+So, this is a
+
+259
+00:16:23,040 --> 00:16:25,760
+A copy of this paper.
+
+260
+00:16:25,760 --> 00:16:30,700
+So, I request you to those who are interested in finding out
+
+261
+00:16:30,700 --> 00:16:33,200
+More about why
+
+262
+00:16:33,200 --> 00:16:35,440
+We have this heating limit
+
+263
+00:16:35,440 --> 00:16:38,280
+You can of course refer to this paper.
+
+264
+00:16:38,280 --> 00:16:40,040
+Now,
+
+265
+00:16:40,040 --> 00:16:42,840
+Of course, the score and heating is not
+
+266
+00:16:42,840 --> 00:16:49,240
+A limit seen by all machines, it is only for specific, usually steam turbine driven machines.
+
+267
+00:16:49,240 --> 00:16:58,140
+Now, one, the main objective of this lecture really is to discuss the modeling of a synchronous machine.
+
+268
+00:16:58,140 --> 00:17:04,340
+So, before we go into modeling, we should of course look at what are the basic assumptions that we have.
+
+269
+00:17:04,340 --> 00:17:07,580
+Now, remember that no modeling can be perfect.
+
+270
+00:17:07,580 --> 00:17:09,680
+In the sense that we, for example,
+
+271
+00:17:09,680 --> 00:17:12,880
+In fact, if we try to
+
+272
+00:17:12,880 --> 00:17:22,880
+So, if you do some kind of perfect modeling, you will find that the problem becomes altogether intractable. So, if somebody says that well, I will use Newton's law as well as Maxwell's equations.
+
+273
+00:17:22,880 --> 00:17:27,920
+And derive all the equations of a synchronous machine right from scratch
+
+274
+00:17:27,920 --> 00:17:33,360
+With no assumptions whatsoever, you will find that it is almost impossible to get anywhere.
+
+275
+00:17:33,360 --> 00:17:36,540
+So, what we will do is do a simplified modeling.
+
+276
+00:17:36,540 --> 00:17:40,220
+With the understanding that the modeling which we are going to do
+
+277
+00:17:40,220 --> 00:17:47,360
+We will be valid for certain kinds of transient responses. Specifically, we will be taking out the lumped circuit model of a synchronous machine.
+
+278
+00:17:47,360 --> 00:17:51,500
+So, obviously this kind of model will not be adequate
+
+279
+00:17:51,500 --> 00:17:57,700
+To study phenomena which are affected by pericetics and so on.
+
+280
+00:17:57,700 --> 00:18:01,360
+So, what we will have is a lumped kind of circuit model and
+
+281
+00:18:01,360 --> 00:18:05,940
+Roughly, you can say that phenomena or phenomena which have rates of change
+
+282
+00:18:05,940 --> 00:18:07,440
+We tattered up.
+
+283
+00:18:07,440 --> 00:18:11,180
+Or which kind of last more than…
+
+284
+00:18:11,180 --> 00:18:14,260
+Say, 1 millisecond can be studied
+
+285
+00:18:14,260 --> 00:18:16,800
+Reasonably well by this kind of model.
+
+286
+00:18:16,800 --> 00:18:21,580
+Now, I will just read out the main assumptions which we are going to make.
+
+287
+00:18:21,580 --> 00:18:27,920
+One of the important assumptions we are going to make is that there is going to be a sinusoidal distribution of MMF in an air gap.
+
+288
+00:18:27,920 --> 00:18:32,300
+So, the air gap in the synchronous machine will see a sinusoidal
+
+289
+00:18:32,300 --> 00:18:41,400
+So, this is an assumption. Actually, we do have almost sinusoidal distribution of MMS because of the winding arrangements which are used
+
+290
+00:18:41,400 --> 00:18:43,880
+In a synchronous machine.
+
+291
+00:18:43,880 --> 00:18:49,220
+Another assumption we will make is that saliency is restricted to the rotor, that is,
+
+292
+00:18:49,220 --> 00:18:53,900
+We will not be considering the saliency due to the slots on the stator winding.
+
+293
+00:18:53,900 --> 00:18:59,720
+As the armature winding is housed on the stator,
+
+294
+00:18:59,720 --> 00:19:03,560
+And you have got slots in it to house the windings.
+
+295
+00:19:03,560 --> 00:19:05,900
+We will neglect the
+
+296
+00:19:05,900 --> 00:19:15,620
+Saliency which occurs or the changes in reluctance which occur due to the slots on the stator. So, only saliency which will be considered is due to the rotor structure.
+
+297
+00:19:15,620 --> 00:19:16,720
+
+
+298
+00:19:16,720 --> 00:19:26,720
+Another very important assumption which we will make is that saturation and hysteresis are neglected. So, we can consider the machine as more as a linear magnetic
+
+299
+00:19:26,720 --> 00:19:31,120
+And because of this assumption, we will be actually be able to
+
+300
+00:19:31,120 --> 00:19:34,480
+Simplifier analysis to a very great extent.
+
+301
+00:19:34,480 --> 00:19:40,240
+Of course, at some point or the other you may have to relax this assumption of saturation.
+
+302
+00:19:40,240 --> 00:19:42,780
+To get realistic answers.
+
+303
+00:19:42,780 --> 00:19:46,920
+But, to get a basic model, we will make this assumption.
+
+304
+00:19:46,920 --> 00:19:52,860
+What we will do is we will create this model based on this assumption and try to have some kind of correction
+
+305
+00:19:52,860 --> 00:19:58,460
+So, this is the kind of pragmatic approach we can follow.
+
+306
+00:19:58,460 --> 00:20:08,460
+And, , sometime we will be getting a lump circuit model. We will not be modeling things like parasitic capacitances or winding capacitances and so on. So, our model is effectively
+
+307
+00:20:08,460 --> 00:20:12,340
+We are restricted to the study of relatively slow transients, not fast transients.
+
+308
+00:20:12,340 --> 00:20:17,280
+One more thing of course, which I have mentioned sometime back is
+
+309
+00:20:17,280 --> 00:20:22,180
+That, if you look at the angular position or the rotor position,
+
+310
+00:20:22,180 --> 00:20:24,620
+And if you look at the phase
+
+311
+00:20:24,620 --> 00:20:26,340
+So, we have seen that $E_m^F$ which are
+
+312
+00:20:26,340 --> 00:20:30,180
+Developed or for example, speed
+
+313
+00:20:30,180 --> 00:20:34,200
+So, the frequency of, or rather the frequency of emfs which are
+
+314
+00:20:34,200 --> 00:20:42,940
+Developed on the armature winding, they have this relationship. This is something which we just did sometime back. The electrical speed or the
+
+315
+00:20:42,940 --> 00:20:44,980
+Frequency of
+
+316
+00:20:44,980 --> 00:20:48,960
+EMF generated on this armature windings
+
+317
+00:20:48,960 --> 00:20:56,680
+So, this is the equation of the equation of the equation. So, we will write the equation of the equation.
+
+318
+00:20:56,680 --> 00:20:59,720
+Before we
+
+319
+00:20:59,720 --> 00:21:01,380
+Go on for…
+
+320
+00:21:01,380 --> 00:21:03,360
+The actual analysis.
+
+321
+00:21:03,360 --> 00:21:08,260
+What we will do initially is kind of do a simplified analysis
+
+322
+00:21:08,260 --> 00:21:13,020
+Now, we will try to infer the second-order system (machine).
+
+323
+00:21:13,020 --> 00:21:14,780
+What would happen if you got
+
+324
+00:21:14,780 --> 00:21:18,720
+So, what we will do essentially is consider first of all
+
+325
+00:21:18,720 --> 00:21:20,940
+A two-pole machine.
+
+326
+00:21:20,940 --> 00:21:30,940
+Actually, whatever we will be doing does not, we do not lose generality because later on we will see that it really does not matter whether it is a two-pole machine or four-pole.
+
+327
+00:21:30,940 --> 00:21:32,960
+machine as long as.
+
+328
+00:21:32,960 --> 00:21:38,480
+Now, we take into account the correct equations, but the basic derivations look practically similar.
+
+329
+00:21:38,480 --> 00:21:39,700
+Okay.
+
+330
+00:21:39,700 --> 00:21:41,820
+Uh...
+
+331
+00:21:41,820 --> 00:21:47,260
+We represent a synchronous machine. This is a schematic representation of a synchronous machine.
+
+332
+00:21:47,260 --> 00:21:49,200
+You have got three.
+
+333
+00:21:49,200 --> 00:21:54,380
+Winding on the stator: This is the A winding, B winding, and C winding.
+
+334
+00:21:54,380 --> 00:21:58,800
+We assume that the rotor moves in this direction.
+
+335
+00:21:58,800 --> 00:22:07,240
+So, whatever happens in the A winding happens to the B winding after some time. So, there is a phase lag of 120 degrees between the B
+
+336
+00:22:07,240 --> 00:22:11,340
+And the A winding and the C and the B winding respectively.
+
+337
+00:22:11,340 --> 00:22:18,460
+Now, one important point: What are the electromagnetic circuits on the rotor?
+
+338
+00:22:18,460 --> 00:22:23,260
+Of course, there is a field winding. So, you have got this as shown here: the field winding.
+
+339
+00:22:23,260 --> 00:22:25,460
+So, it is a very simple equation.
+
+340
+00:22:25,460 --> 00:22:30,100
+That field winding is obviously fed from a DC voltage source.
+
+341
+00:22:30,100 --> 00:22:38,840
+Now, one more interesting point which you should note is that you also have other electromagnetic circuits though they are not necessarily in the form of windings.
+
+342
+00:22:38,840 --> 00:22:44,640
+We have, for example, in a synchronous machine, a steam turbine-driven generator might have
+
+343
+00:22:44,640 --> 00:22:46,420
+Eddy currents on the rotor.
+
+344
+00:22:46,420 --> 00:22:52,840
+In case of hydraulic driven turbines, you have got actually a squirrel cage winding
+
+345
+00:22:52,840 --> 00:22:56,000
+Squirrel-cage-like winding on the pole face.
+
+346
+00:22:56,000 --> 00:23:00,420
+So, what you really see is that the effect of these
+
+347
+00:23:00,420 --> 00:23:07,620
+The eddy currents are what are known as the squirrel-cage currents or dampers, as they're all alternative names.
+
+348
+00:23:07,620 --> 00:23:11,840
+The effect of this is captured using these
+
+349
+00:23:11,840 --> 00:23:17,200
+Coyle coils, which are short-circuited on themselves, after all, dampers and eddy currents are a type of.
+
+350
+00:23:17,200 --> 00:23:19,720
+Circulating current.
+
+351
+00:23:19,720 --> 00:23:23,040
+You have the basic damper winding.
+
+352
+00:23:23,040 --> 00:23:24,960
+This is represented by
+
+353
+00:23:24,960 --> 00:23:29,940
+A coil of this kind, of course, these, this is an approximate representation
+
+354
+00:23:29,940 --> 00:23:32,560
+For example, in steam turbine,
+
+355
+00:23:32,560 --> 00:23:39,320
+So, for the given generators you do not actually have, you may not have any specific damper bars.
+
+356
+00:23:39,320 --> 00:23:41,320
+The eddy currents are there.
+
+357
+00:23:41,320 --> 00:23:46,280
+But, their effect is captured by this winding as well as windings on this axis.
+
+358
+00:23:46,280 --> 00:23:53,260
+So, you can have eddy currents on this axis, you can have circulating currents on this axis as well as this axis.
+
+359
+00:23:53,260 --> 00:23:56,500
+This, let me just clarify one point.
+
+360
+00:23:56,500 --> 00:23:58,180
+The axis
+
+361
+00:23:58,180 --> 00:24:02,920
+On the field on which it is also known as the direct axis.
+
+362
+00:24:02,920 --> 00:24:07,120
+The axis, quadratic with respect to this direct axis is called a
+
+363
+00:24:07,120 --> 00:24:11,020
+So, the quadrature axis, also known as the D-axis.
+
+364
+00:24:11,020 --> 00:24:15,220
+So, what we do is model three windings for
+
+365
+00:24:15,220 --> 00:24:24,240
+The phase windings, which are on the stator, along with your field winding, there are these additional three windings that collectively represent.
+
+366
+00:24:24,240 --> 00:24:29,440
+representing the damper winding and eddy current effects.
+
+367
+00:24:29,440 --> 00:24:32,180
+Now, you may ask why 2, why not 3?
+
+368
+00:24:32,180 --> 00:24:34,560
+Oh, y2, why not 1?
+
+369
+00:24:34,560 --> 00:24:40,060
+The answer to this question is that this is a model and we will try to fit
+
+370
+00:24:40,060 --> 00:24:48,040
+So, our observations into the model, so what we will do is, we will assume that there are two windings, which completely capture the response of
+
+371
+00:24:48,040 --> 00:24:50,620
+A two-winding of the quadrature axis
+
+372
+00:24:50,620 --> 00:24:53,020
+And two windings on the direct axis, which
+
+373
+00:24:53,020 --> 00:24:56,380
+So, we have completely captured the effects of the rotor.
+
+374
+00:24:56,380 --> 00:24:58,500
+So, we will see how these circuits are done.
+
+375
+00:24:58,500 --> 00:25:05,440
+So, this is an assumption in the sense that somebody may say you can have more, the answer is yes, you can have more.
+
+376
+00:25:05,440 --> 00:25:09,740
+But often it is seen as far as steam turbine driven generators are concerned
+
+377
+00:25:09,740 --> 00:25:14,160
+You require these many windings and their parameters
+
+378
+00:25:14,160 --> 00:25:18,760
+To represent the kind of dynamics which you will
+
+379
+00:25:18,760 --> 00:25:20,740
+See you from actual measurements.
+
+380
+00:25:20,740 --> 00:25:23,740
+Observations in actual tests which you will do.
+
+381
+00:25:23,740 --> 00:25:32,440
+In fact, for hydraulic turbine machines, it may be even possible to represent the whole system by a lower order model, that is, using lesser number of circuits. In fact,
+
+382
+00:25:32,440 --> 00:25:38,120
+In some cases, you may neglect the k winding when we are modeling a hydraulic turbine because
+
+383
+00:25:38,120 --> 00:25:48,120
+A model consisting of these number of windings with their parameters can accurately represent the kind of observations which are seen in the tests.
+
+384
+00:25:48,120 --> 00:25:52,020
+So, right now let us derive the model for
+
+385
+00:25:52,020 --> 00:25:56,480
+These three stator windings, a field winding
+
+386
+00:25:56,480 --> 00:26:02,180
+And these other three circuits which represent eddy and cage/damper winding effects.
+
+387
+00:26:02,180 --> 00:26:04,120
+And then
+
+388
+00:26:04,120 --> 00:26:09,080
+If required later, we can simplify things by opening one of these windings.
+
+389
+00:26:09,080 --> 00:26:17,320
+And get a lower order model, but let us initially get a higher order model and try to represent our system. Remember of course,
+
+390
+00:26:17,320 --> 00:26:21,580
+That, when I say that this is a winding, this is a schematic representation.
+
+391
+00:26:21,580 --> 00:26:29,560
+I have talked of the axis of the field winding, this is the axis of the A winding, this is the axis of the B winding, this is the axis of the C winding. What do I mean?
+
+392
+00:26:29,560 --> 00:26:33,600
+For example, when I say that this is the a winding and this is its axis,
+
+393
+00:26:33,600 --> 00:26:40,400
+What I mean is of course, that your A winding is wound like this, this is the overhang portion of the end region of the machine.
+
+394
+00:26:40,400 --> 00:26:42,820
+This is just one winding.
+
+395
+00:26:42,820 --> 00:26:46,080
+So, this winding means
+
+396
+00:26:46,080 --> 00:26:48,520
+It is schematically represented
+
+397
+00:26:48,520 --> 00:26:50,600
+Like this.
+
+398
+00:26:50,600 --> 00:26:55,100
+And its axis is like this. So, this is what I mean by axis of a winding.
+
+399
+00:26:55,100 --> 00:26:56,760
+And
+
+400
+00:26:56,760 --> 00:27:03,740
+Now, a schematic representation like this is actually implying a set of findings which are in this plane
+
+401
+00:27:03,740 --> 00:27:07,140
+And, the flux they cause if current flows through them.
+
+402
+00:27:07,140 --> 00:27:11,640
+It would be like this. So, this is what I mean by axis of a binding.
+
+403
+00:27:11,640 --> 00:27:17,180
+Now, what we need to do of course, when we are representing this as a circuit
+
+404
+00:27:17,180 --> 00:27:20,220
+Now, is compute the various
+
+405
+00:27:20,220 --> 00:27:24,480
+Mutual and self-inductances between all these windings.
+
+406
+00:27:24,480 --> 00:27:30,860
+So, you may want to for example, have the mutual inductance between this winding and this winding or this winding and this winding.
+
+407
+00:27:30,860 --> 00:27:34,480
+And of course, these things will be dependent upon
+
+408
+00:27:34,480 --> 00:27:36,540
+The angle $\theta$.
+
+409
+00:27:36,540 --> 00:27:42,120
+Right now, we are talking about a two-pole machine. So, there is no distinction between the mechanical and electrical angles.
+
+410
+00:27:42,120 --> 00:27:51,020
+And physical angle, electrical angle or the mechanical speed and the frequency of the EMF which are generated. So, they are exactly equivalent.
+
+411
+00:27:51,020 --> 00:27:53,600
+So, right now let us
+
+412
+00:27:53,600 --> 00:27:57,860
+Restrict our attention to a four-pole machine, two-pole machine, I apologize.
+
+413
+00:27:57,860 --> 00:27:59,560
+Okay.
+
+414
+00:27:59,560 --> 00:28:09,560
+Now, so what we need to do if you want to describe the machine is obtain a relationship between flux $\psi$, $H(s)$, and impedance $Z(s)$.
+
+415
+00:28:09,560 --> 00:28:10,800
+E
+
+416
+00:28:10,800 --> 00:28:13,320
+And the rest of the currents.
+
+417
+00:28:13,320 --> 00:28:15,180
+Ia, Ib, Ic.
+
+418
+00:28:15,180 --> 00:28:19,000
+I f, i h, i g, i k are in fact the three
+
+419
+00:28:19,000 --> 00:28:20,820
+Windings which
+
+420
+00:28:20,820 --> 00:28:22,780
+Capture the effect of eddy currents.
+
+421
+00:28:22,780 --> 00:28:26,720
+As well as damper bar currents.
+
+422
+00:28:26,720 --> 00:28:29,100
+$\psi_a = \psi_a = \psi_a = \psi_a = \psi$
+
+423
+00:28:29,100 --> 00:28:34,620
+A matrix or rather you can say psi a, psi b, psi c, psi f, psi g, psi k.
+
+424
+00:28:34,620 --> 00:28:38,120
+These are equal to $L \mathbf{I}$.
+
+425
+00:28:38,120 --> 00:28:42,320
+So, the structure of this $L$ matrix is indeed
+
+426
+00:28:42,320 --> 00:28:44,400
+LSS,
+
+427
+00:28:44,400 --> 00:28:46,440
+LSR, LSR,
+
+428
+00:28:46,440 --> 00:28:54,520
+$R_s \text{ and } L_r$, remember $I_a, I_b, I_c$ are what are known as the stator currents, so I will call them as $I_s$.
+
+429
+00:28:54,520 --> 00:28:57,200
+Together they are what are known as I s.
+
+430
+00:28:57,200 --> 00:29:04,860
+I R is consisting of I f, I h, I g and I k. These are the different windings which we have seen in the previous slide.
+
+431
+00:29:04,860 --> 00:29:07,340
+Similarly, of $\psi_s$ and $\psi_r$.
+
+432
+00:29:07,340 --> 00:29:15,000
+So, LSS is the matrix relating $\psi_s$ and $i_s$, and it is a 3x3 matrix. Similarly,
+
+433
+00:29:15,000 --> 00:29:22,900
+$L_R$ is a 4x4 matrix because it is the relationship between $L_S$ and $R_L$.
+
+434
+00:29:22,900 --> 00:29:26,800
+$\psi_r$, which has four components, and $i_r$, which also has four components.
+
+435
+00:29:26,800 --> 00:29:30,320
+So, now the important thing we need to derive
+
+436
+00:29:30,320 --> 00:29:32,120
+Are these components
+
+437
+00:29:32,120 --> 00:29:36,640
+So, that is the key challenge now.
+
+438
+00:29:36,640 --> 00:29:38,400
+Now, why is it a challenge?
+
+439
+00:29:38,400 --> 00:29:41,060
+One of the reasons why it is a challenge
+
+440
+00:29:41,060 --> 00:29:45,560
+The mutual inductances in some cases
+
+441
+00:29:45,560 --> 00:29:49,920
+Or even sometimes the self-inductances are dependent on the rotor position.
+
+442
+00:29:49,920 --> 00:29:52,380
+Why is that so?
+
+443
+00:29:52,380 --> 00:30:01,240
+Well, you can easily imagine that the amount of flux linked in for example, these coils here
+
+444
+00:30:01,240 --> 00:30:03,140
+Due to a current here,
+
+445
+00:30:03,140 --> 00:30:06,340
+We will change according to the position of the rotor.
+
+446
+00:30:06,340 --> 00:30:11,000
+These are indeed on the rotor; therefore, they will change in accordance with the rotor's position, which is a notable point.
+
+447
+00:30:11,000 --> 00:30:12,320
+Okay.
+
+448
+00:30:12,320 --> 00:30:13,660
+
+
+449
+00:30:13,660 --> 00:30:18,780
+Another problem which may occur is because of saliency
+
+450
+00:30:18,780 --> 00:30:25,880
+You will find that the mutual inductance between even the self-inductances may change. For example,
+
+451
+00:30:25,880 --> 00:30:27,820
+If you look at, if you look at the, if you look at the, if you look at the
+
+452
+00:30:27,820 --> 00:30:30,740
+Suppose, you have got the
+
+453
+00:30:30,740 --> 00:30:36,580
+So, A winding housed in say just for the timing let us assume it is housed in one slot
+
+454
+00:30:36,580 --> 00:30:39,700
+So, we have got the A winding housed in this slot.
+
+455
+00:30:39,700 --> 00:30:45,860
+If try to, if there is a current flow in this A winding, so the A winding, the current say enters here,
+
+456
+00:30:45,860 --> 00:30:47,840
+Gauss in the machine
+
+457
+00:30:47,840 --> 00:30:52,940
+Comes out at the end region at the other end and then again enters the machine slot
+
+458
+00:30:52,940 --> 00:30:56,980
+And comes out here. So, if you look at this kind of
+
+459
+00:30:56,980 --> 00:31:01,120
+Suppose, this is the A winding, it will create a flux in this
+
+460
+00:31:01,120 --> 00:31:04,140
+So, you will have a flux like this.
+
+461
+00:31:04,140 --> 00:31:05,240
+
+
+462
+00:31:05,240 --> 00:31:07,980
+Flux of this kind.
+
+463
+00:31:07,980 --> 00:31:11,900
+This is an open circuit that tends to cause a current flow in this direction.
+
+464
+00:31:11,900 --> 00:31:18,420
+Of course, the amount of flux you will you can barely imagine that the amount of flux which you will get under in this condition
+
+465
+00:31:18,420 --> 00:31:23,300
+It will be much more than the flux you will have under this situation. Why is it so?
+
+466
+00:31:23,300 --> 00:31:27,560
+Because, the reluctance of path is going to be more. So, if you have got
+
+467
+00:31:27,560 --> 00:31:28,660
+
+
+468
+00:31:28,660 --> 00:31:30,840
+Again,
+
+469
+00:31:30,840 --> 00:31:34,100
+Current in the A winding, suppose it is just one winding,
+
+470
+00:31:34,100 --> 00:31:42,040
+You will find that the current, the flux which will be induced tends to align with the magnetic paths, including the air gap.
+
+471
+00:31:42,040 --> 00:31:44,920
+This air gap is more on this axis.
+
+472
+00:31:44,920 --> 00:31:49,300
+And, less here, so you will find it, there is flux which is
+
+473
+00:31:49,300 --> 00:31:50,400
+
+
+474
+00:31:50,400 --> 00:31:53,020
+It goes like this.
+
+475
+00:31:53,020 --> 00:31:57,280
+But the flux here will try to tend to stick to this.
+
+476
+00:31:57,280 --> 00:31:59,300
+Now, of course,
+
+477
+00:31:59,300 --> 00:32:06,740
+Trying to find out the flux path requires you to do a full electromagnetic analysis, but you will notice that the reluctance
+
+478
+00:32:06,740 --> 00:32:10,240
+It is likely to be more
+
+479
+00:32:10,240 --> 00:32:20,240
+And the flux created is likely to be less if the rotor is in this position for a salient pole machine. This is not true, however, for a cylindrical
+
+480
+00:32:20,240 --> 00:32:24,140
+So, this is a pole machine because we will find that practically
+
+481
+00:32:24,140 --> 00:32:28,140
+The reluctance is the same for a cylindrical machine.
+
+482
+00:32:28,140 --> 00:32:30,260
+So, the self-inductance of
+
+483
+00:32:30,260 --> 00:32:37,420
+This is a winding will also depend on the rotor position. So, that is one important point which you should
+
+484
+00:32:37,420 --> 00:32:38,960
+Remember.
+
+485
+00:32:38,960 --> 00:32:42,380
+Now, let us first let us just speak
+
+486
+00:32:42,380 --> 00:32:44,760
+To a cylindrical pole machine,
+
+487
+00:32:44,760 --> 00:32:47,040
+Now, one of the important things which
+
+488
+00:32:47,040 --> 00:32:48,820
+What we wish to do is
+
+489
+00:32:48,820 --> 00:32:50,540
+Try to see how
+
+490
+00:32:50,540 --> 00:32:59,220
+The flux will be in case for under several circumstances. See what we need to do is if you want to find out the inductance
+
+491
+00:32:59,220 --> 00:33:04,400
+So, of self-inductance or mutual inductance, what we need to do is first of all,
+
+492
+00:33:04,400 --> 00:33:07,860
+For example, if I want to find out
+
+493
+00:33:07,860 --> 00:33:10,600
+The mutual inductance
+
+494
+00:33:10,600 --> 00:33:11,700
+
+
+495
+00:33:11,700 --> 00:33:13,160
+
+
+496
+00:33:13,160 --> 00:33:14,620
+
+
+497
+00:33:14,620 --> 00:33:16,680
+The mutual
+
+498
+00:33:16,680 --> 00:33:18,320
+Inductance,
+
+499
+00:33:18,320 --> 00:33:20,020
+
+
+500
+00:33:20,020 --> 00:33:21,180
+
+
+501
+00:33:21,180 --> 00:33:24,200
+Between the a winding
+
+502
+00:33:24,200 --> 00:33:28,040
+The phase angle $a$ winding and say the field winding
+
+503
+00:33:28,040 --> 00:33:30,960
+Then what you need to do is, you need to know that the
+
+504
+00:33:30,960 --> 00:33:34,200
+Assume that a current flows
+
+505
+00:33:34,200 --> 00:33:36,140
+In the A winding,
+
+506
+00:33:36,140 --> 00:33:40,540
+That will of course create a flux, an MMF.
+
+507
+00:33:40,540 --> 00:33:43,000
+In the air gap,
+
+508
+00:33:43,000 --> 00:33:50,120
+So, let us assume that there is only current in the A binding. So, you will have current in the A binding that will create an mmf.
+
+509
+00:33:50,120 --> 00:33:55,560
+That will be N A into I A, but of course, this I should call this, this is not the
+
+510
+00:33:55,560 --> 00:33:57,900
+This is equivalent number of turns.
+
+511
+00:33:57,900 --> 00:34:04,920
+So, you will have some constant into I A is the m f which is caused in the air gap. Of course,
+
+512
+00:34:04,920 --> 00:34:07,380
+When I say M F is caused,
+
+513
+00:34:07,380 --> 00:34:12,100
+In the core, it is a function of the angular position. I will just
+
+514
+00:34:12,100 --> 00:34:15,440
+Try to elaborate on this in a few seconds from now.
+
+515
+00:34:15,440 --> 00:34:21,640
+Now, this is the M F which is caused, which is proportional to by some constant N A into I A.
+
+516
+00:34:21,640 --> 00:34:24,360
+The MMF will cause some flux.
+
+517
+00:34:24,360 --> 00:34:31,040
+But, this is all, this is the function of the angular position, let us say I call this angular position
+
+518
+00:34:31,040 --> 00:34:33,920
+$\phi$ for the time being.
+
+519
+00:34:33,920 --> 00:34:41,840
+This will cause a flux.
+
+520
+00:34:41,840 --> 00:34:43,940
+This also will have a
+
+521
+00:34:43,940 --> 00:34:48,120
+Angular distribution, it is not a constant value everywhere in the air gap.
+
+522
+00:34:48,120 --> 00:34:54,120
+Then, you will have to find out what is the component of flux which is linked
+
+523
+00:34:54,120 --> 00:34:56,180
+With the field winding,
+
+524
+00:34:56,180 --> 00:34:57,280
+
+
+525
+00:34:57,280 --> 00:35:02,540
+So, once you calculate the component of flux which is linked with the
+
+526
+00:35:02,540 --> 00:35:06,640
+Field winding, while we will be able to compute the mutual inductance between
+
+527
+00:35:06,640 --> 00:35:09,420
+So, that is the basic
+
+528
+00:35:09,420 --> 00:35:18,320
+procedure we need to apply before we get actually what is the mutual inductance between the winding A and the winding F.
+
+529
+00:35:18,320 --> 00:35:22,020
+Now, so how do I actually proceed?
+
+530
+00:35:22,020 --> 00:35:29,080
+For example, let us just start off with trying to find out the mutual inductance between the winding A and the winding F.
+
+531
+00:35:29,080 --> 00:35:33,320
+So, if I want to find out this mutual inductance of the winding,
+
+532
+00:35:33,320 --> 00:35:36,200
+So, actually I am trying to take out
+
+533
+00:35:36,200 --> 00:35:38,040
+The first component
+
+534
+00:35:38,040 --> 00:35:39,400
+of
+
+535
+00:35:39,400 --> 00:35:45,580
+This, rather, yes, the first component of this $LSR$ matrix.
+
+536
+00:35:45,580 --> 00:35:49,080
+So, I am trying to get the relationship between flux linked
+
+537
+00:35:49,080 --> 00:35:51,280
+I am sorry.
+
+538
+00:35:51,280 --> 00:35:55,280
+I am trying to get the value of the flux linked with the field winding
+
+539
+00:35:55,280 --> 00:35:59,680
+Due to a current iA, so I am sorry, what I should be saying is
+
+540
+00:35:59,680 --> 00:36:01,380
+I am trying to find out.
+
+541
+00:36:01,380 --> 00:36:03,920
+So, let us write this component first.
+
+542
+00:36:03,920 --> 00:36:08,840
+So, just let us see the steps which we need to apply. So, if you have got
+
+543
+00:36:08,840 --> 00:36:13,000
+A current in the A winding, let us say the A winding is
+
+544
+00:36:13,000 --> 00:36:23,000
+Present in this slot, we will just assume for the time being it is concentrated, though a concentrated winding strictly speaking will never cause a sinusoidal M F in the code.
+
+545
+00:36:23,000 --> 00:36:26,220
+But, let us say you have got this A winding in this slot.
+
+546
+00:36:26,220 --> 00:36:32,640
+Now, we need to find out what is the MMF due to this $A$-minding first step.
+
+547
+00:36:32,640 --> 00:36:34,320
+So, I am going to do this.
+
+548
+00:36:34,320 --> 00:36:43,240
+To do that, of course, it is going to be proportional to the current and the number of turns and how these windings of the, how these A winding is distributed.
+
+549
+00:36:43,240 --> 00:36:45,600
+So, let me just
+
+550
+00:36:45,600 --> 00:36:50,080
+Redo this in the slightly smaller sheet, so that smaller diagram.
+
+551
+00:36:50,080 --> 00:36:51,960
+So, if you have got
+
+552
+00:36:51,960 --> 00:37:01,620
+So, we have a current flowing in the A winding, let us say it is distributed actually, but let me just represent it right now by a concentrator winding. So, this is your A
+
+553
+00:37:01,620 --> 00:37:03,300
+Winding.
+
+554
+00:37:03,300 --> 00:37:06,780
+And a current flows through this. Now, what I have told you before
+
+555
+00:37:06,780 --> 00:37:10,860
+Now, the problem is that the MMS will assume caused by any winding
+
+556
+00:37:10,860 --> 00:37:14,780
+This is going to be sinusoidally distributed in the core.
+
+557
+00:37:14,780 --> 00:37:16,880
+In the air gap,
+
+558
+00:37:16,880 --> 00:37:25,820
+So, what we will assume is that the MMF which is created by the A winding is going to be sinusoidally distributed, but of course, the B winding also causes the sinusoidally
+
+559
+00:37:25,820 --> 00:37:30,000
+Distributed MMF in the air gap, but one difference is there.
+
+560
+00:37:30,000 --> 00:37:34,920
+The MMF which is caused by the A winding will be maximum
+
+561
+00:37:34,920 --> 00:37:37,420
+Or it tends to cause
+
+562
+00:37:37,420 --> 00:37:42,480
+If you have got a cylindrical rotor, of course, it will cause maximum flux in this direction.
+
+563
+00:37:42,480 --> 00:37:47,280
+So, we expect the MMF to be maximum here.
+
+564
+00:37:47,280 --> 00:37:48,380
+
+
+565
+00:37:48,380 --> 00:37:54,040
+So, then it tries to cause a flux like this. So, your flux caused is
+
+566
+00:37:54,040 --> 00:37:56,580
+Like this.
+
+567
+00:37:56,580 --> 00:37:59,320
+So, what we see is that the MMF
+
+568
+00:37:59,320 --> 00:38:00,420
+
+
+569
+00:38:00,420 --> 00:38:01,880
+
+
+570
+00:38:01,880 --> 00:38:03,160
+Okay.
+
+571
+00:38:03,160 --> 00:38:04,840
+Caused
+
+572
+00:38:04,840 --> 00:38:06,000
+
+
+573
+00:38:06,000 --> 00:38:07,420
+
+
+574
+00:38:07,420 --> 00:38:08,720
+
+
+575
+00:38:08,720 --> 00:38:10,080
+
+
+576
+00:38:10,080 --> 00:38:13,160
+So, is maximum here?
+
+577
+00:38:13,160 --> 00:38:17,540
+Let us call this position as the $\beta$ position.
+
+578
+00:38:17,540 --> 00:38:19,760
+So, maximum here.
+
+579
+00:38:19,760 --> 00:38:21,760
+And it
+
+580
+00:38:21,760 --> 00:38:23,380
+Tends to drop
+
+581
+00:38:23,380 --> 00:38:25,920
+As $\beta$ increases,
+
+582
+00:38:25,920 --> 00:38:31,080
+It becomes 0 here because there is very little flux which is caused in these directions
+
+583
+00:38:31,080 --> 00:38:32,780
+By the current A,
+
+584
+00:38:32,780 --> 00:38:36,020
+In fact, it is practically 0.
+
+585
+00:38:36,020 --> 00:38:38,160
+So, there will be no flux entering the
+
+586
+00:38:38,160 --> 00:38:40,380
+Go in this direction.
+
+587
+00:38:40,380 --> 00:38:43,940
+So, what we will assume is that
+
+588
+00:38:43,940 --> 00:38:46,780
+What we really see is that the MMF is
+
+589
+00:38:46,780 --> 00:38:51,220
+Tends to cause a flux, maximum flux. So, $M_F$ will be maximum.
+
+590
+00:38:51,220 --> 00:38:53,620
+In this direction, in fact,
+
+591
+00:38:53,620 --> 00:38:58,800
+It tends to cause maximum flux in a cylindrical machine also in this direction. So,
+
+592
+00:38:58,800 --> 00:39:02,480
+It is maximum when $\beta = 0$. So, I will just
+
+593
+00:39:02,480 --> 00:39:05,860
+I will just take this $\beta = 0$ here.
+
+594
+00:39:05,860 --> 00:39:11,480
+This is $\beta = 0$, so MMF is maximum here.
+
+595
+00:39:11,480 --> 00:39:14,640
+It becomes 0.
+
+596
+00:39:14,640 --> 00:39:17,940
+When $\beta$ equals $90^\circ$,
+
+597
+00:39:17,940 --> 00:39:21,800
+And it tends to cause flux.
+
+598
+00:39:21,800 --> 00:39:24,540
+In the opposite direction because it kind of
+
+599
+00:39:24,540 --> 00:39:31,200
+It causes a flux which comes out of the air gap here and goes in here. So, the M F is negative after 90 degrees.
+
+600
+00:39:31,200 --> 00:39:32,720
+In this region,
+
+601
+00:39:32,720 --> 00:39:35,380
+This is the peak here.
+
+602
+00:39:35,380 --> 00:39:36,480
+
+
+603
+00:39:36,480 --> 00:39:38,600
+Okay.
+
+604
+00:39:38,600 --> 00:39:40,340
+So, this is
+
+605
+00:39:40,340 --> 00:39:43,920
+How your MMF looks like?
+
+606
+00:39:43,920 --> 00:39:45,020
+
+
+607
+00:39:45,020 --> 00:39:47,060
+90,
+
+608
+00:39:47,060 --> 00:39:49,400
+180, 180.
+
+609
+00:39:49,400 --> 00:39:51,820
+And back here.
+
+610
+00:39:51,820 --> 00:39:55,480
+So, just to make our analysis a bit simplified,
+
+611
+00:39:55,480 --> 00:40:05,480
+Whenever I say that the MMF, whenever I will kind of represent this kind of MMF by a vector in this direction. So, if I show a MMF by a vector in
+
+612
+00:40:05,480 --> 00:40:10,840
+In this direction, what does it mean? Its maximum M F is in this direction and drops off sinusoidally like this.
+
+613
+00:40:10,840 --> 00:40:13,560
+So, the MMF of the B winding will be
+
+614
+00:40:13,560 --> 00:40:15,700
+Can be represented
+
+615
+00:40:15,700 --> 00:40:18,120
+Like this, in this direction.
+
+616
+00:40:18,120 --> 00:40:22,880
+So, when I show a vector like this, it means this.
+
+617
+00:40:22,880 --> 00:40:25,820
+If I show a vector like this, what does it mean?
+
+618
+00:40:25,820 --> 00:40:28,280
+It reaches its peak value
+
+619
+00:40:28,280 --> 00:40:29,600
+Act.
+
+620
+00:40:29,600 --> 00:40:33,660
+120 degrees here, this is 120 degrees.
+
+621
+00:40:33,660 --> 00:40:35,480
+So,
+
+622
+00:40:35,480 --> 00:40:38,920
+An MMF caused by the B winding
+
+623
+00:40:38,920 --> 00:40:47,880
+Current in the B winding will be in this, will be represented by this arrow. So, when I should represent a mmf by this arrow, I really mean that the flux
+
+624
+00:40:47,880 --> 00:40:51,980
+So, distribution in the core is something like this. It is speaking here
+
+625
+00:40:51,980 --> 00:40:53,960
+At 120 degrees.
+
+626
+00:40:53,960 --> 00:40:55,060
+Thanks.
+
+627
+00:40:55,060 --> 00:40:58,540
+This is due to B winding, this is due to the A winding.
+
+628
+00:40:58,540 --> 00:41:07,640
+So, this will simplify our analysis a bit by if we represent the M M by a single arrow, but a single arrow means this.
+
+629
+00:41:07,640 --> 00:41:11,560
+So, that is something which you should remember and the distribution we assume is sinusoidal.
+
+630
+00:41:11,560 --> 00:41:15,920
+So, suppose I want to take out the mutual inductance between
+
+631
+00:41:15,920 --> 00:41:20,880
+So, the $A$-winding and the field-winding, what do I need to do is first
+
+632
+00:41:20,880 --> 00:41:22,600
+Take out the M F.
+
+633
+00:41:22,600 --> 00:41:24,740
+Is that ok?
+
+634
+00:41:24,740 --> 00:41:29,480
+Now, once I take out the MMF, I need to compute the flux.
+
+635
+00:41:29,480 --> 00:41:33,380
+So, the next step is compute the flux.
+
+636
+00:41:33,380 --> 00:41:38,480
+Now, the flux if it is a cylindrical rotor machine is quite straightforward because
+
+637
+00:41:38,480 --> 00:41:40,380
+Reluctance of a cylindrical
+
+638
+00:41:40,380 --> 00:41:43,620
+Rotor, cylindrical rotor machine,
+
+639
+00:41:43,620 --> 00:41:49,740
+It does not change with $\beta$. Thus, the flux is practically, for all practical purposes,
+
+640
+00:41:49,740 --> 00:41:50,840
+
+
+641
+00:41:50,840 --> 00:41:54,820
+If the, if there is a current flow only in the A winding,
+
+642
+00:41:54,820 --> 00:41:59,140
+Then, the flux will be simply a replica or scaled
+
+643
+00:41:59,140 --> 00:42:03,420
+, scaled waveform which is simply going to be
+
+644
+00:42:03,420 --> 00:42:06,800
+Similar to this blue waveform which I have drawn here,
+
+645
+00:42:06,800 --> 00:42:09,620
+So, flux also will be something like this.
+
+646
+00:42:09,620 --> 00:42:10,720
+
+
+647
+00:42:10,720 --> 00:42:12,180
+
+
+648
+00:42:12,180 --> 00:42:13,460
+
+
+649
+00:42:13,460 --> 00:42:15,120
+In the area.
+
+650
+00:42:15,120 --> 00:42:19,040
+So, this is what a cylindrical
+
+651
+00:42:19,040 --> 00:42:20,920
+Rotor machine,
+
+652
+00:42:20,920 --> 00:42:24,280
+The kind of flux which will be created in the air gap
+
+653
+00:42:24,280 --> 00:42:26,620
+Due to the current
+
+654
+00:42:26,620 --> 00:42:29,540
+In winding A,
+
+655
+00:42:29,540 --> 00:42:32,900
+Now, whenever I am going to try to take out
+
+656
+00:42:32,900 --> 00:42:41,340
+Now, the flux linked to the field winding, $F_s$, is given by: $F_s = \Phi_{airgap}$.
+
+657
+00:42:41,340 --> 00:42:45,180
+Now, what I want to do is how much of this flux links with the
+
+658
+00:42:45,180 --> 00:42:48,680
+So, what do I do is, I
+
+659
+00:42:48,680 --> 00:42:49,780
+
+
+660
+00:42:49,780 --> 00:42:53,600
+Where is the field mining? Suppose at
+
+661
+00:42:53,600 --> 00:42:55,520
+I want to take out
+
+662
+00:42:55,520 --> 00:43:00,140
+The mutual inductance when the field winding is aligned
+
+663
+00:43:00,140 --> 00:43:01,880
+At an angle
+
+664
+00:43:01,880 --> 00:43:04,240
+Now, let us look at the equation of $\theta$.
+
+665
+00:43:04,240 --> 00:43:05,340
+
+
+666
+00:43:05,340 --> 00:43:06,800
+
+
+667
+00:43:06,800 --> 00:43:08,080
+
+
+668
+00:43:08,080 --> 00:43:09,440
+
+
+669
+00:43:09,440 --> 00:43:10,760
+
+
+670
+00:43:10,760 --> 00:43:18,020
+Suppose the field winding is aligned at an angle $\theta$, what does it mean for it to be aligned at an angle of $\theta$?
+
+671
+00:43:18,020 --> 00:43:20,660
+The field winding is located here.
+
+672
+00:43:20,660 --> 00:43:22,260
+It is wound here.
+
+673
+00:43:22,260 --> 00:43:25,460
+So, the field winding is
+
+674
+00:43:25,460 --> 00:43:27,200
+Here,
+
+675
+00:43:27,200 --> 00:43:31,080
+At an angle $\theta$, so how much of this flux?
+
+676
+00:43:31,080 --> 00:43:36,500
+So, this is actually linking this field winding. So, I will just redraw this again.
+
+677
+00:43:36,500 --> 00:43:38,740
+Say I have got a
+
+678
+00:43:38,740 --> 00:43:40,340
+The a winding
+
+679
+00:43:40,340 --> 00:43:43,580
+It is causing a flux which is
+
+680
+00:43:43,580 --> 00:43:49,820
+As I mentioned, I am representing it by an arrow like this. What it means of course, is the peak value is in this direction.
+
+681
+00:43:49,820 --> 00:43:53,300
+And drops of sinusoidally as $\beta$ increases.
+
+682
+00:43:53,300 --> 00:43:55,860
+Suppose the field winding is
+
+683
+00:43:55,860 --> 00:43:57,260
+Here
+
+684
+00:43:57,260 --> 00:43:58,560
+
+
+685
+00:43:58,560 --> 00:43:59,920
+
+
+686
+00:43:59,920 --> 00:44:01,240
+
+
+687
+00:44:01,240 --> 00:44:02,580
+
+
+688
+00:44:02,580 --> 00:44:06,600
+This is wound here, I am showing it again as just
+
+689
+00:44:06,600 --> 00:44:10,180
+One winding, one turn, but normally it is
+
+690
+00:44:10,180 --> 00:44:14,200
+Wound over the periphery and has an axis here.
+
+691
+00:44:14,200 --> 00:44:16,660
+Similarly, the A winding though I have shown it as
+
+692
+00:44:16,660 --> 00:44:19,780
+Just two conductors actually
+
+693
+00:44:19,780 --> 00:44:24,660
+It is wound over the periphery of the machine and it has its axis like this.
+
+694
+00:44:24,660 --> 00:44:26,840
+So, the field winding axis says
+
+695
+00:44:26,840 --> 00:44:29,720
+At a given point of time, the field is aligned
+
+696
+00:44:29,720 --> 00:44:35,220
+Remember the field is rotating; this rotor is also rotating, so this field is aligned at an angle $\theta$.
+
+697
+00:44:35,220 --> 00:44:36,320
+
+
+698
+00:44:36,320 --> 00:44:37,780
+
+
+699
+00:44:37,780 --> 00:44:39,060
+
+
+700
+00:44:39,060 --> 00:44:41,780
+And the flux
+
+701
+00:44:41,780 --> 00:44:42,880
+
+
+702
+00:44:42,880 --> 00:44:44,340
+
+
+703
+00:44:44,340 --> 00:44:45,620
+
+
+704
+00:44:45,620 --> 00:44:46,980
+
+
+705
+00:44:46,980 --> 00:44:48,300
+
+
+706
+00:44:48,300 --> 00:44:49,640
+
+
+707
+00:44:49,640 --> 00:44:50,980
+And
+
+708
+00:44:50,980 --> 00:44:52,320
+
+
+709
+00:44:52,320 --> 00:44:53,660
+Okay.
+
+710
+00:44:53,660 --> 00:44:55,000
+Okay.
+
+711
+00:44:55,000 --> 00:44:56,340
+So,
+
+712
+00:44:56,340 --> 00:44:57,680
+
+
+713
+00:44:57,680 --> 00:45:01,780
+And this is the angular position $\theta$.
+
+714
+00:45:01,780 --> 00:45:03,720
+Okay.
+
+715
+00:45:03,720 --> 00:45:07,500
+This is $\beta = 0$, and $\beta = \theta$.
+
+716
+00:45:07,500 --> 00:45:12,260
+Now, the thing is how much of this flux is actually linking with this winding?
+
+717
+00:45:12,260 --> 00:45:16,640
+So, a flux is going in, actually if you look at the flux, it is
+
+718
+00:45:16,640 --> 00:45:19,540
+It's in this direction.
+
+719
+00:45:19,540 --> 00:45:22,420
+I will just redraw it here.
+
+720
+00:45:22,420 --> 00:45:24,800
+So, that it becomes easy to understand.
+
+721
+00:45:24,800 --> 00:45:29,060
+The flux due to the a winding is going in is
+
+722
+00:45:29,060 --> 00:45:30,920
+So, this is the definition of this kind.
+
+723
+00:45:30,920 --> 00:45:32,020
+
+
+724
+00:45:32,020 --> 00:45:33,480
+
+
+725
+00:45:33,480 --> 00:45:34,760
+
+
+726
+00:45:34,760 --> 00:45:37,040
+Like this.
+
+727
+00:45:37,040 --> 00:45:38,800
+And maximum of course here.
+
+728
+00:45:38,800 --> 00:45:39,920
+
+
+729
+00:45:39,920 --> 00:45:41,360
+
+
+730
+00:45:41,360 --> 00:45:46,260
+Now, if you have got a coil which is aligned at $\theta$,
+
+731
+00:45:46,260 --> 00:45:50,340
+How much of the flux will actually get linked with it?
+
+732
+00:45:50,340 --> 00:45:57,000
+The answer is that the flux, total flux, you will have to compute this
+
+733
+00:45:57,000 --> 00:45:58,740
+The flux density
+
+734
+00:45:58,740 --> 00:46:02,580
+And integrate it over this area, this whole area.
+
+735
+00:46:02,580 --> 00:46:06,520
+You can imagine that it is going to be
+
+736
+00:46:06,520 --> 00:46:09,780
+This is dependent upon this $\theta$.
+
+737
+00:46:09,780 --> 00:46:14,060
+What is it going to be? For example, if $\theta = 0$,
+
+738
+00:46:14,060 --> 00:46:16,800
+All this, almost all of this flux
+
+739
+00:46:16,800 --> 00:46:18,460
+We will get link with
+
+740
+00:46:18,460 --> 00:46:21,620
+The field winding, indeed there will be some leakage, but
+
+741
+00:46:21,620 --> 00:46:24,720
+It will be maximum, the linkage will be maximum here.
+
+742
+00:46:24,720 --> 00:46:27,720
+Reduce, reduce, reduce and in fact,
+
+743
+00:46:27,720 --> 00:46:30,000
+So, if you are
+
+744
+00:46:30,000 --> 00:46:32,700
+$\theta =$
+
+745
+00:46:32,700 --> 00:46:33,800
+Okay.
+
+746
+00:46:33,800 --> 00:46:35,260
+
+
+747
+00:46:35,260 --> 00:46:37,980
+90 degrees, you will find it.
+
+748
+00:46:37,980 --> 00:46:39,080
+
+
+749
+00:46:39,080 --> 00:46:40,540
+So,
+
+750
+00:46:40,540 --> 00:46:49,800
+The total flux linking this winding, so to link what you need to have is the flux goals, suppose this is the winding, the flux needs to go in.
+
+751
+00:46:49,800 --> 00:46:52,700
+Now, if you look, if the flux is like this,
+
+752
+00:46:52,700 --> 00:46:56,360
+And the winding is like this, nothing is going in it, just
+
+753
+00:46:56,360 --> 00:47:03,180
+The flux is in this direction. So, no flux is actually linking this winding if $\theta = 90^\circ$.
+
+754
+00:47:03,180 --> 00:47:09,060
+So, you can imagine that your flux, in fact, the linkage of flux is dependent on $\theta$.
+
+755
+00:47:09,060 --> 00:47:11,920
+So, it is maximum here.
+
+756
+00:47:11,920 --> 00:47:20,640
+Minimum here, $0$ here, in fact the linkage becomes negative because the flux direction is reversed as far as the field winding is concerned when the
+
+757
+00:47:20,640 --> 00:47:22,760
+Field becomes 180 degrees.
+
+758
+00:47:22,760 --> 00:47:25,180
+So, one can expect that
+
+759
+00:47:25,180 --> 00:47:27,900
+The mutual inductance between
+
+760
+00:47:27,900 --> 00:47:31,280
+That is the mutual inductance between
+
+761
+00:47:31,280 --> 00:47:32,380
+
+
+762
+00:47:32,380 --> 00:47:36,920
+A winding and the field winding will indeed be
+
+763
+00:47:36,920 --> 00:47:38,740
+Have the form
+
+764
+00:47:38,740 --> 00:47:41,700
+MAF,
+
+765
+00:47:41,700 --> 00:47:43,760
+$\cos(\theta)$
+
+766
+00:47:43,760 --> 00:47:44,860
+Now, we're going to do a little bit of a quick check of the equation.
+
+767
+00:47:44,860 --> 00:47:51,820
+So, that is the most, this is the important point that the variation of the mutual inductance between
+
+768
+00:47:51,820 --> 00:47:56,160
+The A winding and the field winding are likely to have a mutual inductance of this type.
+
+769
+00:47:56,160 --> 00:48:00,900
+Let us now look at another term in our inductance matrix, which is
+
+770
+00:48:00,900 --> 00:48:08,100
+The mutual inductance, the self-inductance of the A winding, this is again a simple, relatively simple
+
+771
+00:48:08,100 --> 00:48:10,660
+Thing to, , imagine
+
+772
+00:48:10,660 --> 00:48:12,140
+For example,
+
+773
+00:48:12,140 --> 00:48:14,660
+You got the A winding.
+
+774
+00:48:14,660 --> 00:48:15,760
+
+
+775
+00:48:15,760 --> 00:48:22,180
+Again, I have shown it as a packed or concentrated winding. Actually, it is distributed along the periphery.
+
+776
+00:48:22,180 --> 00:48:27,220
+Now, if you have got the A winding like this, it causes an MMF
+
+777
+00:48:27,220 --> 00:48:33,000
+Whose vector representation, I have just discussed the vector representation some time ago is this.
+
+778
+00:48:33,000 --> 00:48:36,960
+Now, if it is a salient pole machine,
+
+779
+00:48:36,960 --> 00:48:38,060
+
+
+780
+00:48:38,060 --> 00:48:39,800
+.
+
+781
+00:48:39,800 --> 00:48:45,580
+Again, the flux caused will depend on this position because some time back,
+
+782
+00:48:45,580 --> 00:48:47,620
+Yarrr.
+
+783
+00:48:47,620 --> 00:48:49,260
+So,
+
+784
+00:48:49,260 --> 00:48:54,640
+The flux length will be position dependent something here like this.
+
+785
+00:48:54,640 --> 00:48:56,240
+No flux.
+
+786
+00:48:56,240 --> 00:48:58,160
+Will you maximum here?
+
+787
+00:48:58,160 --> 00:49:00,540
+There will be minimum here.
+
+788
+00:49:00,540 --> 00:49:02,560
+And then again maximum here.
+
+789
+00:49:02,560 --> 00:49:04,920
+So, if you have got a current
+
+790
+00:49:04,920 --> 00:49:11,360
+Flow, and you have got a salient-pole machine, you will, you are, again your flux linkage is equal to the product of the number of poles N times the magnetic field strength H.
+
+791
+00:49:11,360 --> 00:49:21,360
+With the A winding, due to a current in the A winding, it will be dependent on the rotor position in case of a cylindrical-pole machine. This is not true for a cylindrical-pole machine.
+
+792
+00:49:21,360 --> 00:49:25,100
+You are likely to have practically the same flux even in
+
+793
+00:49:25,100 --> 00:49:32,180
+This, even when the field winding is rotated by 90 degrees. So, it is a cylindrical-pole machine that will not be much of an issue.
+
+794
+00:49:32,180 --> 00:49:34,200
+But if it is a salient-pole machine,
+
+795
+00:49:34,200 --> 00:49:36,820
+You will find
+
+796
+00:49:36,820 --> 00:49:38,520
+I'll just use this itself.
+
+797
+00:49:38,520 --> 00:49:41,400
+We will find that the flux link
+
+798
+00:49:41,400 --> 00:49:45,000
+It is dependent on position. So, you expect the self-inductance
+
+799
+00:49:45,000 --> 00:49:46,820
+So, this is the definition of the A winding
+
+800
+00:49:46,820 --> 00:49:48,680
+Due to
+
+801
+00:49:48,680 --> 00:49:49,780
+
+
+802
+00:49:49,780 --> 00:49:51,240
+
+
+803
+00:49:51,240 --> 00:49:57,020
+Of the $A$-winding, in a salient-pole machine, it will be maximum at
+
+804
+00:49:57,020 --> 00:49:59,260
+$\theta = \phi,$
+
+805
+00:49:59,260 --> 00:50:02,700
+When the rotor position $\theta$ equals $0$,
+
+806
+00:50:02,700 --> 00:50:03,800
+
+
+807
+00:50:03,800 --> 00:50:10,720
+There will be a minimum at this position, which occurs when $\theta = 90^\circ$. Thus, this is $\theta$.
+
+808
+00:50:10,720 --> 00:50:12,700
+And then,
+
+809
+00:50:12,700 --> 00:50:13,800
+
+
+810
+00:50:13,800 --> 00:50:17,900
+Maximum again when it is 180 degrees.
+
+811
+00:50:17,900 --> 00:50:19,640
+So, one can expect
+
+812
+00:50:19,640 --> 00:50:25,580
+That, the self-inductance of the A winding in general will be of this form.
+
+813
+00:50:25,580 --> 00:50:27,120
+It will be
+
+814
+00:50:27,120 --> 00:50:28,660
+L
+
+815
+00:50:28,660 --> 00:50:30,840
+a
+
+816
+00:50:30,840 --> 00:50:33,380
+$H_A$
+
+817
+00:50:33,380 --> 00:50:35,100
+So, this is the equation of the equation of the equation.
+
+818
+00:50:35,100 --> 00:50:38,160
+LAA0,
+
+819
+00:50:38,160 --> 00:50:40,000
+$+$
+
+820
+00:50:40,000 --> 00:50:41,100
+
+
+821
+00:50:41,100 --> 00:50:45,220
+Now, some other term LAA2 let us say.
+
+822
+00:50:45,220 --> 00:50:49,440
+We have $x(t) = \cos(2\theta)$.
+
+823
+00:50:49,440 --> 00:50:53,520
+So, our variation will be something like this.
+
+824
+00:50:53,520 --> 00:50:58,820
+In fact, of course, I have not proved it should be a sinusoidal or cosinusoidal variation.
+
+825
+00:50:58,820 --> 00:51:06,280
+But, this follows if you assume that the MMF is actually distributed sinusoidally, MMF, fluxes, etcetera all distributed sinusoidally.
+
+826
+00:51:06,280 --> 00:51:08,060
+You will find that in fact
+
+827
+00:51:08,060 --> 00:51:10,460
+The flux linked
+
+828
+00:51:10,460 --> 00:51:15,300
+And, the MMFs are distributed sinusoidally. You will find that this is the kind of
+
+829
+00:51:15,300 --> 00:51:17,540
+Thing you can expect.
+
+830
+00:51:17,540 --> 00:51:25,180
+So, your self-inductance term will look like this. Now, more difficult perhaps to imagine
+
+831
+00:51:25,180 --> 00:51:27,540
+What is the self-inductance?
+
+832
+00:51:27,540 --> 00:51:30,880
+Or rather the mutual inductance between
+
+833
+00:51:30,880 --> 00:51:33,280
+The a winding
+
+834
+00:51:33,280 --> 00:51:39,640
+And the B winding, so if what is the mutual inductance between the winding, the B winding
+
+835
+00:51:39,640 --> 00:51:43,180
+So, if you are looking at current flow like this.
+
+836
+00:51:43,180 --> 00:51:45,000
+What?
+
+837
+00:51:45,000 --> 00:51:50,940
+Now, is the flux linked with the B winding, remember the B or the C winding, sorry, I will just
+
+838
+00:51:50,940 --> 00:51:54,500
+This is the B winding, I am sorry, this is the C winding.
+
+839
+00:51:54,500 --> 00:51:57,220
+The axis of the B winding is in this direction.
+
+840
+00:51:57,220 --> 00:51:58,320
+
+
+841
+00:51:58,320 --> 00:51:59,780
+Okay.
+
+842
+00:51:59,780 --> 00:52:03,000
+So, when I am talking of
+
+843
+00:52:03,000 --> 00:52:05,320
+Flux linked.
+
+844
+00:52:05,320 --> 00:52:07,360
+In this
+
+845
+00:52:07,360 --> 00:52:08,460
+
+
+846
+00:52:08,460 --> 00:52:09,920
+
+
+847
+00:52:09,920 --> 00:52:11,200
+
+
+848
+00:52:11,200 --> 00:52:15,200
+B winding which is housed here,
+
+849
+00:52:15,200 --> 00:52:20,080
+Again, I am showing it as a concentrated winding. Actually, it is distributed.
+
+850
+00:52:20,080 --> 00:52:21,780
+This is the B winding.
+
+851
+00:52:21,780 --> 00:52:23,440
+In green.
+
+852
+00:52:23,440 --> 00:52:26,760
+The B winding, what is the flux link with the B winding?
+
+853
+00:52:26,760 --> 00:52:31,140
+When current is I A flows through the A winding.
+
+854
+00:52:31,140 --> 00:52:35,020
+So, how do you solve this problem?
+
+855
+00:52:35,020 --> 00:52:42,160
+Now, with a cylindrical rotor machine, there is no major problem as far as deriving
+
+856
+00:52:42,160 --> 00:52:47,160
+So, if you take a cylindrical rotor machine,
+
+857
+00:52:47,160 --> 00:52:48,260
+
+
+858
+00:52:48,260 --> 00:52:49,720
+
+
+859
+00:52:49,720 --> 00:52:52,260
+You have got the A winding.
+
+860
+00:52:52,260 --> 00:52:53,360
+Okay.
+
+861
+00:52:53,360 --> 00:52:54,820
+
+
+862
+00:52:54,820 --> 00:52:56,440
+And you have got
+
+863
+00:52:56,440 --> 00:52:57,640
+
+
+864
+00:52:57,640 --> 00:53:00,060
+The B winding
+
+865
+00:53:00,060 --> 00:53:01,160
+
+
+866
+00:53:01,160 --> 00:53:02,620
+Okay.
+
+867
+00:53:02,620 --> 00:53:09,000
+The a winding causes an mmf in this direction represented by this vector
+
+868
+00:53:09,000 --> 00:53:14,060
+It means that of course, the maximum is in this direction, it drops off sinusoidally.
+
+869
+00:53:14,060 --> 00:53:18,500
+And the flux also, since actually the
+
+870
+00:53:18,500 --> 00:53:23,640
+Reluctance is the same all throughout the air gap in a cylindrical pole machine. The flux also is
+
+871
+00:53:23,640 --> 00:53:24,740
+
+
+872
+00:53:24,740 --> 00:53:28,060
+Can be represented by this vector.
+
+873
+00:53:28,060 --> 00:53:32,840
+But as I mentioned in case of the mutual
+
+874
+00:53:32,840 --> 00:53:35,660
+Inductance between the $A$ winding and the field winding,
+
+875
+00:53:35,660 --> 00:53:40,460
+The flux which is flowing in this direction, not the amount it links with
+
+876
+00:53:40,460 --> 00:53:43,160
+So, the B winding is
+
+877
+00:53:43,160 --> 00:53:45,660
+Not the same, I mean for example,
+
+878
+00:53:45,660 --> 00:53:47,880
+We had discussed this before.
+
+879
+00:53:47,880 --> 00:53:50,620
+If a flux like this is caused,
+
+880
+00:53:50,620 --> 00:53:51,720
+
+
+881
+00:53:51,720 --> 00:53:53,180
+
+
+882
+00:53:53,180 --> 00:53:54,460
+
+
+883
+00:53:54,460 --> 00:53:55,820
+
+
+884
+00:53:55,820 --> 00:53:57,140
+
+
+885
+00:53:57,140 --> 00:53:58,480
+And
+
+886
+00:53:58,480 --> 00:54:02,500
+Due to the current in the A winding,
+
+887
+00:54:02,500 --> 00:54:05,320
+How much of it links?
+
+888
+00:54:05,320 --> 00:54:08,160
+Now, what is the B winding C?
+
+889
+00:54:08,160 --> 00:54:12,920
+, the B winding, when I say linked means, what is the flux which is
+
+890
+00:54:12,920 --> 00:54:16,980
+Passing through the B winding in this direction, in this direction.
+
+891
+00:54:16,980 --> 00:54:25,200
+So, only a, you can say a component of this is actually in this direction. To get this, what we do is
+
+892
+00:54:25,200 --> 00:54:26,960
+Compute
+
+893
+00:54:26,960 --> 00:54:35,320
+So, this flux vector which I have drawn here, it represents actually a sinusoidal variation with a maximum here.
+
+894
+00:54:35,320 --> 00:54:37,060
+Can be resolved.
+
+895
+00:54:37,060 --> 00:54:39,620
+So, I have to write this equation into a vector in this direction.
+
+896
+00:54:39,620 --> 00:54:40,720
+
+
+897
+00:54:40,720 --> 00:54:42,180
+
+
+898
+00:54:42,180 --> 00:54:44,380
+That is
+
+899
+00:54:44,380 --> 00:54:47,240
+You take this direction which is the axis of the B winding.
+
+900
+00:54:47,240 --> 00:54:48,520
+
+
+901
+00:54:48,520 --> 00:54:49,880
+
+
+902
+00:54:49,880 --> 00:54:51,200
+
+
+903
+00:54:51,200 --> 00:54:52,540
+
+
+904
+00:54:52,540 --> 00:54:53,880
+
+
+905
+00:54:53,880 --> 00:54:57,420
+It can be resolved in this fashion.
+
+906
+00:54:57,420 --> 00:55:00,320
+So I don't know whether it's very clearly visible or not.
+
+907
+00:55:00,320 --> 00:55:03,340
+, what I am saying is that the flux
+
+908
+00:55:03,340 --> 00:55:06,440
+In a cylindrical pole machine,
+
+909
+00:55:06,440 --> 00:55:09,380
+Caused by the A winding,
+
+910
+00:55:09,380 --> 00:55:14,480
+So, this is the direction, I will just draw it by a slightly thicker line, so that you can see it there.
+
+911
+00:55:14,480 --> 00:55:17,680
+So, the flux vector
+
+912
+00:55:17,680 --> 00:55:21,000
+Remove a vector means that
+
+913
+00:55:21,000 --> 00:55:25,760
+The flux is maximum here and drops off sinusoidally here.
+
+914
+00:55:25,760 --> 00:55:28,720
+So, the flux vector
+
+915
+00:55:28,720 --> 00:55:32,040
+So, this is this. I can resolve this flux
+
+916
+00:55:32,040 --> 00:55:35,000
+In the $B$-axis direction,
+
+917
+00:55:35,000 --> 00:55:37,200
+And the direction 90 degrees to it.
+
+918
+00:55:37,200 --> 00:55:39,360
+This is the $B$-axis.
+
+919
+00:55:39,360 --> 00:55:46,260
+What you see is that if there is a current in the $A_{min}$ and it causes
+
+920
+00:55:46,260 --> 00:55:48,200
+Flux like this.
+
+921
+00:55:48,200 --> 00:55:51,780
+Only a component of this
+
+922
+00:55:51,780 --> 00:55:53,580
+We actually
+
+923
+00:55:53,580 --> 00:55:55,280
+Be there.
+
+924
+00:55:55,280 --> 00:55:58,260
+So, this is the equation which will link with the B binding, remember
+
+925
+00:55:58,260 --> 00:56:04,460
+If I am trying to look at the fluxes linked to the B winding, I should not look at the fluxes which are like this.
+
+926
+00:56:04,460 --> 00:56:12,880
+I should which I entering B after all eventually I will be using Faraday's law and Faraday's law relates the flux which is going like this into the winding.
+
+927
+00:56:12,880 --> 00:56:16,820
+So, even if you have got a flux which is maximum here and it is
+
+928
+00:56:16,820 --> 00:56:22,480
+Dropping down like this, the amount of flux which is linked to the B winding in fact
+
+929
+00:56:22,480 --> 00:56:25,700
+It is only a component of this flux.
+
+930
+00:56:25,700 --> 00:56:27,820
+So, how much is that component?
+
+931
+00:56:27,820 --> 00:56:32,920
+Well, that the angle between this and this is 120 degrees,
+
+932
+00:56:32,920 --> 00:56:34,020
+
+
+933
+00:56:34,020 --> 00:56:36,600
+So, the flux linking
+
+934
+00:56:36,600 --> 00:56:41,720
+The B winding due to a current in the A winding for a cylindrical pole machine is given by: $B = \mu_0 I L$.
+
+935
+00:56:41,720 --> 00:56:43,340
+We will be simply
+
+936
+00:56:43,340 --> 00:56:46,320
+Is it going to be a constant?
+
+937
+00:56:46,320 --> 00:56:48,100
+The answer is yes because
+
+938
+00:56:48,100 --> 00:56:52,700
+Even if this rotor position moves, if this rotor moves,
+
+939
+00:56:52,700 --> 00:56:54,840
+This will not change.
+
+940
+00:56:54,840 --> 00:56:57,840
+So, for a cylindrical rotor machine,
+
+941
+00:56:57,840 --> 00:56:58,940
+
+
+942
+00:56:58,940 --> 00:57:00,400
+
+
+943
+00:57:00,400 --> 00:57:06,580
+L a b, that is the inductance between the a and the b winding,
+
+944
+00:57:06,580 --> 00:57:08,340
+will be lesser.
+
+945
+00:57:08,340 --> 00:57:11,360
+Then the self-inductance, that is certainly.
+
+946
+00:57:11,360 --> 00:57:14,400
+For a cylindrical pole machine,
+
+947
+00:57:14,400 --> 00:57:18,940
+This L a b will be constant.
+
+948
+00:57:18,940 --> 00:57:28,940
+Now, you may ask the question: What happens when you have got a salient pole machine? Is then the mutual inductance between the A and B equal to zero or not?
+
+949
+00:57:28,940 --> 00:57:33,100
+Is the B winding a function of the position? The answer is yes.
+
+950
+00:57:33,100 --> 00:57:41,780
+The A winding and the B, the inductance between the A winding and the B winding is in fact
+
+951
+00:57:41,780 --> 00:57:44,600
+A function of the position because
+
+952
+00:57:44,600 --> 00:57:48,500
+Even of the A winding produces a flux
+
+953
+00:57:48,500 --> 00:57:50,960
+MMF in this direction.
+
+954
+00:57:50,960 --> 00:57:57,120
+The flux need not be having a vector representation in this direction because
+
+955
+00:57:57,120 --> 00:58:00,580
+Even though M F is like this,
+
+956
+00:58:00,580 --> 00:58:04,100
+The flux is depends on the reluctance
+
+957
+00:58:04,100 --> 00:58:08,400
+So, the inductance of the path is not uniform.
+
+958
+00:58:08,400 --> 00:58:13,460
+So, what we will do in the next lecture is try to get
+
+959
+00:58:13,460 --> 00:58:16,620
+The mutual inductance between
+
+960
+00:58:16,620 --> 00:58:20,780
+The A winding and the B winding in case
+
+961
+00:58:20,780 --> 00:58:22,540
+You have got
+
+962
+00:58:22,540 --> 00:58:24,720
+Selle and pole machine.
+
+963
+00:58:24,720 --> 00:58:27,460
+So, just to summarize everything quickly.
+
+964
+00:58:27,460 --> 00:58:29,160
+The mutual
+
+965
+00:58:29,160 --> 00:58:35,220
+$H_{AB} = \mu_0 l N^2 (\cos\theta)$
+
+966
+00:58:35,220 --> 00:58:36,320
+
+
+967
+00:58:36,320 --> 00:58:40,320
+$L_A = \mu_0 l N^2 \cos\theta$
+
+968
+00:58:40,320 --> 00:58:43,500
+Or in fact, the B winding or the C winding.
+
+969
+00:58:43,500 --> 00:58:45,840
+For a salient pole machine,
+
+970
+00:58:45,840 --> 00:58:48,720
+It is actually a function of $\cos(2\theta)$.
+
+971
+00:58:48,720 --> 00:58:53,300
+For a cylindrical pole machine, it is indeed a constant. It is not dependent on $\theta$ at all.
+
+972
+00:58:53,300 --> 00:59:02,200
+So, we will actually take a few more representative cases. In fact, what we are doing now is finding out the mutual inductance between the A winding and the B winding.
+
+973
+00:59:02,200 --> 00:59:04,360
+When there is saliency in the rotor,
+
+974
+00:59:04,360 --> 00:59:12,940
+So, that is something we will resolve in the next class and there on we will then calculate the, we will get the differential equations of the machine
+
+975
+00:59:12,940 --> 00:59:19,460
+And, then I will introduce you to a very interesting and important transformation of variables called the DQ transformation.
+
+976
+00:59:19,460 --> 00:59:29,460
+
+
+977
+00:59:29,460 --> 00:59:33,640
+
+

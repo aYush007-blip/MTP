@@ -297,6 +297,9 @@ MATH_INDICATOR_PATTERN = re.compile(
     r"heat\s+transfer|conduction|convection|radiation|stress|strain|shear|viscosity|young\'?s\s+modulus|"
     # Computer science & probability
     r"big\s+o|recurrence|bayes|posterior|prior|probability|variance|standard\s+deviation|"
+    # Electrical machines & power systems
+    r"synchronous|rotor|stator|flux\s+linkage|direct\s+axis|quadrature\s+axis|d[\s-]axis|q[\s-]axis|"
+    r"field\s+winding|damper|reactance|impedance|park\'?s\s+transform\w*|"
     # Functional notation: universal [var] of [arg] (e.g. h of s, f of x, g of t, y of t, x of n, T of r)
     r"(?:[a-z]|alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|rho|sigma|tau|phi|psi|omega)\s+of\s+(?:j\s+omega|omega|[a-z0-9]+)|"
     r"sinusoid|kcl|kvl|ohm\'?s\s+law"
