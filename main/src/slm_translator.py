@@ -72,7 +72,11 @@ FEW_SHOT_MESSAGES = [
     }
 ]
 
-DEFAULT_GGUF_PATH = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+DEFAULT_GGUF_PATH = (
+    "/home/ayush02/models/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+    if Path("/home/ayush02/models/qwen2.5-1.5b-instruct-q4_k_m.gguf").exists()
+    else "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+)
 DEFAULT_HF_PATH = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct"
 LLAMA_CLI_BIN = "/mnt/thesis/llama.cpp/build/bin/llama-cli"
 LLAMA_SERVER_URL = "http://127.0.0.1:8080"
@@ -178,6 +182,9 @@ class QwenMathTranslator:
                 if isinstance(item, (list, tuple)) and len(item) == 2:
                     r, l = item
                     r_str, l_str = str(r).strip(), str(l).strip()
+                    # Strip any corrupted tokens or repetition loops from history
+                    l_str = re.sub(r"\bNative\b", "", l_str, flags=re.IGNORECASE).strip()
+                    l_str = re.sub(r"(.)\1{4,}", "", l_str).strip()
                     if r_str and l_str:
                         messages.append({"role": "user", "content": f"Spoken transcript:\n{r_str}"})
                         messages.append({"role": "assistant", "content": l_str})
@@ -202,6 +209,8 @@ class QwenMathTranslator:
         # Remove accidental markdown code fences
         s = re.sub(r"^```(?:latex|markdown)?\s*", "", s)
         s = re.sub(r"\s*```$", "", s)
+        # Strip Native and repetitive hallucinations
+        s = re.sub(r"\bNative\b", "", s, flags=re.IGNORECASE)
         # Remove conversational meta prefixes and leaked prompt markers
         s = re.sub(r"(?:^|\n)\s*\[?(?:Spoken transcript|Preceding context|Translation|Output|Text|Transcription)\]?:\s*", "\n", s, flags=re.IGNORECASE)
         s = s.strip()
@@ -266,6 +275,7 @@ class QwenMathTranslator:
             "temperature": 0.0,
             "repeat_penalty": 1.15,
             "stream": False,
+            "stop": ["<|im_end|>", "<|endoftext|>", "\n\n"],
         }
         data_bytes = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
@@ -275,7 +285,7 @@ class QwenMathTranslator:
         )
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 resp_data = json.loads(resp.read().decode("utf-8"))
                 content = resp_data["choices"][0]["message"]["content"]
                 return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
@@ -284,18 +294,27 @@ class QwenMathTranslator:
             # Auto-revive daemon if down
             if not self._is_server_alive():
                 try:
+                    main_dir = str(Path(__file__).resolve().parent.parent)
+                    if main_dir not in sys.path:
+                        sys.path.insert(0, main_dir)
                     from gui.server import ensure_edge_daemons
                     ensure_edge_daemons()
-                    time.sleep(1.0)
+                    time.sleep(2.0)
                 except Exception as revive_err:
                     print(f"[SLM Revive Failed] {revive_err}")
-            # Retry once
-            if self._is_server_alive():
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    resp_data = json.loads(resp.read().decode("utf-8"))
-                    content = resp_data["choices"][0]["message"]["content"]
-                    return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
-            raise
+            # Retry loop with backoff
+            for attempt in range(3):
+                if self._is_server_alive():
+                    try:
+                        with urllib.request.urlopen(req, timeout=15) as resp:
+                            resp_data = json.loads(resp.read().decode("utf-8"))
+                            content = resp_data["choices"][0]["message"]["content"]
+                            return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+                    except Exception:
+                        time.sleep(1.0)
+                else:
+                    time.sleep(1.0)
+            return spoken_text
 
     def translate_cli(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
         """Execute translation directly through compiled llama-cli."""

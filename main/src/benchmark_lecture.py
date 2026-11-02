@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Comprehensive Long-Form Lecture Benchmark & Accuracy Profiler for NVIDIA Jetson Orin Nano.
+Comprehensive Long-Form Academic Lecture Benchmark & Typesetting Profiler
+Optimized for NVIDIA Jetson Orin Nano (CUDA SM87 Flash Attention + Qwen2.5-1.5B SLM)
 
-Evaluates latency, real-time factor (RTF), and spoken-math-to-LaTeX accuracy on real-world
-academic engineering lecture recordings.
-
-Architecture:
-  1. High-Fidelity Audio Resampling: SoX 16kHz 16-bit mono decimation
-  2. Dynamic Adaptive VAD: Pause-aware utterance chunking (2.0s - 12.0s)
-  3. Edge ASR: whisper-server HTTP daemon (CUDA SM87 Flash Attention)
-  4. Mathematical SLM: Qwen2.5-1.5B-Instruct-GGUF via llama-server (CUDA SM87)
-  5. Multi-Metric Profiling: P50, P90, P95, Mean, Min, Max, and overall RTF
-  6. Artifacts: Markdown notes, SRT/VTT subtitles, CSV metrics, and LaTeX syntax report
+Features:
+  1. High-Fidelity Audio Decimation via SoX (16kHz 16-bit mono PCM).
+  2. Dynamic Adaptive VAD Utterance Segmentation (2.0s - 12.0s).
+  3. Whisper-Server with Universal Mathematical Decoding Prompt.
+  4. Whisper Text Normalization & Speech Disfluency Removal.
+  5. Fast Linguistic Pre-Check (<0.05ms) to gate SLM translation.
+  6. Multi-Turn ChatML SLM Translation with Sliding Window Context.
+  7. 4-Tier Hallucination & Degenerative Repetition Guardrails.
+  8. Full Deliverables Export: Markdown, LaTeX (.tex), Plain Text, Subtitles (SRT/VTT), CSV Metrics, and JSON Manifest.
 """
 
 import argparse
+import collections
 from collections import Counter
 from datetime import datetime
 import io
@@ -29,58 +30,72 @@ import urllib.request
 import wave
 import numpy as np
 
-# Ensure src/ is in sys.path
+# Ensure src/ and main/ are in sys.path
 SRC_DIR = Path(__file__).resolve().parent
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
+MAIN_DIR = SRC_DIR.parent
+for p in (str(SRC_DIR), str(MAIN_DIR)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from slm_translator import QwenMathTranslator
 
-MATH_INDICATOR_PATTERN = re.compile(
-    r"\b("
-    r"equals?|is\s+equal\s+to|greater\s+than|less\s+than|"
-    r"plus|minus|times|multiplied\s+by|divided\s+by|"
-    r"(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|numerator|\))\s+over\s+(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|denominator)|"
-    r"squared|cubed|to\s+the\s+power|square\s+root|cube\s+root|root\s+of|"
-    r"fraction|numerator|denominator|"
-    r"sine|cosine|tangent|cotangent|secant|cosecant|logarithm|\bln\b|exponential|"
-    r"integral|derivative|dy\s+by\s+d[tx]|partial\s+derivative|gradient|divergence|curl|"
-    r"summation|sum\s+from|sum\s+of|"
-    r"sigma|omega|theta|alpha|beta|gamma|lambda|phi|psi|delta|epsilon|tau|mu|"
-    r"matrix|determinant|eigenvalue|eigenvector|"
-    r"z-transform|laplace|fourier|"
-    r"[xyzfstk]\s+of\s+[xyzfstkn0-9]|"
-    r"sinusoid|kcl|kvl|ohm\'?s\s+law"
-    r")\b|"
-    r"\b[0-9]+(?:\.[0-9]+)?\s*(?:hz|khz|mhz|ghz|volts?|amps?|amperes?|ohms?|farads?|henrys?|watts?|kev|mev|ev|db)\b|"
-    r"[=+\-*/^<>]",
-    re.IGNORECASE,
-)
+try:
+    from gui.server import (
+        WHISPER_MATH_PROMPT,
+        clean_whisper_text,
+        clean_speech_disfluencies,
+        clean_slm_hallucinations,
+        has_math_indicators,
+    )
+except ImportError:
+    WHISPER_MATH_PROMPT = (
+        "Engineering lecture: calculus, linear algebra, differential equations, "
+        "mechanics, thermodynamics, fluid dynamics, circuits, control systems, "
+        "electromagnetics, algorithms, stress, strain, shear, entropy, enthalpy, heat flux, "
+        "curl, divergence, gradient, partial derivative, Navier-Stokes, Reynolds number, "
+        "Kirchhoff's laws, KCL, KVL, inductance, resistance, capacitance, flux, current i(t), voltage v(t), "
+        "transfer function, eigenvalues, vectors, tensors, matrices, summations, integrals, "
+        "state-space, transient, steady state, impulse response, step response, convolution, Bode plot, Nyquist, "
+        "discrete-time sequences x[n], y[n], downsampling, upsampling, difference equations, z-transform, ROC, "
+        "units: Pascals, Newtons, Joules, Watts, Hertz, Farads, Ohms, Kelvin, meters per second."
+    )
 
+    def clean_whisper_text(text: str) -> str:
+        if not text:
+            return ""
+        cleaned = re.sub(r"[\(\[\{].*?[\)\]\}]", "", text)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
 
+    def clean_speech_disfluencies(text: str) -> str:
+        if not text:
+            return ""
+        s = re.sub(r"\b([a-zA-Z]+)\s+\1\b", r"\1", text.strip(), flags=re.IGNORECASE)
+        return re.sub(r"\s+", " ", s).strip()
 
-def has_math_indicators(text: str) -> bool:
-    """Fast linguistic pre-check to distinguish mathematical speech from pure conversational discourse."""
-    if not text:
-        return False
-    return bool(MATH_INDICATOR_PATTERN.search(text))
+    def has_math_indicators(text: str) -> bool:
+        pattern = re.compile(
+            r"\b(equals?|is\s+equal\s+to|greater\s+than|less\s+than|approaches|tends\s+to|"
+            r"plus|minus|times|divided|over|squared|cubed|power|root|fraction|numerator|denominator|"
+            r"sine|cosine|tangent|integral|derivative|sum|summation|sigma|omega|theta|alpha|beta|"
+            r"matrix|eigenvalue|z[\s-]transform|roc|region\s+of\s+convergence|poles?|zeros?|z[\s-]plane|unit\s+circle|"
+            r"transfer\s+function|convolution|laplace|fourier|frequency\s+response|difference\s+equation|"
+            r"partial\s+fraction|polynomials?|magnitude|modulus|infinity|discrete[\s-]time|"
+            r"z\s+to\s+the\s+minus|z\s+inverse|inverse\s+z|"
+            r"[a-zA-Z]\s+of\s+[a-zA-Z0-9_\-\+]+|u\s+of\s+n|delta\s+of\s+n)\b|[=+\-*/^<>≤≥≠∑∫|]",
+            re.IGNORECASE
+        )
+        return bool(pattern.search(text))
 
-
-def clean_slm_hallucinations(latex_text: str, raw_text: str) -> str:
-    """Safeguard against conversational assistant apologies or degenerative repetition loops."""
-    s = latex_text.strip()
-    # Check for conversational apology / assistant filler
-    if re.search(r"^(?:I apologize|Thank you for sharing|As an AI|Could you please provide|Here is the)", s, re.IGNORECASE):
-        return raw_text
-    # Check for repetitive loops (e.g. 'by speaking in English... by speaking in English...')
-    words = s.split()
-    if len(words) > 15:
-        # Check if same 3-word phrase repeats more than 4 times
-        tri_grams = [" ".join(words[i:i+3]) for i in range(len(words)-2)]
-        counts = Counter(tri_grams)
-        if any(cnt >= 4 for cnt in counts.values()):
+    def clean_slm_hallucinations(latex_text: str, raw_text: str, context_text: str = "") -> str:
+        s = latex_text.strip()
+        if not s:
             return raw_text
-    return s
+        if re.search(r"^(?:I apologize|Thank you for sharing|As an AI|Could you please provide|Here is the)", s, re.IGNORECASE):
+            return raw_text
+        if re.search(r"(.)\1{8,}", s):
+            return raw_text
+        return s
 
 
 def format_timestamp(seconds: float, srt_format: bool = False) -> str:
@@ -100,8 +115,7 @@ def format_mmss(seconds: float) -> str:
 
 
 def validate_latex_syntax(latex_str: str) -> tuple[bool, str]:
-    """Basic structural validation of LaTeX expressions (balanced braces, valid commands)."""
-    # Check balanced braces
+    """Check balanced braces, brackets, and parenthesis in mathematical LaTeX syntax."""
     stack = []
     for char in latex_str:
         if char in "{[(":
@@ -117,7 +131,7 @@ def validate_latex_syntax(latex_str: str) -> tuple[bool, str]:
     return True, "Valid"
 
 
-def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: float = 12.0, min_silence_sec: float = 0.35) -> list[tuple[float, float, float, bytes]]:
+def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: float = 10.0, min_silence_sec: float = 0.40) -> list[tuple[float, float, float, bytes]]:
     """Segment 16kHz mono WAV into speech utterance chunks using adaptive RMS energy."""
     with wave.open(str(wav_path), "rb") as wf:
         rate = wf.getframerate()
@@ -130,7 +144,7 @@ def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: flo
 
     rms = np.sqrt(np.mean(pcm[:num_frames * frame_len].reshape(-1, frame_len) ** 2, axis=1))
     p25 = float(np.percentile(rms, 25))
-    adapt_thresh = max(0.008, min(0.035, p25 * 1.8))
+    adapt_thresh = max(0.006, min(0.030, p25 * 1.8))
 
     chunk_start = 0
     silence_frames = 0
@@ -186,18 +200,25 @@ def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: flo
     return chunks
 
 
-def query_whisper(wav_bytes: bytes, server_url: str = "http://127.0.0.1:8081") -> tuple[str, float]:
-    """Query whisper-server on Jetson via multipart/form-data."""
-    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
-    body = (
+def query_whisper(wav_bytes: bytes, server_url: str = "http://127.0.0.1:8081", prompt: str = WHISPER_MATH_PROMPT) -> tuple[str, float]:
+    """Query whisper-server on Jetson via multipart/form-data with mathematical domain prompt."""
+    boundary = "----JetsonBenchmarkStreamBoundary"
+    parts = [
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="file"; filename="chunk.wav"\r\n'
-        f"Content-Type: audio/wav\r\n\r\n"
-    ).encode("latin1") + wav_bytes + (
+        f"Content-Type: audio/wav\r\n\r\n".encode("utf-8"),
+        wav_bytes,
         f"\r\n--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="response_format"\r\n\r\njson\r\n'
-        f"--{boundary}--\r\n"
-    ).encode("latin1")
+        f'Content-Disposition: form-data; name="prompt"\r\n\r\n'
+        f"{prompt}\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="no_speech_thold"\r\n\r\n'
+        f"0.65\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="response_format"\r\n\r\njson\r\n'.encode("utf-8"),
+        f"--{boundary}--\r\n".encode("utf-8"),
+    ]
+    body = b"".join(parts)
 
     req = urllib.request.Request(
         f"{server_url}/inference",
@@ -205,14 +226,13 @@ def query_whisper(wav_bytes: bytes, server_url: str = "http://127.0.0.1:8081") -
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
     t0 = time.monotonic()
-    with urllib.request.urlopen(req, timeout=15) as r:
+    with urllib.request.urlopen(req, timeout=30) as r:
         res = json.loads(r.read().decode())
     asr_ms = (time.monotonic() - t0) * 1000.0
 
     raw_text = res.get("text", "").strip()
-    raw_text = re.sub(r"\[BLANK_AUDIO\]", "", raw_text, flags=re.IGNORECASE)
-    raw_text = re.sub(r"\((?:laughter|applause|cheering|cough|sigh|crashing)\)", "", raw_text, flags=re.IGNORECASE)
-    return raw_text.strip(), asr_ms
+    raw_text = clean_whisper_text(raw_text)
+    return raw_text, asr_ms
 
 
 def main():
@@ -220,11 +240,12 @@ def main():
     parser.add_argument(
         "--audio",
         type=str,
-        default="/home/ayush02/Downloads/Electrical Engineering 100 - Lecture 10 - audio only. No Visu-PGbvb3Pv570(1).wav",
+        default="/mnt/thesis/Lecture 12 Z - Transform.wav",
         help="Path to input lecture audio WAV file",
     )
+    parser.add_argument("--name", type=str, default="z-transform_lecture_test", help="Test session name")
     parser.add_argument("--start_sec", type=float, default=0.0, help="Start offset in seconds")
-    parser.add_argument("--duration_sec", type=float, default=300.0, help="Test duration in seconds (0 for full)")
+    parser.add_argument("--duration_sec", type=float, default=0.0, help="Test duration in seconds (0 for full lecture)")
     parser.add_argument("--output_dir", type=str, default="/mnt/thesis/evaluation_results", help="Directory for results")
     args = parser.parse_args()
 
@@ -233,19 +254,22 @@ def main():
         print(f"❌ Error: Audio file not found at {audio_path}")
         sys.exit(1)
 
-    out_dir = Path(args.output_dir)
+    out_base = Path(args.output_dir)
+    out_dir = out_base if out_base.name == args.name else out_base / args.name
     out_dir.mkdir(parents=True, exist_ok=True)
+    base_name = args.name
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    print("\n" + "=" * 78)
+    print("\n" + "=" * 80)
     print("🎓 JETSON ORIN NANO - ACADEMIC LECTURE SPEECH-TO-LATEX BENCHMARK")
-    print("=" * 78)
+    print("=" * 80)
     print(f"📁 Input File:        {audio_path.name}")
-    print(f"⏱️ Test Duration:     {args.duration_sec:.1f}s ({args.duration_sec/60:.2f} min)" if args.duration_sec > 0 else "⏱️ Test Duration:     Full 65 Minutes")
-    print(f"⚡ ASR Engine:        Whisper-Small (Flash Attention on CUDA)")
-    print(f"🧠 SLM Engine:        Qwen2.5-1.5B-Instruct-GGUF (CUDA SM87)")
+    print(f"🏷️ Test Session:      {base_name}")
+    print(f"⏱️ Test Duration:     {args.duration_sec:.1f}s ({args.duration_sec/60:.2f} min)" if args.duration_sec > 0 else "⏱️ Test Duration:     Full Recording (~32 minutes)")
+    print(f"⚡ ASR Engine:        Whisper-Small (Flash Attention on CUDA SM87, port 8081)")
+    print(f"🧠 SLM Engine:        Qwen2.5-1.5B-Instruct-GGUF (CUDA SM87, port 8080)")
     print(f"📂 Output Dir:        {out_dir}")
-    print("=" * 78 + "\n")
+    print("=" * 80 + "\n")
 
     # 1. Resample and slice target audio via SoX
     sliced_wav = out_dir / f"benchmark_temp_{timestamp}_16k.wav"
@@ -265,7 +289,7 @@ def main():
 
     # 2. VAD Utterance Segmentation
     print("✂️ Step 2/4: Segmenting Audio into Natural Utterances via Adaptive VAD...")
-    chunks = segment_audio(sliced_wav, min_chunk_sec=2.0, max_chunk_sec=12.0, min_silence_sec=0.35)
+    chunks = segment_audio(sliced_wav, min_chunk_sec=2.0, max_chunk_sec=10.0, min_silence_sec=0.40)
     print(f"✅ Generated {len(chunks)} speech utterance chunks (Mean duration: {actual_audio_sec/len(chunks):.2f}s).\n")
 
     # 3. Initialize SLM Translator
@@ -275,7 +299,7 @@ def main():
 
     # 4. Processing Loop
     print("🚀 Step 4/4: Benchmarking End-to-End Pipeline on Lecture Chunks...")
-    print("-" * 78)
+    print("-" * 80)
 
     chunk_records = []
     total_asr_ms = 0.0
@@ -289,9 +313,9 @@ def main():
     detected_math_count = 0
     all_formulas = []
     invalid_latex_count = 0
+    context_history = collections.deque(maxlen=2)
 
     for idx, (c_start, c_end, c_dur, c_bytes) in enumerate(chunks, 1):
-        # Abs timestamp in lecture
         abs_start = args.start_sec + c_start
         abs_end = args.start_sec + c_end
         t_chunk_start = time.monotonic()
@@ -302,23 +326,30 @@ def main():
         except Exception as e:
             raw_text, asr_ms = f"[ASR Error: {e}]", 0.0
 
+        cleaned_speech = clean_speech_disfluencies(raw_text)
+
         # SLM Math Translation
-        if raw_text and not raw_text.startswith("[ASR Error"):
-            if has_math_indicators(raw_text):
+        if cleaned_speech and not cleaned_speech.startswith("[ASR Error"):
+            if has_math_indicators(cleaned_speech):
+                t0 = time.monotonic()
+                recent_context = " ".join(t[1] for t in context_history) if context_history else ""
+                num_words = len(cleaned_speech.split())
+                dyn_tokens = min(384, max(80, int(num_words * 3.5)))
                 try:
-                    t0 = time.monotonic()
-                    raw_latex = slm.translate(raw_text)
-                    latex_text = clean_slm_hallucinations(raw_latex, raw_text)
-                    slm_ms = (time.monotonic() - t0) * 1000.0
+                    raw_latex = slm.translate(cleaned_speech, history=list(context_history), max_new_tokens=dyn_tokens)
+                    latex_text = clean_slm_hallucinations(raw_latex, cleaned_speech, context_text=recent_context)
                 except Exception as e:
-                    latex_text = raw_text
-                    slm_ms = 0.0
+                    print(f"\n[SLM Error] Chunk #{idx}: {e}")
+                    latex_text = cleaned_speech
+                slm_ms = (time.monotonic() - t0) * 1000.0
             else:
-                latex_text = raw_text
+                latex_text = cleaned_speech
                 slm_ms = 0.05
         else:
-            latex_text = raw_text
+            latex_text = cleaned_speech
             slm_ms = 0.0
+
+        context_history.append((cleaned_speech, latex_text))
 
         total_chunk_ms = (time.monotonic() - t_chunk_start) * 1000.0
         rtf = total_chunk_ms / (c_dur * 1000.0)
@@ -347,7 +378,7 @@ def main():
         total_slm_ms += slm_ms
 
         math_badge = f" [Math: {len(formulas)}]" if has_math else ""
-        print(f"[{idx:02d}/{len(chunks):02d}] [{format_mmss(abs_start)}-{format_mmss(abs_end)} | {c_dur:4.1f}s] ASR: {asr_ms:5.1f}ms | SLM: {slm_ms:5.1f}ms | Total: {total_chunk_ms:5.1f}ms | RTF: {rtf:5.3f}x{math_badge}")
+        print(f"[{idx:03d}/{len(chunks):03d}] [{format_mmss(abs_start)}-{format_mmss(abs_end)} | {c_dur:4.1f}s] ASR: {asr_ms:5.1f}ms | SLM: {slm_ms:5.1f}ms | Total: {total_chunk_ms:5.1f}ms | RTF: {rtf:5.3f}x{math_badge}")
         if has_math:
             print(f"     LaTeX: {latex_text}")
 
@@ -364,7 +395,7 @@ def main():
             "rtf": round(rtf, 4),
             "has_math": has_math,
             "math_count": len(formulas),
-            "raw_transcript": raw_text,
+            "raw_transcript": cleaned_speech,
             "latex_transcript": latex_text,
         })
 
@@ -372,30 +403,29 @@ def main():
     overall_rtf = total_wall_sec / actual_audio_sec
 
     # 5. Summary Statistics Calculation
-    print("\n" + "=" * 78)
+    print("\n" + "=" * 80)
     print("📊 BENCHMARK EVALUATION SUMMARY")
-    print("=" * 78)
+    print("=" * 80)
     print(f"⏱️ Total Audio Processed:   {actual_audio_sec:.1f}s ({actual_audio_sec/60:.2f} minutes)")
     print(f"⚡ Total Wall-Clock Time:   {total_wall_sec:.1f}s ({total_wall_sec/60:.2f} minutes)")
     print(f"🚀 Overall Real-Time Factor: {overall_rtf:.4f}x ({1.0/overall_rtf:.2f}x faster than real-time!)")
-    print("-" * 78)
+    print("-" * 80)
     print("LATENCY DISTRIBUTION (ms per chunk):")
     print(f"  ASR:   Mean={np.mean(asr_latencies):.1f}ms | P50={np.median(asr_latencies):.1f}ms | P90={np.percentile(asr_latencies, 90):.1f}ms | P95={np.percentile(asr_latencies, 95):.1f}ms | Max={max(asr_latencies):.1f}ms")
     print(f"  SLM:   Mean={np.mean(slm_latencies):.1f}ms | P50={np.median(slm_latencies):.1f}ms | P90={np.percentile(slm_latencies, 90):.1f}ms | P95={np.percentile(slm_latencies, 95):.1f}ms | Max={max(slm_latencies):.1f}ms")
     print(f"  Total: Mean={np.mean(total_latencies):.1f}ms | P50={np.median(total_latencies):.1f}ms | P90={np.percentile(total_latencies, 90):.1f}ms | P95={np.percentile(total_latencies, 95):.1f}ms | Max={max(total_latencies):.1f}ms")
-    print("-" * 78)
+    print("-" * 80)
     print("ACCURACY & MATHEMATICAL FORMATION:")
     print(f"  Total Utterance Chunks:   {len(chunks)}")
     print(f"  Chunks with Math:         {sum(1 for c in chunk_records if c['has_math'])} ({sum(1 for c in chunk_records if c['has_math'])/len(chunks)*100:.1f}%)")
     print(f"  Total Formulas Detected:  {detected_math_count}")
     print(f"  LaTeX Syntax Pass Rate:   {100.0 if not all_formulas else (len(all_formulas)-invalid_latex_count)/len(all_formulas)*100:.1f}%")
-    print("=" * 78 + "\n")
+    print("=" * 80 + "\n")
 
-    # 6. Generate Exports
-    base_name = f"lecture_eval_{timestamp}"
+    # 6. Generate All Deliverables
 
-    # CSV Export
-    csv_file = out_dir / f"{base_name}.csv"
+    # CSV Metrics Export
+    csv_file = out_dir / f"{base_name}_metrics.csv"
     with open(csv_file, "w", encoding="utf-8") as f:
         f.write("chunk_id,start_time,end_time,duration_sec,asr_ms,slm_ms,total_ms,rtf,has_math,raw_transcript,latex_transcript\n")
         for c in chunk_records:
@@ -403,11 +433,12 @@ def main():
             latex_clean = c["latex_transcript"].replace('"', '""')
             f.write(f'{c["chunk_id"]},{c["start_time"]},{c["end_time"]},{c["duration_sec"]},{c["asr_ms"]},{c["slm_ms"]},{c["total_ms"]},{c["rtf"]},{c["has_math"]},"{raw_clean}","{latex_clean}"\n')
 
-    # JSON Export
-    json_file = out_dir / f"{base_name}.json"
+    # JSON Manifest Export
+    json_file = out_dir / f"{base_name}_manifest.json"
     json_data = {
         "metadata": {
             "source_file": audio_path.name,
+            "session_name": base_name,
             "timestamp": timestamp,
             "audio_duration_sec": actual_audio_sec,
             "wall_clock_time_sec": total_wall_sec,
@@ -457,9 +488,31 @@ def main():
     md_file = out_dir / f"{base_name}_transcript.md"
     with open(md_file, "w", encoding="utf-8") as f:
         f.write(f"# Academic Lecture Transcript: {audio_path.name}\n\n")
-        f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')} | **Segment Tested:** 00:00 - {format_mmss(actual_audio_sec)} | **Engine:** Whisper-Small + Qwen2.5-1.5B (CUDA SM87)\n\n---\n\n")
+        f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')} | **Audio Duration:** {format_mmss(actual_audio_sec)} | **Engine:** Whisper-Small + Qwen2.5-1.5B (CUDA SM87)\n\n---\n\n")
         for c in chunk_records:
             f.write(f"**[{c['start_time']} - {c['end_time']}]** {c['latex_transcript']}\n\n")
+
+    # Compilable LaTeX Document Paper Export
+    tex_file = out_dir / f"{base_name}_paper.tex"
+    with open(tex_file, "w", encoding="utf-8") as f:
+        f.write("\\documentclass{article}\n")
+        f.write("\\usepackage[utf8]{inputenc}\n")
+        f.write("\\usepackage{amsmath,amssymb,amsfonts}\n")
+        f.write("\\usepackage{geometry}\n\\geometry{a4paper, margin=1in}\n\n")
+        f.write(f"\\title{{Lecture Transcription: {audio_path.stem}}}\n")
+        f.write("\\author{Automated Jetson Edge Speech-to-LaTeX}\n")
+        f.write(f"\\date{{{datetime.now().strftime('%B %d, %Y')}}}\n\n")
+        f.write("\\begin{document}\n\\maketitle\n\n")
+        for c in chunk_records:
+            f.write(f"% [{c['start_time']} - {c['end_time']}]\n")
+            f.write(f"{c['latex_transcript']}\n\n")
+        f.write("\\end{document}\n")
+
+    # Plain Text Transcript Export
+    txt_file = out_dir / f"{base_name}_transcript.txt"
+    with open(txt_file, "w", encoding="utf-8") as f:
+        for c in chunk_records:
+            f.write(f"[{c['start_time']} - {c['end_time']}] {c['latex_transcript']}\n")
 
     # Executive Evaluation Report
     report_file = out_dir / f"{base_name}_report.md"
@@ -484,7 +537,7 @@ def main():
         f.write("### Sample Mathematical Extractions Detected in Lecture:\n\n")
         f.write("| Timestamp | Extracted LaTeX Formula |\n")
         f.write("| :--- | :--- |\n")
-        for f_item in all_formulas[:15]:
+        for f_item in all_formulas[:25]:
             f.write(f"| {f_item['timestamp']} | `{f_item['formula']}` ({f_item['formula']}) |\n")
         f.write("\n---\n")
         f.write(f"*Report auto-generated by `benchmark_lecture.py` on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
@@ -496,6 +549,8 @@ def main():
     print(f"📁 Reports & Transcripts Saved to:")
     print(f"  - Markdown Report:     {report_file}")
     print(f"  - Markdown Transcript: {md_file}")
+    print(f"  - LaTeX Paper (.tex):  {tex_file}")
+    print(f"  - Plain Transcript:    {txt_file}")
     print(f"  - Subtitles (SRT):     {srt_file}")
     print(f"  - Subtitles (VTT):     {vtt_file}")
     print(f"  - Per-Chunk CSV:       {csv_file}")

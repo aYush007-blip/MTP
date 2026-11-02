@@ -154,7 +154,11 @@ WHISPER_SERVER_BIN = Path("/mnt/thesis/main/whisper.cpp/build-orin/bin/whisper-s
 WHISPER_BASE_MODEL = Path("/mnt/thesis/models/whisper/ggml-base.bin")
 WHISPER_SMALL_MODEL = Path("/mnt/thesis/models/whisper/ggml-small.en.bin")
 LLAMA_BIN = Path("/mnt/thesis/llama.cpp/build/bin/llama-server")
-LLAMA_MODEL = Path("/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf")
+LLAMA_MODEL = (
+    Path("/home/ayush02/models/qwen2.5-1.5b-instruct-q4_k_m.gguf")
+    if Path("/home/ayush02/models/qwen2.5-1.5b-instruct-q4_k_m.gguf").exists()
+    else Path("/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf")
+)
 RECORDINGS_DIR = Path("/mnt/thesis/recordings")
 RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
 LIVE_TESTS_DIR = Path("/mnt/thesis/live_tests")
@@ -265,7 +269,7 @@ def is_dangling_math_clause(text: str) -> bool:
 MATH_INDICATOR_PATTERN = re.compile(
     r"\b("
     # Equality, relations, and comparison
-    r"equals?|is\s+equal\s+to|greater\s+than|less\s+than|approaches|\bto\b|"
+    r"equals?|is\s+equal\s+to|greater\s+than|less\s+than|approaches|tends\s+to|"
     # Arithmetic operators
     r"plus|minus|times|multiplied\s+by|divided\s+by|"
     r"(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|numerator|\))\s+over\s+(?:[0-9]+|[a-z]|zero|one|two|three|four|five|six|seven|eight|nine|ten|pi|denominator)|"
@@ -449,7 +453,7 @@ def ensure_edge_daemons(model_type: str = "small"):
         ]
         log_llama = open("/tmp/llama-server.log", "w")
         subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama, start_new_session=True)
-        for _ in range(30):
+        for _ in range(50):
             time.sleep(0.5)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
                 break
