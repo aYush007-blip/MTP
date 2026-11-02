@@ -75,9 +75,38 @@ def to_16k_mono(raw_bytes: bytes, rate: int, channels: int) -> np.ndarray:
         return np.clip(resampled, -1.0, 1.0).astype(np.float32)
 
 
-def get_best_input_stream_config(pa: pyaudio.PyAudio, requested_idx: Optional[int] = None) -> tuple[int, int, int, int]:
+def get_best_input_stream_config(pa: pyaudio.PyAudio, requested_idx: Optional[int] = None, requested_name: Optional[str] = None) -> tuple[int, int, int, int]:
     """Negotiate the optimal (device_index, channels, rate, chunk_size) supported by hardware."""
     target_idx = requested_idx
+
+    # If requested_name was specified, attempt to resolve it to a PyAudio device index
+    if target_idx is None and requested_name:
+        req_low = requested_name.lower()
+        if "hw:" in req_low:
+            hw_tag = req_low[req_low.find("hw:"):req_low.find("hw:")+4]
+            for i in range(pa.get_device_count()):
+                try:
+                    info = pa.get_device_info_by_index(i)
+                    if hw_tag in info.get("name", "").lower() and info.get("maxInputChannels", 0) > 0:
+                        target_idx = i
+                        break
+                except Exception:
+                    continue
+
+        if target_idx is None:
+            for i in range(pa.get_device_count()):
+                try:
+                    info = pa.get_device_info_by_index(i)
+                    name_low = info.get("name", "").lower()
+                    if ("ab13x" in req_low or "usb" in req_low) and ("ab13x" in name_low or "usb" in name_low) and info.get("maxInputChannels", 0) > 0:
+                        target_idx = i
+                        break
+                    elif ("platform" in req_low or "built-in" in req_low) and "platform" in name_low and info.get("maxInputChannels", 0) > 0:
+                        target_idx = i
+                        break
+                except Exception:
+                    continue
+
     if target_idx is None:
         for i in range(pa.get_device_count()):
             try:
@@ -564,6 +593,18 @@ def broadcast_ws_message(msg_dict: dict):
 # Audio Hardware Device Enumeration & Control (PulseAudio / ALSA)
 # ===========================================================================
 
+def get_usb_alsa_card() -> Optional[str]:
+    """Return ALSA card index for connected USB audio devices (e.g. AB13X)."""
+    try:
+        with open("/proc/asound/cards", "r") as f:
+            for line in f:
+                if "usb" in line.lower() or "ab13x" in line.lower():
+                    return line.strip().split()[0]
+    except Exception:
+        pass
+    return None
+
+
 def ensure_usb_audio_duplex(force_rescan: bool = False) -> None:
     """Ensure any connected USB audio device (e.g. AB13X earphones) is configured in Full Duplex mode.
     
@@ -574,15 +615,7 @@ def ensure_usb_audio_duplex(force_rescan: bool = False) -> None:
     """
     try:
         # Check /proc/asound/cards for USB audio card index
-        usb_alsa_card = None
-        try:
-            with open("/proc/asound/cards", "r") as f:
-                for line in f:
-                    if "usb" in line.lower() or "ab13x" in line.lower():
-                        usb_alsa_card = line.strip().split()[0]
-                        break
-        except Exception:
-            pass
+        usb_alsa_card = get_usb_alsa_card()
 
         # 1. Clean up duplicate module-alsa-card instances if any were previously loaded
         if usb_alsa_card is not None:
@@ -663,17 +696,28 @@ def ensure_usb_audio_duplex(force_rescan: bool = False) -> None:
 
         _apply_duplex(cur_card, cur_desc, active_profile, duplex_candidates)
 
-        # If USB card exists in ALSA, verify PulseAudio has an active input source for it
+        # If USB card exists in ALSA, verify PulseAudio has an active NON-MONITOR input source for it
         if usb_alsa_card is not None:
             src_res = subprocess.run(["pactl", "list", "sources", "short"], capture_output=True, text=True, timeout=2)
-            if src_res.returncode == 0 and "ab13x" not in src_res.stdout.lower():
+            has_usb_input_source = False
+            if src_res.returncode == 0:
+                for s_line in src_res.stdout.splitlines():
+                    parts = s_line.split()
+                    if len(parts) >= 2:
+                        s_id = parts[1].lower()
+                        # Exclude sink monitors (e.g. *.monitor)
+                        if not s_id.endswith(".monitor") and ("ab13x" in s_id or "usb" in s_id):
+                            has_usb_input_source = True
+                            break
+
+            if not has_usb_input_source:
                 print(f"[Audio Devices] Loading PulseAudio ALSA source for AB13X card {usb_alsa_card}...")
                 subprocess.run(
                     [
                         "pactl", "load-module", "module-alsa-source",
                         f"device=hw:{usb_alsa_card},0", "rate=48000", "channels=2",
                         "source_name=ab13x_earphones_mic",
-                        'source_properties="device.description=AB13X_USB_Earphones_Mic"'
+                        "source_properties=device.description=AB13X_USB_Earphones_Mic"
                     ],
                     capture_output=True,
                     timeout=2
@@ -761,6 +805,19 @@ def get_pulse_audio_devices(force_rescan: bool = False) -> dict:
                     cur_sink = {}
     except Exception as e:
         print(f"[Audio Devices] Error listing sinks: {e}")
+
+    # Fallback: if ALSA detects a USB card, but PulseAudio has no earphones/USB source in inputs, add ALSA direct device
+    usb_card = get_usb_alsa_card()
+    if not any(s.get("is_earphones") for s in inputs) and usb_card is not None:
+        alsa_src = {
+            "id": f"hw:{usb_card},0",
+            "name": f"AB13X USB Audio Direct (ALSA hw:{usb_card},0)",
+            "is_earphones": True,
+            "is_default": True,
+        }
+        inputs.append(alsa_src)
+        if not default_source:
+            default_source = alsa_src["id"]
 
     # Auto-switch defaults to USB earphones if present and current default is internal platform audio
     usb_source = next((s["id"] for s in inputs if s.get("is_earphones")), None)
@@ -1106,7 +1163,7 @@ class HardwareMicRecorder:
         pa = pyaudio.PyAudio()
         try:
             dev_idx, channels, rate, chunk_size = get_best_input_stream_config(
-                pa, self.selected_device_index
+                pa, self.selected_device_index, self.selected_device_name
             )
             print(f"[Hardware Mic] Opening stream on device {dev_idx} ({channels}ch, {rate}Hz, chunk={chunk_size})...")
             stream = pa.open(
@@ -1282,7 +1339,7 @@ class ContinuousLectureManager:
         pa = pyaudio.PyAudio()
         try:
             dev_idx, channels, rate, chunk_size = get_best_input_stream_config(
-                pa, self.recorder.selected_device_index
+                pa, self.recorder.selected_device_index, self.recorder.selected_device_name
             )
             print(f"[Continuous Lecture] Recording stream opened: device={dev_idx}, ch={channels}, rate={rate}, chunk={chunk_size}")
             stream = pa.open(
@@ -2162,6 +2219,14 @@ async def handle_select_audio_device(request: web.Request) -> web.Response:
             hw_recorder.selected_device_index = int(device_index)
         except Exception:
             pass
+    elif hw_recorder.selected_device_name:
+        try:
+            pa = pyaudio.PyAudio()
+            idx, _, _, _ = get_best_input_stream_config(pa, requested_name=hw_recorder.selected_device_name)
+            hw_recorder.selected_device_index = idx
+            pa.terminate()
+        except Exception:
+            pass
 
     return web.json_response({
         "status": "ok" if ok else "warning",
@@ -2295,10 +2360,11 @@ async def handle_lecture_chunks(request: web.Request) -> web.Response:
 
 
 async def start_background_tasks(app: web.Application):
-    # Ensure background daemons on startup
+    # Ensure background daemons and hardware duplex on startup
     global main_event_loop
     main_event_loop = asyncio.get_event_loop()
     await main_event_loop.run_in_executor(None, ensure_edge_daemons)
+    await main_event_loop.run_in_executor(None, ensure_usb_audio_duplex)
     app["telemetry_task"] = asyncio.create_task(ws_telemetry_loop(app))
 
 
@@ -2382,6 +2448,7 @@ if __name__ == "__main__":
     print(f"=======================================================\n")
     # Ensure edge GPU daemons (whisper-server on 8081, llama-server on 8080)
     ensure_edge_daemons()
+    ensure_usb_audio_duplex()
     get_slm_translator()
     app = create_app()
     web.run_app(app, host="0.0.0.0", port=port)
