@@ -269,21 +269,28 @@ def query_whisper_stream(pcm_samples: np.ndarray) -> tuple[str, float]:
 
     # Form multipart request with math initial prompt and non-speech suppression
     boundary = "----JetsonLiveStreamBoundary"
-    body = (
+    parts = [
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="file"; filename="stream.wav"\r\n'
-        f"Content-Type: audio/wav\r\n\r\n"
-    ).encode("utf-8") + wav_bytes + (
+        f"Content-Type: audio/wav\r\n\r\n".encode("utf-8"),
+        wav_bytes,
         f"\r\n--{boundary}\r\n"
         f'Content-Disposition: form-data; name="prompt"\r\n\r\n'
-        f"{WHISPER_MATH_PROMPT}\r\n"
+        f"{WHISPER_MATH_PROMPT}\r\n".encode("utf-8"),
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="no_speech_thold"\r\n\r\n'
-        f"0.65\r\n"
+        f"0.40\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="temperature"\r\n\r\n'
+        f"0.0\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="temperature_inc"\r\n\r\n'
+        f"0.2\r\n".encode("utf-8"),
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="response_format"\r\n\r\n'
-        f"json\r\n--{boundary}--\r\n"
-    ).encode("utf-8")
+        f"json\r\n--{boundary}--\r\n".encode("utf-8"),
+    ]
+    body = b"".join(parts)
 
     req = urllib.request.Request(
         f"{WHISPER_SERVER_URL}/inference",

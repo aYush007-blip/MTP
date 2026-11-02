@@ -133,8 +133,8 @@ def validate_latex_syntax(latex_str: str) -> tuple[bool, str]:
     return True, "Valid"
 
 
-def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: float = 10.0, min_silence_sec: float = 0.40) -> list[tuple[float, float, float, bytes]]:
-    """Segment 16kHz mono WAV into speech utterance chunks using adaptive RMS energy."""
+def segment_audio(wav_path: Path, min_chunk_sec: float = 2.8, max_chunk_sec: float = 9.5, min_silence_sec: float = 0.45, pad_sec: float = 0.25) -> list[tuple[float, float, float, bytes]]:
+    """Segment 16kHz mono WAV into speech utterance chunks with acoustic pre/post-padding to prevent word clipping."""
     with wave.open(str(wav_path), "rb") as wf:
         rate = wf.getframerate()
         nframes = wf.getnframes()
@@ -146,7 +146,7 @@ def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: flo
 
     rms = np.sqrt(np.mean(pcm[:num_frames * frame_len].reshape(-1, frame_len) ** 2, axis=1))
     p25 = float(np.percentile(rms, 25))
-    adapt_thresh = max(0.006, min(0.030, p25 * 1.8))
+    adapt_thresh = max(0.005, min(0.025, p25 * 1.6))
 
     chunk_start = 0
     silence_frames = 0
@@ -154,7 +154,7 @@ def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: flo
     min_chunk_frames = int(min_chunk_sec / 0.02)
     max_chunk_frames = int(max_chunk_sec / 0.02)
 
-    chunks = []
+    raw_segments: list[tuple[float, float, float]] = []
     for i, r in enumerate(rms):
         cur_len_frames = i - chunk_start
         if r < adapt_thresh:
@@ -168,17 +168,8 @@ def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: flo
             end_sec = split_frame * 0.02
             duration_sec = end_sec - start_sec
 
-            if duration_sec >= 1.0:
-                s_idx = int(start_sec * 16000)
-                e_idx = int(end_sec * 16000)
-                sub_pcm = raw[s_idx * 2 : e_idx * 2]
-                buf = io.BytesIO()
-                with wave.open(buf, "wb") as w_out:
-                    w_out.setnchannels(1)
-                    w_out.setsampwidth(2)
-                    w_out.setframerate(16000)
-                    w_out.writeframes(sub_pcm)
-                chunks.append((start_sec, end_sec, duration_sec, buf.getvalue()))
+            if duration_sec >= 0.3:
+                raw_segments.append((start_sec, end_sec, duration_sec))
 
             chunk_start = split_frame
             silence_frames = 0
@@ -187,24 +178,44 @@ def segment_audio(wav_path: Path, min_chunk_sec: float = 2.0, max_chunk_sec: flo
         start_sec = chunk_start * 0.02
         end_sec = num_frames * 0.02
         duration_sec = end_sec - start_sec
-        if duration_sec >= 1.0:
-            s_idx = int(start_sec * 16000)
-            e_idx = int(end_sec * 16000)
-            sub_pcm = raw[s_idx * 2 : e_idx * 2]
-            buf = io.BytesIO()
-            with wave.open(buf, "wb") as w_out:
-                w_out.setnchannels(1)
-                w_out.setsampwidth(2)
-                w_out.setframerate(16000)
-                w_out.writeframes(sub_pcm)
-            chunks.append((start_sec, end_sec, duration_sec, buf.getvalue()))
+        if duration_sec >= 0.3:
+            raw_segments.append((start_sec, end_sec, duration_sec))
+
+    # Merge ultra-short fragments (< 2.2s) into adjacent utterances to prevent Whisper context collapse
+    merged_segments: list[tuple[float, float, float]] = []
+    for seg_start, seg_end, seg_dur in raw_segments:
+        if merged_segments and (seg_dur < 2.2 or (merged_segments[-1][2] < 2.5 and (merged_segments[-1][2] + seg_dur) <= max_chunk_sec)):
+            prev_start, prev_end, _ = merged_segments.pop()
+            new_dur = seg_end - prev_start
+            merged_segments.append((prev_start, seg_end, new_dur))
+        else:
+            merged_segments.append((seg_start, seg_end, seg_dur))
+
+    # Build final audio chunks with acoustic pre-roll and post-roll padding (±250ms)
+    total_audio_sec = num_frames * 0.02
+    chunks = []
+    for start_sec, end_sec, duration_sec in merged_segments:
+        padded_start = max(0.0, start_sec - pad_sec)
+        padded_end = min(total_audio_sec, end_sec + pad_sec)
+        s_idx = int(padded_start * 16000)
+        e_idx = int(padded_end * 16000)
+        sub_pcm = raw[s_idx * 2 : e_idx * 2]
+
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as w_out:
+            w_out.setnchannels(1)
+            w_out.setsampwidth(2)
+            w_out.setframerate(16000)
+            w_out.writeframes(sub_pcm)
+        chunks.append((start_sec, end_sec, duration_sec, buf.getvalue()))
 
     return chunks
 
 
-def query_whisper(wav_bytes: bytes, server_url: str = "http://127.0.0.1:8081", prompt: str = WHISPER_MATH_PROMPT) -> tuple[str, float]:
-    """Query whisper-server on Jetson via multipart/form-data with mathematical domain prompt."""
+def query_whisper(wav_bytes: bytes, server_url: str = "http://127.0.0.1:8081", prompt: str = WHISPER_MATH_PROMPT, prompt_context: str = "") -> tuple[str, float]:
+    """Query whisper-server on Jetson with rolling prompt context, temperature fallback, and lowered no_speech threshold."""
     boundary = "----JetsonBenchmarkStreamBoundary"
+    active_prompt = f"{prompt}\nPreceding text: {prompt_context[-140:]}" if prompt_context else prompt
     parts = [
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="file"; filename="chunk.wav"\r\n'
@@ -212,10 +223,16 @@ def query_whisper(wav_bytes: bytes, server_url: str = "http://127.0.0.1:8081", p
         wav_bytes,
         f"\r\n--{boundary}\r\n"
         f'Content-Disposition: form-data; name="prompt"\r\n\r\n'
-        f"{prompt}\r\n".encode("utf-8"),
+        f"{active_prompt}\r\n".encode("utf-8"),
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="no_speech_thold"\r\n\r\n'
-        f"0.65\r\n".encode("utf-8"),
+        f"0.40\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="temperature"\r\n\r\n'
+        f"0.0\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="temperature_inc"\r\n\r\n'
+        f"0.2\r\n".encode("utf-8"),
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="response_format"\r\n\r\njson\r\n'.encode("utf-8"),
         f"--{boundary}--\r\n".encode("utf-8"),
@@ -322,9 +339,10 @@ def main():
         abs_end = args.start_sec + c_end
         t_chunk_start = time.monotonic()
 
-        # Whisper ASR
+        # Whisper ASR with rolling prompt context
         try:
-            raw_text, asr_ms = query_whisper(c_bytes)
+            trailing_context = " ".join(t[0] for t in context_history) if context_history else ""
+            raw_text, asr_ms = query_whisper(c_bytes, prompt_context=trailing_context)
         except Exception as e:
             raw_text, asr_ms = f"[ASR Error: {e}]", 0.0
 

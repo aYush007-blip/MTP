@@ -401,7 +401,7 @@ def ensure_edge_daemons(model_type: str = "small"):
             "--port", "8081",
             "--host", "127.0.0.1",
             "-fa", "-nt", "-bo", "1", "-bs", "1", "-t", "4",
-            "-sns", "-nth", "0.65"
+            "-sns", "-nth", "0.40"
         ]
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
@@ -463,8 +463,8 @@ def ensure_edge_daemons(model_type: str = "small"):
         print(f"[Ready] llama-server (Qwen2.5-1.5B) ready on {LLAMA_SERVER_URL}")
 
 
-def query_whisper_server(wav_bytes: bytes) -> tuple[str, float]:
-    """Query whisper-server daemon on port 8081 with mathematical prompting."""
+def query_whisper_server(wav_bytes: bytes, context_prompt: str = "") -> tuple[str, float]:
+    """Query whisper-server daemon on port 8081 with mathematical prompting, context chaining, and lowered threshold."""
     # Auto-revive daemon if not reachable
     if not is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
         print("[Whisper ASR] whisper-server is offline. Auto-starting daemon...")
@@ -472,21 +472,29 @@ def query_whisper_server(wav_bytes: bytes) -> tuple[str, float]:
 
     t0 = time.monotonic()
     boundary = "----JetsonGuiStreamBoundary"
-    body = (
+    active_prompt = f"{WHISPER_MATH_PROMPT}\nPreceding text: {context_prompt[-140:]}" if context_prompt else WHISPER_MATH_PROMPT
+    parts = [
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n'
-        f"Content-Type: audio/wav\r\n\r\n"
-    ).encode("utf-8") + wav_bytes + (
+        f"Content-Type: audio/wav\r\n\r\n".encode("utf-8"),
+        wav_bytes,
         f"\r\n--{boundary}\r\n"
         f'Content-Disposition: form-data; name="prompt"\r\n\r\n'
-        f"{WHISPER_MATH_PROMPT}\r\n"
+        f"{active_prompt}\r\n".encode("utf-8"),
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="no_speech_thold"\r\n\r\n'
-        f"0.65\r\n"
+        f"0.40\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="temperature"\r\n\r\n'
+        f"0.0\r\n".encode("utf-8"),
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="temperature_inc"\r\n\r\n'
+        f"0.2\r\n".encode("utf-8"),
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="response_format"\r\n\r\n'
-        f"json\r\n--{boundary}--\r\n"
-    ).encode("utf-8")
+        f"json\r\n--{boundary}--\r\n".encode("utf-8"),
+    ]
+    body = b"".join(parts)
 
     req = urllib.request.Request(
         f"{WHISPER_SERVER_URL}/inference",
@@ -1394,9 +1402,18 @@ class ContinuousLectureManager:
                     else:
                         silence_chunks = 0
 
-                    # Natural lecture pause: 8 chunks = 0.8s, or max chunk = 90 chunks (9.0s)
-                    if silence_chunks >= 8 or len(speech_buffer) >= 90:
-                        if len(speech_buffer) >= 3:  # At least 300ms
+                    # Natural lecture pause:
+                    # - If buffer is short (< 25 chunks = 2.5s), require longer silence (>= 14 chunks = 1.4s) before splitting
+                    # - If buffer has adequate context (>= 25 chunks), split after 8 chunks = 0.8s silence
+                    # - Hard max: 95 chunks = 9.5s
+                    dur_frames = len(speech_buffer)
+                    is_ready = (
+                        (dur_frames >= 25 and silence_chunks >= 8) or
+                        (dur_frames < 25 and silence_chunks >= 14) or
+                        (dur_frames >= 95)
+                    )
+                    if is_ready:
+                        if len(speech_buffer) >= 8:  # At least 800ms
                             audio_arr = np.concatenate(speech_buffer)
                             dur_sec = len(audio_arr) / 16000.0
                             print(f"[Continuous Lecture] Utterance ready ({dur_sec:.2f}s, {len(speech_buffer)} chunks). Enqueueing...")
@@ -1439,7 +1456,8 @@ class ContinuousLectureManager:
 
     def _process_and_broadcast_chunk(self, wav_bytes: bytes, duration_sec: float, start_offset: float):
         try:
-            raw_text, asr_ms = query_whisper_server(wav_bytes)
+            recent_ctx = " ".join(t[0] for t in self.context_history) if self.context_history else ""
+            raw_text, asr_ms = query_whisper_server(wav_bytes, context_prompt=recent_ctx)
             raw_text = clean_whisper_text(raw_text)
             if not raw_text.strip():
                 print(f"[Continuous Lecture] Whisper returned blank/silent speech ({duration_sec:.2f}s).")
