@@ -177,7 +177,9 @@ def ensure_edge_daemons():
             LLAMA_BIN,
             "-m", LLAMA_MODEL,
             "-c", "2048",
-            "-ngl", "28",
+            "-ngl", "24",
+            "-t", "2",
+            "-np", "1",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
@@ -189,7 +191,11 @@ def ensure_edge_daemons():
                 break
 
 
-def query_whisper_stream(pcm_samples: np.ndarray, no_speech_thold: float = 0.40) -> str:
+def query_whisper_stream(
+    pcm_samples: np.ndarray,
+    no_speech_thold: float = 0.40,
+    prompt: Optional[str] = None
+) -> str:
     """Send PCM float32 samples to whisper-server and return cleaned text."""
     if len(pcm_samples) < 6400:  # < 400ms
         return ""
@@ -203,6 +209,8 @@ def query_whisper_stream(pcm_samples: np.ndarray, no_speech_thold: float = 0.40)
         wf.writeframes(int16_samples.tobytes())
     wav_bytes = buf.getvalue()
 
+    effective_prompt = prompt if prompt is not None else WHISPER_MATH_PROMPT
+
     boundary = "----JetsonHeadlessAgentBoundary"
     body = (
         f"--{boundary}\r\n"
@@ -211,7 +219,7 @@ def query_whisper_stream(pcm_samples: np.ndarray, no_speech_thold: float = 0.40)
         + wav_bytes
         + f"\r\n--{boundary}\r\n"
         f'Content-Disposition: form-data; name="prompt"\r\n\r\n'
-        f"{WHISPER_MATH_PROMPT}\r\n".encode("utf-8")
+        f"{effective_prompt}\r\n".encode("utf-8")
         + f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="no_speech_thold"\r\n\r\n'
         f"{no_speech_thold}\r\n".encode("utf-8")
@@ -439,7 +447,11 @@ class HeadlessVoiceAgent:
                             # Speech boundary (0.6s silence or max 4.5s phrase)
                             if silence_chunk_count >= 6 or len(current_speech_chunks) >= 45:
                                 utterance = np.concatenate(current_speech_chunks)
-                                spoken = query_whisper_stream(utterance, no_speech_thold=0.30)
+                                spoken = query_whisper_stream(
+                                    utterance,
+                                    no_speech_thold=0.30,
+                                    prompt="Hey Jetson, start recording, start lecture, begin, record, standby."
+                                )
                                 norm_spoken = clean_trigger_text(spoken)
 
                                 if spoken:
@@ -575,32 +587,38 @@ class HeadlessVoiceAgent:
         """
         Post-processes lecture, formats textbook, compiles PDF, and exports to USB drive.
         """
-        print("\n[Agent] Synthesizing textbook monograph with TikZ vector graphics...")
+        print("\n[Agent] Synthesizing classroom lecture notes with TikZ vector graphics...")
         ts = time.strftime("%Y%m%d_%H%M%S")
-        lecture_title = f"Lecture_{ts}"
+        base_lecture_title = f"Lecture_{ts}"
 
-        # 1. Build Textbook TeX, Markdown, and Subtitles
-        tex_content, md_content = self.book_builder.build_book(lecture_title, chunks)
+        # 1. Build Student Lecture Notes TeX, Markdown, and Subtitles
+        tex_content, md_content, clean_title = self.book_builder.build_book(base_lecture_title, chunks)
         srt_content, vtt_content = generate_subtitles(chunks)
+
+        # Create informative session folder and file stem from intelligent title
+        slug = re.sub(r'[^a-zA-Z0-9]+', '_', clean_title).strip('_')
+        if len(slug) > 40:
+            slug = slug[:40].rstrip('_')
+        session_name = f"{ts}_{slug}" if slug else base_lecture_title
 
         # Temporary working directory for generation
         temp_dir = Path("/tmp") / f"lecture_{ts}"
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-        tex_file = temp_dir / f"{lecture_title}.tex"
+        tex_file = temp_dir / f"{session_name}.tex"
         tex_file.write_text(tex_content, encoding="utf-8")
 
-        md_file = temp_dir / f"{lecture_title}.md"
+        md_file = temp_dir / f"{session_name}.md"
         md_file.write_text(md_content, encoding="utf-8")
 
-        srt_file = temp_dir / f"{lecture_title}.srt"
+        srt_file = temp_dir / f"{session_name}.srt"
         srt_file.write_text(srt_content, encoding="utf-8")
 
-        vtt_file = temp_dir / f"{lecture_title}.vtt"
+        vtt_file = temp_dir / f"{session_name}.vtt"
         vtt_file.write_text(vtt_content, encoding="utf-8")
 
         # Save raw audio WAV file
-        wav_file = temp_dir / f"{lecture_title}_raw.wav"
+        wav_file = temp_dir / f"{session_name}_raw.wav"
         if raw_audio_frames:
             with wave.open(str(wav_file), "wb") as wf:
                 wf.setnchannels(1)
@@ -608,10 +626,10 @@ class HeadlessVoiceAgent:
                 wf.setframerate(16000)
                 wf.writeframes(b"".join(raw_audio_frames))
 
-        # 2. Global AI Review & PDF Compilation Pass
-        print("[Agent] Running Global AI review and PDF compiler pass...")
+        # 2. PDF Compilation Pass (Standalone XeTeX via Tectonic)
+        print(f"[Agent] Compiling Student Lecture Notes: '{clean_title}'...")
         post_res = self.post_processor.process_and_compile(
-            lecture_title=lecture_title,
+            lecture_title=clean_title,
             tex_path=tex_file,
             output_dir=temp_dir,
             raw_transcript="\n".join([c.spoken_text for c in chunks])
@@ -630,7 +648,7 @@ class HeadlessVoiceAgent:
             "pdf": pdf_file if (pdf_file and pdf_file.is_file()) else None
         }
 
-        export_res = self.exporter.export(lecture_title, export_map, timestamp=ts)
+        export_res = self.exporter.export(session_name, export_map, timestamp=ts)
         print(f"[Agent] Export Complete:")
         print(f"       Local SSD: {export_res['local_path']}")
         print(f"       USB Drive: {export_res['usb_path']} (Success: {export_res['usb_success']})")

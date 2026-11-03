@@ -286,7 +286,7 @@ class QwenMathTranslator:
         )
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=25.0) as resp:
                 resp_data = json.loads(resp.read().decode("utf-8"))
                 content = resp_data["choices"][0]["message"]["content"]
                 return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
@@ -298,8 +298,15 @@ class QwenMathTranslator:
                     main_dir = str(Path(__file__).resolve().parent.parent)
                     if main_dir not in sys.path:
                         sys.path.insert(0, main_dir)
-                    from gui.server import ensure_edge_daemons
-                    ensure_edge_daemons()
+                    try:
+                        from headless_voice_agent import ensure_edge_daemons
+                    except ImportError:
+                        try:
+                            from gui.server import ensure_edge_daemons
+                        except ImportError:
+                            ensure_edge_daemons = None
+                    if ensure_edge_daemons:
+                        ensure_edge_daemons()
                     time.sleep(2.0)
                 except Exception as revive_err:
                     print(f"[SLM Revive Failed] {revive_err}")
@@ -307,7 +314,7 @@ class QwenMathTranslator:
             for attempt in range(3):
                 if self._is_server_alive():
                     try:
-                        with urllib.request.urlopen(req, timeout=15) as resp:
+                        with urllib.request.urlopen(req, timeout=25.0) as resp:
                             resp_data = json.loads(resp.read().decode("utf-8"))
                             content = resp_data["choices"][0]["message"]["content"]
                             return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)

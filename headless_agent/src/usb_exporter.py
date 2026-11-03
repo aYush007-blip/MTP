@@ -158,7 +158,10 @@ class LectureExporter:
             timestamp = time.strftime("%Y%m%d_%H%M%S")
 
         sanitized_title = sanitize_filename(lecture_title) or "Lecture"
-        dir_name = f"{timestamp}_{sanitized_title}"
+        if sanitized_title.startswith(timestamp):
+            dir_name = sanitized_title
+        else:
+            dir_name = f"{timestamp}_{sanitized_title}"
 
         # 1. Prepare Local Directory
         local_dir = self.local_base / dir_name
