@@ -98,3 +98,4 @@ systemctl --user restart speech2latex-headless.service
 # View live systemd logs
 journalctl --user -u speech2latex-headless.service -f
 ```
+

@@ -49,6 +49,21 @@ class EnergyVAD:
 
         return None
 
+    def process_chunk(self, audio_chunk: np.ndarray) -> tuple[bool, float]:
+        """
+        Evaluate if current chunk exceeds speech threshold, applying hysteresis.
+        Returns:
+            (is_speech: bool, rms: float)
+        """
+        rms = float(np.sqrt(np.mean(audio_chunk ** 2))) if len(audio_chunk) > 0 else 0.0
+        thold = self.silence_threshold if self.in_speech else self.speech_threshold
+        if rms >= thold:
+            self.in_speech = True
+            return True, rms
+        else:
+            self.in_speech = False
+            return False, rms
+
     def reset(self):
         self.speech_count = 0
         self.silence_count = 0
@@ -127,6 +142,21 @@ class AdaptiveEnergyVAD:
                 return "end", []
 
             return None, []
+
+    def process_chunk(self, audio_chunk: np.ndarray) -> tuple[bool, float]:
+        """
+        Evaluate if current chunk exceeds speech threshold, applying hysteresis.
+        Returns:
+            (is_speech: bool, rms: float)
+        """
+        rms = float(np.sqrt(np.mean(audio_chunk ** 2))) if len(audio_chunk) > 0 else 0.0
+        thold = self.silence_threshold if self.in_speech else self.speech_threshold
+        if rms >= thold:
+            self.in_speech = True
+            return True, rms
+        else:
+            self.in_speech = False
+            return False, rms
 
     def reset(self):
         self.speech_count = 0

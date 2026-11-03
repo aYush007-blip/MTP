@@ -18,12 +18,14 @@ Zero-Touch, 100% Offline Workflow:
 """
 
 import argparse
+import collections
 from enum import Enum
 import io
 import json
 import os
 from pathlib import Path
 import re
+import select
 import shutil
 import subprocess
 import sys
@@ -81,6 +83,11 @@ START_TRIGGERS = [
     "hey jetson start lecture",
     "jetson start lecture",
     "start lecture",
+    "hey jetson start",
+    "jetson start",
+    "start",
+    "begin recording",
+    "begin lecture",
 ]
 
 STOP_TRIGGERS = [
@@ -90,6 +97,11 @@ STOP_TRIGGERS = [
     "hey jetson stop lecture",
     "jetson stop lecture",
     "stop lecture",
+    "hey jetson stop",
+    "jetson stop",
+    "stop",
+    "finish recording",
+    "end recording",
     "turn off recording",
 ]
 
@@ -152,7 +164,7 @@ def ensure_edge_daemons():
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
         log_whisper = open("/tmp/whisper-server.log", "w")
-        subprocess.Popen(cmd, env=env, stdout=log_whisper, stderr=log_whisper)
+        subprocess.Popen(cmd, env=env, stdout=log_whisper, stderr=log_whisper, start_new_session=True)
         for _ in range(60):
             time.sleep(1.0)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
@@ -170,7 +182,7 @@ def ensure_edge_daemons():
             "--host", "127.0.0.1"
         ]
         log_llama = open("/tmp/llama-server.log", "w")
-        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama)
+        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama, start_new_session=True)
         for _ in range(60):
             time.sleep(1.0)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
@@ -295,17 +307,7 @@ class HeadlessVoiceAgent:
 
         pa, dev_idx, channels, rate = self.initialize_hardware()
 
-        chunk_samples = 4800 if rate == 48000 else 1600
-        stream = pa.open(
-            format=pyaudio.paInt16,
-            channels=channels,
-            rate=rate,
-            input=True,
-            input_device_index=dev_idx,
-            frames_per_buffer=chunk_samples,
-        )
-
-        print("[Agent] Announcing system ready via TTS...")
+        print("[Agent] Announcing system ready via TTS...", flush=True)
         play_prompt("system_ready")
 
         # Verify USB drive presence
@@ -316,11 +318,40 @@ class HeadlessVoiceAgent:
         else:
             print(f"[Agent] USB Drive detected at: {usb_root}")
 
-        vad = AdaptiveEnergyVAD(speech_threshold=0.045, silence_threshold=0.025)
+        chunk_samples = 4800 if rate == 48000 else 1600
+        stream = pa.open(
+            format=pyaudio.paInt16,
+            channels=channels,
+            rate=rate,
+            input=True,
+            input_device_index=dev_idx,
+            frames_per_buffer=chunk_samples,
+        )
+
+        # Calibrate ambient noise floor
+        print("[Agent] Calibrating microphone noise floor...", flush=True)
+        time.sleep(0.2)
+        noise_samples = []
+        for _ in range(8):
+            b = stream.read(chunk_samples, exception_on_overflow=False)
+            if rate == 48000 and channels == 2:
+                mc = stereo_48k_to_mono_16k(b)
+            else:
+                p_arr = np.frombuffer(b, dtype=np.int16)
+                mc = np.clip(p_arr / 32768.0, -1.0, 1.0).astype(np.float32)
+            fc = self.hpf.process(mc)
+            noise_samples.append(float(np.sqrt(np.mean(fc ** 2))))
+
+        noise_floor = min(max(float(np.median(noise_samples)), 0.003), 0.020)
+        speech_thold = min(max(noise_floor * 2.5, 0.020), 0.045)
+        silence_thold = min(max(noise_floor * 1.4, 0.012), 0.025)
+        print(f"[Agent] Calibrated: Noise floor={noise_floor:.4f} | Speech Trigger={speech_thold:.4f}", flush=True)
+
+        vad = AdaptiveEnergyVAD(speech_threshold=speech_thold, silence_threshold=silence_thold)
 
         # Buffers
-        standby_buffer = []  # Rolling 2.0s buffer for wake word
         current_speech_chunks = []
+        pre_roll_buffer = collections.deque(maxlen=3)
         lecture_chunks: List[TranscriptChunk] = []
         raw_audio_frames = []
 
@@ -328,10 +359,50 @@ class HeadlessVoiceAgent:
         in_speech = False
         silence_chunk_count = 0
 
-        print(f"\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...")
+        print(f"\n[Agent] Standby mode active. Say 'Hey Jetson start recording' (or press Enter) to begin...", flush=True)
 
         try:
             while True:
+                # Non-blocking terminal keyboard check
+                try:
+                    if sys.stdin.isatty():
+                        r, _, _ = select.select([sys.stdin], [], [], 0.0)
+                        if r:
+                            sys.stdin.readline()
+                            if self.state == AgentState.STANDBY:
+                                print("\n[Agent] Keyboard Enter detected! Starting countdown...", flush=True)
+                                self.state = AgentState.COUNTDOWN
+                                stream.stop_stream()
+                                play_prompt("countdown_start")
+                                stream.start_stream()
+                                current_speech_chunks.clear()
+                                pre_roll_buffer.clear()
+                                lecture_chunks.clear()
+                                raw_audio_frames.clear()
+                                self.hpf.reset()
+                                vad.reset()
+                                lecture_start_time = time.monotonic()
+                                self.state = AgentState.RECORDING
+                                print("[Agent] Recording started! Capturing live lecture...", flush=True)
+                                in_speech = False
+                                continue
+                            elif self.state == AgentState.RECORDING:
+                                print("\n[Agent] Keyboard Enter detected! Stopping recording...", flush=True)
+                                self.state = AgentState.PROCESSING
+                                stream.stop_stream()
+                                play_prompt("recording_stopped")
+                                current_speech_chunks.clear()
+                                pre_roll_buffer.clear()
+                                in_speech = False
+                                vad.reset()
+                                self.process_lecture(lecture_chunks, raw_audio_frames, lecture_start_time)
+                                self.state = AgentState.STANDBY
+                                stream.start_stream()
+                                print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
+                                continue
+                except Exception:
+                    pass
+
                 raw_bytes = stream.read(chunk_samples, exception_on_overflow=False)
                 
                 # Decimate to 16 kHz mono float32
@@ -347,34 +418,66 @@ class HeadlessVoiceAgent:
                 # 1. STANDBY STATE (Listening for Wake-Word)
                 # =========================================================
                 if self.state == AgentState.STANDBY:
-                    standby_buffer.append(filtered_chunk)
-                    if len(standby_buffer) > 20:  # ~2 seconds (100ms each)
-                        standby_buffer.pop(0)
+                    is_speech, energy = vad.process_chunk(filtered_chunk)
 
-                    # Periodically query wake word every 800ms
-                    if len(standby_buffer) >= 15 and len(standby_buffer) % 4 == 0:
-                        acc = np.concatenate(standby_buffer)
-                        spoken = query_whisper_stream(acc, no_speech_thold=0.55)
-                        norm_spoken = clean_trigger_text(spoken)
+                    if is_speech:
+                        if not in_speech:
+                            in_speech = True
+                            current_speech_chunks.extend(pre_roll_buffer)
+                            pre_roll_buffer.clear()
+                        current_speech_chunks.append(filtered_chunk)
+                        silence_chunk_count = 0
+                        sys.stdout.write(f"\r[Listening] Voice detected (RMS={energy:.3f})... ")
+                        sys.stdout.flush()
+                    else:
+                        if not in_speech:
+                            pre_roll_buffer.append(filtered_chunk)
+                        else:
+                            silence_chunk_count += 1
+                            current_speech_chunks.append(filtered_chunk)
 
-                        if any(trig in norm_spoken for trig in START_TRIGGERS):
-                            print(f"\n[Agent] Wake-Word Detected: '{spoken}'")
-                            self.state = AgentState.COUNTDOWN
-                            
-                            # Audible Countdown Prompt
-                            play_prompt("countdown_start")
+                            # Speech boundary (0.6s silence or max 4.5s phrase)
+                            if silence_chunk_count >= 6 or len(current_speech_chunks) >= 45:
+                                utterance = np.concatenate(current_speech_chunks)
+                                spoken = query_whisper_stream(utterance, no_speech_thold=0.30)
+                                norm_spoken = clean_trigger_text(spoken)
 
-                            # Clear buffers and start recording
-                            standby_buffer.clear()
-                            current_speech_chunks.clear()
-                            lecture_chunks.clear()
-                            raw_audio_frames.clear()
-                            self.hpf.reset()
-                            vad.reset()
+                                if spoken:
+                                    print(f"\n[Standby Heard]: \"{spoken}\"", flush=True)
 
-                            lecture_start_time = time.monotonic()
-                            self.state = AgentState.RECORDING
-                            print("[Agent] Recording started! Capturing live lecture...")
+                                # Check triggers: exact match, or contains "start", or "jetson" and "record"
+                                is_start = any(trig in norm_spoken for trig in START_TRIGGERS) or \
+                                           ("start" in norm_spoken and ("recording" in norm_spoken or "lecture" in norm_spoken)) or \
+                                           ("jetson" in norm_spoken and "start" in norm_spoken) or \
+                                           (norm_spoken.startswith("start") and len(norm_spoken.split()) <= 3)
+
+                                if is_start:
+                                    print(f"[Agent] Wake-Word Activated! Starting countdown...", flush=True)
+                                    self.state = AgentState.COUNTDOWN
+                                    stream.stop_stream()
+                                    play_prompt("countdown_start")
+                                    stream.start_stream()
+
+                                    current_speech_chunks.clear()
+                                    pre_roll_buffer.clear()
+                                    lecture_chunks.clear()
+                                    raw_audio_frames.clear()
+                                    self.hpf.reset()
+                                    vad.reset()
+
+                                    lecture_start_time = time.monotonic()
+                                    self.state = AgentState.RECORDING
+                                    print("[Agent] Recording started! Capturing live lecture...", flush=True)
+                                    in_speech = False
+                                    continue
+                                else:
+                                    if spoken:
+                                        print("[Standby] (Say 'Hey Jetson start recording' or 'Start recording' to begin)", flush=True)
+
+                                current_speech_chunks.clear()
+                                pre_roll_buffer.clear()
+                                in_speech = False
+                                vad.reset()
 
                 # =========================================================
                 # 2. RECORDING STATE (Continuous Lecture Transcription)
@@ -389,16 +492,23 @@ class HeadlessVoiceAgent:
                     if is_speech:
                         if not in_speech:
                             in_speech = True
+                            current_speech_chunks.extend(pre_roll_buffer)
+                            pre_roll_buffer.clear()
                         current_speech_chunks.append(filtered_chunk)
                         silence_chunk_count = 0
+                        elapsed = time.monotonic() - lecture_start_time
+                        sys.stdout.write(f"\r[Recording {elapsed:5.1f}s] Voice RMS: {energy:.3f} ... ")
+                        sys.stdout.flush()
                     else:
-                        if in_speech:
+                        if not in_speech:
+                            pre_roll_buffer.append(filtered_chunk)
+                        else:
                             silence_chunk_count += 1
                             current_speech_chunks.append(filtered_chunk)
 
-                            # Speech boundary reached (1.8s silence or max 12s utterance)
+                            # Speech boundary reached (1.6s silence or max 12s utterance)
                             chunk_duration = len(current_speech_chunks) * 0.1
-                            if silence_chunk_count >= 18 or chunk_duration >= 12.0:
+                            if silence_chunk_count >= 16 or chunk_duration >= 12.0:
                                 utterance = np.concatenate(current_speech_chunks)
                                 t_end_rel = time.monotonic() - lecture_start_time
                                 t_start_rel = max(0.0, t_end_rel - chunk_duration)
@@ -408,18 +518,26 @@ class HeadlessVoiceAgent:
                                 norm_spoken = clean_trigger_text(spoken_text)
 
                                 # Check for STOP command
-                                if any(stop_t in norm_spoken for stop_t in STOP_TRIGGERS):
-                                    print(f"\n[Agent] Stop-Command Detected: '{spoken_text}'")
+                                is_stop = any(stop_t in norm_spoken for stop_t in STOP_TRIGGERS) or \
+                                          ("stop" in norm_spoken and ("recording" in norm_spoken or "lecture" in norm_spoken)) or \
+                                          ("jetson" in norm_spoken and "stop" in norm_spoken) or \
+                                          (norm_spoken.startswith("stop") and len(norm_spoken.split()) <= 3)
+
+                                if is_stop:
+                                    print(f"\n[Agent] Stop-Command Detected: '{spoken_text}'", flush=True)
                                     self.state = AgentState.PROCESSING
+                                    stream.stop_stream()
                                     play_prompt("recording_stopped")
                                     current_speech_chunks.clear()
+                                    pre_roll_buffer.clear()
                                     in_speech = False
                                     vad.reset()
                                     # Process immediately
                                     self.process_lecture(lecture_chunks, raw_audio_frames, lecture_start_time)
                                     # Re-enter standby
                                     self.state = AgentState.STANDBY
-                                    print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...")
+                                    stream.start_stream()
+                                    print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
                                     continue
 
                                 # Standard Technical Speech Chunk
@@ -433,15 +551,16 @@ class HeadlessVoiceAgent:
                                         latex_text=latex_output
                                     )
                                     lecture_chunks.append(chunk_obj)
-                                    print(f"[Live {t_end_rel:.1f}s]: {spoken_text}")
-                                    print(f"       -> [LaTeX]: {latex_output}")
+                                    print(f"\n[Live {t_end_rel:.1f}s]: {spoken_text}", flush=True)
+                                    print(f"       -> [LaTeX]: {latex_output}", flush=True)
 
                                 current_speech_chunks.clear()
+                                pre_roll_buffer.clear()
                                 in_speech = False
                                 vad.reset()
 
         except KeyboardInterrupt:
-            print("\n[Agent] Shutting down headless agent...")
+            print("\n[Agent] Shutting down headless agent...", flush=True)
         finally:
             stream.stop_stream()
             stream.close()

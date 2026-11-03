@@ -23,11 +23,22 @@ APLAY_BIN = shutil.which("aplay")
 
 
 def _get_player_cmd(wav_path: str) -> list:
-    """Determine best available audio playback command."""
+    """
+    Determine best available audio playback command.
+    Prioritizes direct ALSA plughw:2,0 (AB13X USB Audio) to ensure true
+    full-duplex playback without PulseAudio profile locking.
+    """
+    if APLAY_BIN:
+        try:
+            with open("/proc/asound/cards") as f:
+                cards = f.read()
+                if "AB13X" in cards or "Audio" in cards:
+                    return [APLAY_BIN, "-D", "plughw:Audio,0", str(wav_path)]
+        except Exception:
+            pass
+        return [APLAY_BIN, "-D", "default", str(wav_path)]
     if PAPLAY_BIN:
         return [PAPLAY_BIN, str(wav_path)]
-    if APLAY_BIN:
-        return [APLAY_BIN, "-D", "default", str(wav_path)]
     return []
 
 

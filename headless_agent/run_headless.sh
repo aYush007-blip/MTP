@@ -31,3 +31,4 @@ echo " Python Binary     : $PYTHON_BIN"
 echo "================================================================================"
 
 exec "$PYTHON_BIN" -u "$SCRIPT_DIR/src/headless_voice_agent.py" "$@"
+
