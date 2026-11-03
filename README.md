@@ -1,36 +1,76 @@
 # Edge-Native Mathematical Speech-to-LaTeX System
 
-An end-to-end, 100% offline edge-native speech-to-LaTeX transcription system optimized for **NVIDIA Jetson Orin Nano (Ampere SM87)**. Converts spoken mathematical and technical lectures into formatted LaTeX notation in real time (<500 ms latency).
-
-## 🚀 Key Features
-
-- **Dual-Engine Architecture:**
-  - **Phase 2 SLM (Qwen2.5-1.5B-Instruct Q4_K_M):** High-precision conversational prose and complex mathematical formula extraction via edge C++ `llama.cpp` CUDA runtime (~260 ms inference).
-  - **Phase 1 Pipeline (T5-Small v2 + Regex Router):** Ultra-low-latency formula translation (~11 ms inference).
-- **Edge Acoustic Pipeline:**
-  - Pure NumPy vectorized 3:1 integer decimation (48 kHz stereo hardware mic $\to$ 16 kHz mono PCM) with zero PyTorch/SciPy ingestion overhead.
-  - 500 ms rolling circular audio buffer with Silero Neural VAD for natural utterance segmentation.
-  - C++ `whisper.cpp` (`base.en`) for real-time offline ASR.
-- **Live Showcase Web GUI:**
-  - Built with FastAPI / Aiohttp backend and a modern responsive dark-mode frontend.
-  - Live KaTeX auto-rendering over WebSockets.
-  - Interactive multi-engine pill toggle (`SLM` vs `T5-Small`).
+An end-to-end, 100% offline edge-native speech-to-LaTeX transcription and typesetting system optimized for the **NVIDIA Jetson Orin Nano (8GB Unified Memory, Ampere SM87)**. Converts continuous engineering and mathematical lectures into publication-ready LaTeX documents and synchronized subtitles in real time.
 
 ---
 
-## 📊 Empirical Benchmark Results (MathSpeech Corpus)
+## 🚀 Key Features
 
-Evaluated on 107 real-world university mathematics and engineering lecture utterances:
+* **Dual-Engine Edge Pipeline:**
+  * **Acoustic ASR Engine:** `whisper.cpp` (`small.en`) with **CUDA Flash Attention (`-fa`)**, multi-threaded decoding, and adaptive Voice Activity Detection (VAD) (~540 ms latency).
+  * **Spoken-Math Typesetting SLM:** **Qwen2.5-1.5B-Instruct (Q4_K_M GGUF)** offloaded to Ampere GPU SM87 via `llama.cpp` server runtime (~290 ms inference).
+* **Continuous Long-Form Streaming:**
+  * Tested and validated on full **32-minute** and **1-hour** university lectures.
+  * Achieves **`0.27x – 0.34x` Real-Time Factor (RTF)** (**2.9x to 3.7x faster than real time**), providing $>65\%$ compute headroom for zero-latency live streaming.
+* **ASR Fidelity & Zero-Loss Acoustic Pipeline:**
+  * **Acoustic Padding ($\pm 250\text{ms}$):** Pre-roll and post-roll safety margins eliminate boundary word clipping.
+  * **Dynamic Prompt Chaining:** Whisper's autoregressive decoder is continuously conditioned on preceding transcript history, ensuring seamless sentence flow across chunks.
+  * **Minimum Chunk Safeguard ($\ge 2.5\text{s}$):** Merges ultra-short fragments to prevent Whisper attention collapse.
+  * **Lowered No-Speech Threshold (`0.40`) & Temperature Fallback (`0.0 \to 0.2`):** Captures soft, accented, and trailing academic speech.
+* **Live Showcase Web GUI & Headless Capabilities:**
+  * Modern glassmorphism UI with live KaTeX rendering over WebSockets.
+  * Full export suite: Markdown notes, standalone `.tex` document, SRT/VTT subtitles, per-chunk metrics CSV, and instant ZIP download.
 
-| Metric | Phase 1 Baseline (T5-Small + Heuristic Router) | Phase 2 SLM (Qwen2.5-1.5B Q4_K_M) | Improvement |
-| :--- | :--- | :--- | :--- |
-| **Normalized Exact Match (Norm-EM)** | **8.41%** (9/107) | **40.19%** (43/107) | **+377.9% (4.78x higher!)** |
-| **Strict Exact Match (Strict-EM)** | **0.93%** (1/107) | **4.67%** (5/107) | **+402.2% (5.02x higher!)** |
-| **Token BLEU-4 Score** | **27.06 / 100** | **47.79 / 100** | **+76.6% relative gain** |
-| **Token Error Rate (TER)** | **61.15%** | **30.75%** | **-49.7% error reduction** |
-| **Character Error Rate (CER)** | **72.74%** | **47.01%** | **-35.4% error reduction** |
-| **Mean Inference Latency** | **787.4 ms** | **519.8 ms** | **34.0% faster on Orin GPU** |
-| **P95 Tail Latency** | **2125.1 ms** | **969.2 ms** | **2.19x faster tail latency** |
+---
+
+## 📊 Long-Form Lecture Benchmark Results
+
+| Lecture Recording | Duration | Wall-Clock Time | Real-Time Factor (RTF) | Utterance Chunks | Formulas Detected | LaTeX Syntax Accuracy |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Lecture 12 Z - Transform.wav** | 32.37 min (1,942 s) | 10.99 min (659 s) | **`0.3395x`** (2.95x real-time) | 560 chunks | 243 formulas | **99.6%** |
+| **Modeling of Synchronous Machines.wav** | 59.57 min (3,574 s) | 16.04 min (962 s) | **`0.2693x`** (3.71x real-time) | 977 chunks | 80 formulas | **100.0%** |
+
+### Latency Percentiles (1-Hour Continuous Lecture):
+* **ASR Latency (Flash Attention):** Mean = 685.9 ms | P50 = 540.6 ms | P90 = 898.9 ms
+* **SLM Latency (CUDA SM87):** Mean = 298.2 ms | P50 = 0.1 ms (selective pass-through) | P90 = 1,055.9 ms
+* **End-to-End Pipeline Latency:** Mean = 984.9 ms | P50 = 577.3 ms | P90 = 1,859.1 ms
+
+---
+
+## ⚡ Quickstart
+
+### 1. Launch the Web Showcase GUI
+```bash
+cd /mnt/thesis
+./run_gui.sh
+```
+Open `http://localhost:8000` in your browser.
+
+### 2. Run Terminal-Based Live Streaming
+```bash
+/mnt/thesis/main/.venv/bin/python /mnt/thesis/main/src/live_streaming_terminal.py
+```
+
+### 3. Run Benchmark on Any Lecture WAV
+```bash
+/mnt/thesis/main/.venv/bin/python /mnt/thesis/main/src/benchmark_lecture.py \
+  --audio "/mnt/thesis/Lecture 12 Z - Transform.wav" \
+  --name "z-transform_lecture_test"
+```
+
+For complete setup instructions, flags, and deployment options, see [RUNNING_GUIDE.md](RUNNING_GUIDE.md).
+
+---
+
+## 🛡️ Model Integrity & Backup Recovery
+
+All models are backed up in read-only storage on the internal eMMC (`/home/ayush02/models/backup_working_models/`).
+
+To verify or restore the exact models:
+```bash
+/mnt/thesis/scripts/setup_models.sh
+```
+For cryptographic SHA-256 hashes and storage architecture, refer to [MODELS_MANIFEST.md](MODELS_MANIFEST.md).
 
 ---
 
@@ -38,51 +78,26 @@ Evaluated on 107 real-world university mathematics and engineering lecture utter
 
 ```
 .
-├── SYSTEM_ARCHITECTURE_AND_DECISIONS.md # Detailed architectural decisions & sequence flows
-├── CURRENT_MODEL_DOCUMENTATION.md       # Phase 1 model documentation & failure mode analysis
-├── README.md                            # Project overview & quickstart
-├── evaluation_results/                  # Quantitative benchmark reports (JSON, CSV, MD)
+├── RUNNING_GUIDE.md                     # Comprehensive operation & benchmarking manual
+├── MODELS_MANIFEST.md                   # Exact model registry, SHA-256 hashes & backup topology
+├── SYSTEM_ARCHITECTURE_AND_DECISIONS.md # Detailed architectural log & design decisions
+├── README.md                            # Project overview & benchmark summary
+├── run_gui.sh                           # Self-bootstrapping Web GUI launcher
+├── speech2latex.service                 # systemd user service for background deployment
+├── Speech2LaTeX.desktop                 # Desktop application shortcut
+├── evaluation_results/                  # Benchmark deliverables (Z-transform, Synchronous Machines)
+├── scripts/
+│   └── setup_models.sh                  # One-command model verification & recovery tool
 └── main/
     ├── gui/                             # Web showcase application
     │   ├── server.py                    # Aiohttp server daemon (port 8000)
     │   ├── index.html                   # Responsive glassmorphism interface
     │   └── static/                      # CSS, app logic, and local KaTeX bundle
     └── src/                             # Core algorithmic pipeline
-        ├── audio.py                     # Vectorized audio decimation (pure NumPy)
+        ├── benchmark_lecture.py         # Long-form academic lecture benchmark engine
+        ├── live_streaming_terminal.py   # Console-based real-time streaming runner
         ├── slm_translator.py            # Qwen2.5 SLM edge translator & ChatML wrapper
-        ├── router.py                    # Regex heuristic router & T5-small translator
-        ├── live_vad.py                  # Real-time microphone capture & Neural VAD
-        ├── evaluate_model.py            # Quantitative evaluation & benchmarking suite
-        ├── run_live_test.py             # Live microphone acoustic test runner
-        └── download_slm.py              # Verified Hugging Face Hub downloader
+        ├── router.py                    # Fast heuristic math classifier & fallback router
+        ├── audio.py                     # Vectorized audio decimation (pure NumPy)
+        └── live_vad.py                  # Real-time microphone capture & Neural VAD
 ```
-
----
-
-## ⚡ Quickstart
-
-### 1. Launch the SLM Inference Daemon
-```bash
-/mnt/thesis/llama.cpp/build/bin/llama-server \
-  -m /mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf \
-  -c 2048 -ngl 99 --port 8080 --host 127.0.0.1
-```
-
-### 2. Launch the Web Showcase GUI
-```bash
-cd main
-source .venv/bin/activate
-python gui/server.py
-```
-Open `http://localhost:8000` in your browser.
-
-### 3. Run Benchmark Suite
-```bash
-python main/src/evaluate_model.py --mode slm --dataset mathspeech
-```
-
----
-
-## 📜 Complete Architecture & Decision Log
-
-For the full log of all 19 system design decisions, edge failure remediations, and Mermaid runtime sequence diagrams, refer to [SYSTEM_ARCHITECTURE_AND_DECISIONS.md](SYSTEM_ARCHITECTURE_AND_DECISIONS.md).
