@@ -59,3 +59,4 @@ su - "${TARGET_USER}" -c "mount ${MOUNT_DIR} 2>/dev/null || true"
 lsblk -o NAME,LABEL,MOUNTPOINT | grep -i ayush || true
 echo "======================================================================"
 echo "DONE! Removable drive AYUSH will now mount automatically without ANY password prompts."
+
