@@ -1,0 +1,15 @@
+[Unit]
+Description=Speech2LaTeX Autonomous Headless Edge Agent
+After=sound.target network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/thesis/headless_agent
+Environment="PYTHONPATH=/mnt/thesis/headless_agent/src"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/mnt/thesis/headless_agent/run_headless.sh
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target

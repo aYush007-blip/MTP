@@ -4,10 +4,10 @@ After=sound.target network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/mnt/thesis/main
-Environment="PYTHONPATH=/mnt/thesis/main/src"
+WorkingDirectory=/mnt/thesis/headless_agent
+Environment="PYTHONPATH=/mnt/thesis/headless_agent/src"
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=/mnt/thesis/main/.venv/bin/python -u src/headless_voice_agent.py
+ExecStart=/mnt/thesis/headless_agent/run_headless.sh
 Restart=always
 RestartSec=5s
 

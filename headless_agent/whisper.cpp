@@ -1,0 +1,1 @@
+/mnt/thesis/main/whisper.cpp
