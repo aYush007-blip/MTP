@@ -274,29 +274,10 @@ class AcademicPDFRenderer:
             story = []
 
             # 1. Header Banner
-            display_title = title if title.startswith("Lecture") else f"Lecture Notes: {title}"
+            display_title = title
             story.append(Paragraph(display_title, title_style))
-            story.append(Paragraph("Comprehensive Classroom Lecture Notes", subtitle_style))
-            story.append(Paragraph(f"Delivered on {time.strftime('%B %d, %Y')} &bull; Academic Term", date_style))
-            story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0f2942'), spaceAfter=14))
-
-            # 2. Lecture Overview & Learning Objectives Callout Box
-            if abstract:
-                overview_table = [
-                    [Paragraph("<b>📋 Lecture Overview & Learning Objectives:</b>", overview_heading)],
-                    [Paragraph(abstract, overview_body)]
-                ]
-                t_overview = Table(overview_table, colWidths=[485])
-                t_overview.setStyle(TableStyle([
-                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f0f4f8')),
-                    ('BOX', (0,0), (-1,-1), 1.0, colors.HexColor('#cbd5e0')),
-                    ('TOPPADDING', (0,0), (-1,-1), 8),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-                    ('LEFTPADDING', (0,0), (-1,-1), 12),
-                    ('RIGHTPADDING', (0,0), (-1,-1), 12),
-                ]))
-                story.append(t_overview)
-                story.append(Spacer(1, 14))
+            story.append(Paragraph(f"Delivered on {time.strftime('%B %d, %Y')}", date_style))
+            story.append(HRFlowable(width="100%", thickness=1.0, color=colors.HexColor('#0f2942'), spaceAfter=14))
 
             # Helper to draw Z-Plane vector graphic
             def draw_zplane_roc_drawing():
@@ -409,23 +390,6 @@ class AcademicPDFRenderer:
                     story.append(draw_dq_frame_drawing())
                     story.append(Paragraph("<b>Figure 1:</b> Direct (<i>d</i>) and quadrature (<i>q</i>) rotor reference frame rotated by electrical angle <i>θ<sub>r</sub></i>.", caption_style))
 
-            # 4. Instructor Classroom Note Box
-            note_table = [
-                [Paragraph("<b>💡 Instructor's Classroom Observation:</b>", overview_heading)],
-                [Paragraph("Review the foundational derivations, definitions, and boundary conditions presented in this session. All notation has been harmonized for student review.", overview_body)]
-            ]
-            t_note = Table(note_table, colWidths=[485])
-            t_note.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#fffaf0')),
-                ('BOX', (0,0), (-1,-1), 1.0, colors.HexColor('#dd6b20')),
-                ('TOPPADDING', (0,0), (-1,-1), 6),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-                ('LEFTPADDING', (0,0), (-1,-1), 10),
-                ('RIGHTPADDING', (0,0), (-1,-1), 10),
-            ]))
-            story.append(Spacer(1, 8))
-            story.append(t_note)
-
             doc.build(story)
             return output_pdf_path.is_file()
         except Exception as e:
@@ -486,14 +450,7 @@ class PostLectureProcessor:
             equations.append((idx, eq.strip()))
 
         # Extract overview text
-        abstract_text = f"These classroom lecture notes compile key theoretical principles, definitions, and analytical formulations for {lecture_title}."
-        m_md = re.search(r'Lecture Overview[^\\]*:\}\\\\\[[^\]]*\]\s*(.*?)\\end\{mdframed\}', tex_content, re.DOTALL)
-        if m_md:
-            abstract_text = m_md.group(1).strip()
-        else:
-            m_abs = re.search(r'\\begin\{abstract\}(.*?)\\end\{abstract\}', tex_content, re.DOTALL)
-            if m_abs:
-                abstract_text = m_abs.group(1).strip()
+        abstract_text = ""
 
         # Detect diagram types
         from lecture_to_book import TikZDiagramGenerator
