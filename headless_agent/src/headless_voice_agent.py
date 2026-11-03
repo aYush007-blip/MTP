@@ -175,8 +175,8 @@ def ensure_edge_daemons():
         cmd = [
             LLAMA_BIN,
             "-m", LLAMA_MODEL,
-            "-c", "4096",
-            "-ngl", "28",
+            "-c", "2048",
+            "-ngl", "16",
             "-t", "4",
             "-np", "1",
             "--port", "8080",
@@ -331,7 +331,7 @@ class HeadlessVoiceAgent:
         usb_root = find_usb_mount()
         if not usb_root:
             print("[Agent] Notice: USB drive AYUSH not currently inserted.")
-            play_prompt("usb_warning", non_blocking=True)
+            play_prompt("usb_warning", non_blocking=False)
         else:
             print(f"[Agent] USB Drive detected at: {usb_root}")
 
@@ -627,7 +627,12 @@ class HeadlessVoiceAgent:
 
         # 4. Spoken Shutdown Signal
         print("[Agent] Playing final announcement...")
-        play_prompt("transcription_saved")
+        if export_res.get("usb_success"):
+            print("[Agent] USB export verified successfully! Playing shutdown signal...")
+            play_prompt("transcription_saved")
+        else:
+            print("[Agent] Warning: Deliverables saved to internal SSD, but USB export failed or USB missing!")
+            play_prompt("usb_warning")
         # Clean up temp
         shutil.rmtree(temp_dir, ignore_errors=True)
 

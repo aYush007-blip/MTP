@@ -24,34 +24,48 @@ USB_MOUNT_PREFERRED = Path("/media/ayush02/AYUSH")
 def find_usb_mount() -> Optional[Path]:
     """
     Locate the mount directory of USB drive AYUSH.
-    Checks preferred path first, then inspects lsblk for drive labeled 'AYUSH'.
-    Attempts mount commands if device exists but is unmounted.
+    Checks preferred path first (verifying true filesystem mount),
+    then /dev/disk/by-label/AYUSH, then lsblk.
+    Automatically mounts the drive via udisksctl if unmounted.
     """
-    if USB_MOUNT_PREFERRED.is_dir() and os.access(str(USB_MOUNT_PREFERRED), os.W_OK):
+    # 1. Check if preferred path is actively mounted and writable
+    if USB_MOUNT_PREFERRED.is_dir() and os.path.ismount(str(USB_MOUNT_PREFERRED)) and os.access(str(USB_MOUNT_PREFERRED), os.W_OK):
         return USB_MOUNT_PREFERRED
 
-    # Try mounting preferred mountpoint if configured in fstab
-    try:
-        subprocess.run(["mount", str(USB_MOUNT_PREFERRED)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-        if USB_MOUNT_PREFERRED.is_dir() and os.access(str(USB_MOUNT_PREFERRED), os.W_OK):
-            return USB_MOUNT_PREFERRED
-    except Exception:
-        pass
+    # 2. Check /dev/disk/by-label/AYUSH created by udev
+    label_dev = Path("/dev/disk/by-label/AYUSH")
+    if label_dev.exists():
+        try:
+            m_res = subprocess.run(
+                ["udisksctl", "mount", "-b", str(label_dev)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False
+            )
+            if USB_MOUNT_PREFERRED.is_dir() and os.path.ismount(str(USB_MOUNT_PREFERRED)) and os.access(str(USB_MOUNT_PREFERRED), os.W_OK):
+                return USB_MOUNT_PREFERRED
+            m_match = re.search(r'Mounted .*? at (/[^\s\.]+)', m_res.stdout)
+            if m_match and Path(m_match.group(1)).is_dir():
+                return Path(m_match.group(1))
+        except Exception as e:
+            print(f"[USB Exporter] by-label mount warning: {e}")
 
-    # Search through /media and /mnt
+    # 3. Search through /media and /mnt for any mounted AYUSH
     for base in [Path("/media/ayush02"), Path("/media"), Path("/mnt")]:
         if base.is_dir():
             for p in base.glob("**/AYUSH"):
-                if p.is_dir() and os.access(str(p), os.W_OK):
+                if p.is_dir() and os.path.ismount(str(p)) and os.access(str(p), os.W_OK):
                     return p
 
-    # Inspect lsblk
+    # 4. Inspect lsblk block devices for drive labeled AYUSH
     try:
         res = subprocess.run(
             ["lsblk", "-J", "-o", "NAME,LABEL,MOUNTPOINT"],
             capture_output=True,
             text=True,
             check=False,
+            timeout=5
         )
         if res.returncode == 0:
             import json
@@ -60,16 +74,22 @@ def find_usb_mount() -> Optional[Path]:
                 for child in dev.get("children", [dev]):
                     if (child.get("label") or "").upper() == "AYUSH":
                         mp = child.get("mountpoint")
-                        if mp and Path(mp).is_dir():
+                        if mp and Path(mp).is_dir() and os.path.ismount(mp):
                             return Path(mp)
-                        # Try mounting via udisksctl
                         dev_node = f"/dev/{child.get('name')}"
                         try:
-                            m_res = subprocess.run(["udisksctl", "mount", "-b", dev_node], capture_output=True, text=True, timeout=3)
-                            if m_res.returncode == 0:
-                                m_match = re.search(r'Mounted .*? at (/[^\s\.]+)', m_res.stdout)
-                                if m_match and Path(m_match.group(1)).is_dir():
-                                    return Path(m_match.group(1))
+                            m_res = subprocess.run(
+                                ["udisksctl", "mount", "-b", dev_node],
+                                capture_output=True,
+                                text=True,
+                                timeout=15,
+                                check=False
+                            )
+                            if USB_MOUNT_PREFERRED.is_dir() and os.path.ismount(str(USB_MOUNT_PREFERRED)):
+                                return USB_MOUNT_PREFERRED
+                            m_match = re.search(r'Mounted .*? at (/[^\s\.]+)', m_res.stdout)
+                            if m_match and Path(m_match.group(1)).is_dir():
+                                return Path(m_match.group(1))
                         except Exception:
                             pass
     except Exception:
@@ -191,8 +211,14 @@ class LectureExporter:
                     cs_f.write(f"{cs}  {p.name}\n")
         local_files["checksums"] = checksum_file
 
-        # 4. Export to USB Drive AYUSH if available
-        usb_root = find_usb_mount()
+        # 4. Export to USB Drive AYUSH if available (with auto-retry and size verification)
+        usb_root = None
+        for attempt in range(3):
+            usb_root = find_usb_mount()
+            if usb_root:
+                break
+            time.sleep(1.5)
+
         usb_dir = None
         usb_success = False
 
@@ -203,14 +229,19 @@ class LectureExporter:
                 usb_dir = usb_lectures / dir_name
                 usb_dir.mkdir(parents=True, exist_ok=True)
 
+                all_copied = True
                 for p in local_dir.iterdir():
                     if p.is_file():
-                        shutil.copy2(p, usb_dir / p.name)
+                        target_f = usb_dir / p.name
+                        shutil.copy2(p, target_f)
+                        if not target_f.is_file() or target_f.stat().st_size != p.stat().st_size:
+                            all_copied = False
 
                 # Ensure FAT32 buffers are committed to flash memory
                 subprocess.run(["sync"], check=False)
-                usb_success = True
+                usb_success = all_copied
             except Exception as e:
+                print(f"[USB Exporter Error] Failed copying to USB: {e}")
                 usb_success = False
 
         return {
