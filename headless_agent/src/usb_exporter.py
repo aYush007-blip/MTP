@@ -32,6 +32,14 @@ def find_usb_mount() -> Optional[Path]:
     if USB_MOUNT_PREFERRED.is_dir() and os.path.ismount(str(USB_MOUNT_PREFERRED)) and os.access(str(USB_MOUNT_PREFERRED), os.W_OK):
         return USB_MOUNT_PREFERRED
 
+    # 1b. Try unprivileged direct mount (works if configured in /etc/fstab with 'user' option, bypassing Polkit)
+    try:
+        subprocess.run(["mount", str(USB_MOUNT_PREFERRED)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=5)
+        if USB_MOUNT_PREFERRED.is_dir() and os.path.ismount(str(USB_MOUNT_PREFERRED)) and os.access(str(USB_MOUNT_PREFERRED), os.W_OK):
+            return USB_MOUNT_PREFERRED
+    except Exception:
+        pass
+
     # 2. Check /dev/disk/by-label/AYUSH created by udev
     label_dev = Path("/dev/disk/by-label/AYUSH")
     if label_dev.exists():
