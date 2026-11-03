@@ -1,16 +1,20 @@
 [Unit]
 Description=Speech2LaTeX Autonomous Headless Edge Agent
-After=sound.target network.target
+After=sound.target network.target local-fs.target
+Wants=sound.target
 
 [Service]
 Type=simple
+User=ayush02
+Group=ayush02
 WorkingDirectory=/mnt/thesis/headless_agent
 Environment="PYTHONPATH=/mnt/thesis/headless_agent/src"
 Environment="PYTHONUNBUFFERED=1"
+Environment="HOME=/home/ayush02"
+Environment="PATH=/mnt/thesis/bin:/home/ayush02/.local/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=/mnt/thesis/headless_agent/run_headless.sh
-Restart=always
+Restart=on-failure
 RestartSec=5s
 
 [Install]
-WantedBy=default.target
-
+WantedBy=multi-user.target

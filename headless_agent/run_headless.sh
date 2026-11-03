@@ -12,8 +12,9 @@ cd "$SCRIPT_DIR"
 export PYTHONPATH="$SCRIPT_DIR/src:${PYTHONPATH:-}"
 export PYTHONUNBUFFERED=1
 
-# Auto-set USB microphone hardware gain if available
-amixer -c 2 sset Mic 110 >/dev/null 2>&1 || true
+# Auto-set USB microphone hardware capture gain and playback volume
+amixer -c Audio sset Mic 110 cap unmute >/dev/null 2>&1 || amixer -c 1 sset Mic 110 cap unmute >/dev/null 2>&1 || true
+amixer -c Audio sset PCM 95 unmute >/dev/null 2>&1 || amixer -c 1 sset PCM 95 unmute >/dev/null 2>&1 || true
 
 # Check virtual environment
 if [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
