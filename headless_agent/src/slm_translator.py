@@ -277,6 +277,7 @@ class QwenMathTranslator:
             "repeat_penalty": 1.15,
             "stream": False,
             "stop": ["<|im_end|>", "<|endoftext|>", "\n\n"],
+            "cache_prompt": True,
         }
         data_bytes = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
@@ -372,11 +373,36 @@ class QwenMathTranslator:
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
         return self._clean_response(response, raw_text=spoken_text, context_text=ctx_str)
 
+    def _has_math_cues(self, text: str) -> bool:
+        """Check if spoken sentence contains mathematical terms, variables, or symbols."""
+        pattern = (
+            r'\b(?:'
+            r'[a-zA-Z]\s+of\s+[a-zA-Z0-9]+|'
+            r'[xX]|[yY]|[zZ]|[nN]|[kK]|[sS]|[rR]|[fF]|[hH]|[uU]|[vV]|'
+            r'omega|theta|phi|psi|alpha|beta|gamma|delta|lambda|pi|mu|rho|sigma|tau|'
+            r'transform|transforms|transformation|fourier|laplace|z-transform|laplacian|'
+            r'integral|integrals|integrate|integration|sum|summation|series|'
+            r'derivative|derivatives|differential|partial|equation|equations|'
+            r'matrix|matrices|vector|vectors|norm|magnitude|absolute|'
+            r'pole|poles|zero|zeros|roc|convergence|converge|converges|diverge|diverges|'
+            r'frequency|frequencies|domain|plane|axis|axes|circle|radius|unit|'
+            r'continuous|discrete|causal|non-causal|anti-causal|impulse|step|exponential|'
+            r'sin|cos|tan|log|ln|exp|sinh|cosh|root|sqrt|power|squared|cubed|'
+            r'plus|minus|times|multiplied|divide|divided|over|equal|equals|greater|less|'
+            r'sub|super|bracket|fraction|real|imaginary|complex'
+            r')\b|\d+|[=+\-*/^<>~|]'
+        )
+        return bool(re.search(pattern, text, re.IGNORECASE))
+
     def translate(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: Optional[int] = None) -> str:
         """Translate spoken lecture transcript into clean prose + LaTeX notation with rolling context."""
         text = spoken_text.strip()
         if not text:
             return ""
+
+        # If sentence has no mathematical cues or variables, return verbatim without invoking LLM
+        if not self._has_math_cues(text):
+            return text
 
         words = text.split()
         if len(words) > 45 and max_new_tokens is None:

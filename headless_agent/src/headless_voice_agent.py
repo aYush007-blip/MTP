@@ -175,9 +175,9 @@ def ensure_edge_daemons():
         cmd = [
             LLAMA_BIN,
             "-m", LLAMA_MODEL,
-            "-c", "2048",
-            "-ngl", "24",
-            "-t", "2",
+            "-c", "4096",
+            "-ngl", "28",
+            "-t", "4",
             "-np", "1",
             "--port", "8080",
             "--host", "127.0.0.1"
@@ -631,67 +631,154 @@ class HeadlessVoiceAgent:
         # Clean up temp
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def run_file_simulation(self, wav_path: str, max_duration: float = 60.0):
+    def run_file_simulation(self, wav_path: str, max_duration: Optional[float] = None):
         """
         Simulate the complete headless workflow on an existing WAV file.
+        Transcribes the full audio file (or up to max_duration if specified),
+        translates math expressions into standard LaTeX, generates native TikZ graphics,
+        compiles publication-grade PDF via Tectonic XeTeX, and exports deliverables to USB drive AYUSH.
         """
         print(f"\n[Agent Simulation] Testing on WAV file: {wav_path}", flush=True)
         ensure_edge_daemons()
         self.slm = QwenMathTranslator.get_instance(backend="server")
 
-        with wave.open(wav_path, "rb") as wf:
-            n_channels = wf.getnchannels()
-            framerate = wf.getframerate()
-            total_frames = wf.getnframes()
-            frames_to_read = int(min(total_frames, max_duration * framerate))
-            raw_bytes = wf.readframes(frames_to_read)
-
-        pcm = np.frombuffer(raw_bytes, dtype=np.int16)
-        if n_channels > 1:
-            pcm = pcm.reshape(-1, n_channels).mean(axis=1)
-
-        if framerate != 16000:
-            num_samples = int(len(pcm) * 16000 / framerate)
-            pcm = np.interp(
-                np.linspace(0, len(pcm), num_samples, endpoint=False),
-                np.arange(len(pcm)),
-                pcm,
-            ).astype(np.int16)
-
-        float_audio = np.clip(pcm / 32768.0, -1.0, 1.0).astype(np.float32)
-        filtered_audio = self.hpf.process(float_audio)
-
-        print(f"[Agent Simulation] Processing {len(filtered_audio)/16000.0:.1f}s of lecture audio...", flush=True)
-        chunk_sec = 6.0
-        samples_per_chunk = int(chunk_sec * 16000)
+        whisper_cli = Path("/mnt/thesis/main/whisper.cpp/build-orin/bin/whisper-cli")
         chunks: List[TranscriptChunk] = []
 
-        total_audio_sec = len(filtered_audio) / 16000.0
-        for i in range(0, len(filtered_audio), samples_per_chunk):
-            segment = filtered_audio[i : i + samples_per_chunk]
-            t_start = i / 16000.0
-            t_end = min((i + samples_per_chunk) / 16000.0, total_audio_sec)
+        # 1. High-Performance GPU Batch Transcription via whisper-cli if available
+        if whisper_cli.is_file():
+            print(f"[Agent Simulation] Running full-lecture GPU transcription via whisper-cli...", flush=True)
+            import tempfile
+            temp_json_prefix = Path(tempfile.gettempdir()) / f"sim_transcription_{int(time.time())}"
+            cmd = [
+                str(whisper_cli),
+                "-m", WHISPER_MODEL,
+                "-f", wav_path,
+                "--prompt", WHISPER_MATH_PROMPT,
+                "-sns", "-nth", "0.60", "-fa",
+                "-oj", "-of", str(temp_json_prefix)
+            ]
+            if max_duration is not None and max_duration > 0:
+                cmd.extend(["-d", str(int(max_duration * 1000))])
 
-            spoken = query_whisper_stream(segment)
-            if spoken.strip():
-                latex = self.slm.translate(spoken)
-                chunks.append(TranscriptChunk(t_start, t_end, spoken, latex))
-                print(f"[{t_start:.1f}s - {t_end:.1f}s]: {spoken}", flush=True)
-                print(f"       -> [LaTeX]: {latex}", flush=True)
+            env = os.environ.copy()
+            env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
+            subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-        # Post-process and export
-        raw_frames = [np.clip(filtered_audio * 32767, -32768, 32767).astype(np.int16).tobytes()]
+            json_file = Path(f"{temp_json_prefix}.json")
+            if json_file.is_file():
+                try:
+                    with open(json_file, "r", encoding="utf-8") as jf:
+                        jdata = json.load(jf)
+                    segments = jdata.get("transcription", [])
+                    print(f"[Agent Simulation] whisper-cli captured {len(segments)} segments across lecture.", flush=True)
+
+                    def _parse_time_sec(ts_str: str) -> float:
+                        ts_str = ts_str.replace(",", ".")
+                        parts = ts_str.split(":")
+                        if len(parts) == 3:
+                            return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+                        elif len(parts) == 2:
+                            return float(parts[0]) * 60 + float(parts[1])
+                        return float(ts_str)
+
+                    for seg in segments:
+                        txt = seg.get("text", "").strip()
+                        txt = re.sub(r'[\(\[\{].*?[\)\]\}]', '', txt)
+                        txt = re.sub(r'[♪♫]+', '', txt).strip()
+                        if not txt or not any(c.isalnum() for c in txt):
+                            continue
+
+                        ts_from = seg.get("timestamps", {}).get("from", "00:00:00,000")
+                        ts_to = seg.get("timestamps", {}).get("to", "00:00:05,000")
+                        t_start = _parse_time_sec(ts_from)
+                        t_end = _parse_time_sec(ts_to)
+
+                        latex = self.slm.translate(txt)
+                        chunks.append(TranscriptChunk(t_start, t_end, txt, latex))
+                        print(f"[{t_start:.1f}s - {t_end:.1f}s]: {txt}", flush=True)
+                        if latex != txt:
+                            print(f"       -> [LaTeX]: {latex}", flush=True)
+                finally:
+                    json_file.unlink(missing_ok=True)
+
+        # 2. Fallback to chunked streaming if whisper-cli failed or produced 0 chunks
+        if not chunks:
+            print("[Agent Simulation] Falling back to streaming slice simulation...", flush=True)
+            with wave.open(wav_path, "rb") as wf:
+                n_channels = wf.getnchannels()
+                framerate = wf.getframerate()
+                total_frames = wf.getnframes()
+                if max_duration is not None and max_duration > 0:
+                    frames_to_read = int(min(total_frames, max_duration * framerate))
+                else:
+                    frames_to_read = total_frames
+                raw_bytes = wf.readframes(frames_to_read)
+
+            pcm = np.frombuffer(raw_bytes, dtype=np.int16)
+            if n_channels > 1:
+                pcm = pcm.reshape(-1, n_channels).mean(axis=1)
+
+            if framerate != 16000:
+                num_samples = int(len(pcm) * 16000 / framerate)
+                pcm = np.interp(
+                    np.linspace(0, len(pcm), num_samples, endpoint=False),
+                    np.arange(len(pcm)),
+                    pcm,
+                ).astype(np.int16)
+
+            float_audio = np.clip(pcm / 32768.0, -1.0, 1.0).astype(np.float32)
+            filtered_audio = self.hpf.process(float_audio)
+
+            chunk_sec = 6.0
+            samples_per_chunk = int(chunk_sec * 16000)
+            total_audio_sec = len(filtered_audio) / 16000.0
+            for i in range(0, len(filtered_audio), samples_per_chunk):
+                segment = filtered_audio[i : i + samples_per_chunk]
+                t_start = i / 16000.0
+                t_end = min((i + samples_per_chunk) / 16000.0, total_audio_sec)
+
+                spoken = query_whisper_stream(segment)
+                if spoken.strip():
+                    latex = self.slm.translate(spoken)
+                    chunks.append(TranscriptChunk(t_start, t_end, spoken, latex))
+                    print(f"[{t_start:.1f}s - {t_end:.1f}s]: {spoken}", flush=True)
+                    if latex != spoken:
+                        print(f"       -> [LaTeX]: {latex}", flush=True)
+
+        # Prepare raw audio frames for export
+        with wave.open(wav_path, "rb") as wf:
+            n_ch = wf.getnchannels()
+            fr = wf.getframerate()
+            n_fr = wf.getnframes()
+            if max_duration is not None and max_duration > 0:
+                n_fr = int(min(n_fr, max_duration * fr))
+            raw_b = wf.readframes(n_fr)
+
+        pcm_raw = np.frombuffer(raw_b, dtype=np.int16)
+        if n_ch > 1:
+            pcm_raw = pcm_raw.reshape(-1, n_ch).mean(axis=1)
+        if fr != 16000:
+            num_s = int(len(pcm_raw) * 16000 / fr)
+            pcm_raw = np.interp(
+                np.linspace(0, len(pcm_raw), num_s, endpoint=False),
+                np.arange(len(pcm_raw)),
+                pcm_raw,
+            ).astype(np.int16)
+
+        raw_frames = [pcm_raw.tobytes()]
         self.process_lecture(chunks, raw_frames, time.monotonic())
 
 
 def main():
     parser = argparse.ArgumentParser(description="Headless Autonomous Speech-to-LaTeX Edge Agent")
     parser.add_argument("--sim-file", type=str, default=None, help="Test simulation on a WAV audio file")
+    parser.add_argument("--max-duration", type=float, default=None, help="Optional max duration to process in seconds (default: entire file)")
     args = parser.parse_args()
 
     agent = HeadlessVoiceAgent()
     if args.sim_file:
-        agent.run_file_simulation(args.sim_file)
+        agent.run_file_simulation(args.sim_file, max_duration=args.max_duration)
     else:
         agent.run_continuous_loop()
 

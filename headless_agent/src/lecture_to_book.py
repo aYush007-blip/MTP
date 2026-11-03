@@ -29,6 +29,73 @@ class TranscriptChunk:
     latex_text: str
 
 
+def balance_math_delimiters(text: str) -> str:
+    """Ensure all inline math delimiters ($...$) in text are strictly balanced."""
+    text = re.sub(r"\$\s*\$", "", text)
+    placeholders = []
+    def _save_dd(m):
+        placeholders.append(m.group(0))
+        return f"__DD_{len(placeholders)-1}__"
+    text = re.sub(r"\$\$.*?\$\$", _save_dd, text, flags=re.DOTALL)
+
+    indices = [m.start() for m in re.finditer(r"(?<!\\)\$", text)]
+    if len(indices) % 2 != 0:
+        last_idx = indices[-1]
+        rem = text[last_idx+1:]
+        m_word = re.match(r"^([a-zA-Z0-9\^_\+\-\{\}\\]+)", rem)
+        if m_word:
+            end_pos = last_idx + 1 + len(m_word.group(1))
+            text = text[:end_pos] + "$" + text[end_pos:]
+        else:
+            text = text[:last_idx] + text[last_idx+1:]
+
+    for idx, ph in enumerate(placeholders):
+        text = text.replace(f"__DD_{idx}__", ph)
+    return text
+
+
+def escape_latex_text(paragraph: str) -> str:
+    """
+    Sanitizes LaTeX text and math:
+    - Balances math delimiters ($...$)
+    - Replaces unicode Greek and math symbols with proper LaTeX commands
+    - Wraps stray math expressions (e.g. e^(j\\omega t), x^n, R^n) into inline math
+    - Escapes special LaTeX characters (&, %, #, _, ^) outside math mode
+    """
+    paragraph = balance_math_delimiters(paragraph)
+    unicode_map = {
+        'ω': r'\omega', 'Ω': r'\Omega', 'θ': r'\theta', 'π': r'\pi',
+        'σ': r'\sigma', 'λ': r'\lambda', 'μ': r'\mu', 'α': r'\alpha',
+        'β': r'\beta', 'γ': r'\gamma', 'δ': r'\delta', 'Δ': r'\Delta',
+        '∞': r'\infty', '±': r'\pm', '≤': r'\le', '≥': r'\ge',
+        '≠': r'\ne', '×': r'\times', '•': r'\cdot'
+    }
+
+    tokens = re.split(r'(\${1,2}[^\$]+\${1,2})', paragraph)
+    result = []
+    for tok in tokens:
+        if tok.startswith('$') and tok.endswith('$'):
+            s = tok
+            for uc, lc in unicode_map.items():
+                s = s.replace(uc, " " + lc + " ")
+            result.append(s)
+        else:
+            s = tok
+            for uc, lc in unicode_map.items():
+                s = s.replace(uc, f" ${lc}$ ")
+            s = re.sub(r'\b([a-zA-Z])\^([a-zA-Z0-9\-\+\*]+)\b', r'$\1^{\2}$', s)
+            s = re.sub(r'([a-zA-Z])\^\(([^\)]+)\)', r'$\1^{\2}$', s)
+            s = re.sub(r'([a-zA-Z])\^\{([^}]+)\}', r'$\1^{\2}$', s)
+            s = re.sub(r'(?<!\\)&', r'\&', s)
+            s = re.sub(r'(?<!\\)%', r'\%', s)
+            s = re.sub(r'(?<!\\)#', r'\#', s)
+            s = re.sub(r'(?<!\\)_', r'\_', s)
+            s = re.sub(r'(?<!\\)\^', r'\\textasciicircum{}', s)
+            result.append(s)
+    out = "".join(result)
+    return balance_math_delimiters(out)
+
+
 class TikZDiagramGenerator:
     """
     Synthesizes native TikZ / PGFPlots vector graphics based on
@@ -249,7 +316,18 @@ class EquationFormatter:
         new_tokens = []
         for tok in tokens:
             if tok.startswith('$') and tok.endswith('$') and len(tok) >= 3:
-                eq_body = tok[1:-1].strip()
+                eq_body = tok[1:-1].replace('$', '').strip()
+                # Clean unclosed cases or matrix environments
+                eq_body = re.sub(r'\\begin\{cases\}\.?\s*$', '', eq_body).strip()
+                for env in ["cases", "matrix", "pmatrix", "bmatrix", "aligned"]:
+                    beg = eq_body.count(rf"\begin{{{env}}}")
+                    end = eq_body.count(rf"\end{{{env}}}")
+                    if beg > end:
+                        eq_body += rf"\end{{{env}}}" * (beg - end)
+
+                if not eq_body:
+                    continue
+
                 # Promote to numbered equation if it contains major operators and is substantive
                 has_rel = any(op in eq_body for op in ["=", r"\approx", r"\equiv", r"\le", r"\ge", r"\sum", r"\int", r"\bmatrix", r"\pmatrix"])
                 is_substantive = len(eq_body) >= 12 or any(op in eq_body for op in [r"\sum", r"\int", r"\bmatrix", r"\pmatrix"])
@@ -259,6 +337,9 @@ class EquationFormatter:
                 if has_rel and is_substantive and not is_trivial_scalar:
                     self.eq_counter += 1
                     new_tokens.append(f"\n\\begin{{equation}}\n  \\label{{eq:{self.eq_counter}}}\n  {eq_body}\n\\end{{equation}}\n")
+                    continue
+                else:
+                    new_tokens.append(f"${eq_body}$")
                     continue
             new_tokens.append(tok)
 
@@ -287,10 +368,6 @@ class LectureToBookBuilder:
         # Repetitive hallucination (e.g. * * * * or repetition loops)
         if re.search(r'(\*\s*){3,}', text):
             return ""
-
-        # Domain phonetic corrections (transcription fixes)
-        text = re.sub(r'\bIndian Premium Lead\b', 'Indian Premier League (IPL)', text, flags=re.IGNORECASE)
-        text = re.sub(r'\bDCCI\b', 'BCCI', text, flags=re.IGNORECASE)
 
         # Remove hesitation fillers (um, uh, er) while keeping all spoken content
         fillers = [r'\bum+\b', r'\buh+\b', r'\bah+\b', r'\ber+\b', r'\bhmm+\b']
@@ -339,16 +416,16 @@ class LectureToBookBuilder:
         except Exception:
             pass
 
-        # 2. Heuristic Rule-Based Fallbacks
+        # 2. Heuristic Rule-Based Fallbacks (domain STEM topics prioritized with word boundaries)
         lower = clean_text.lower()
-        if "ipl" in lower or "cricket" in lower or "bcci" in lower or "premier league" in lower:
-            return "Indian Premier League (IPL) & Sports Governance"
-        elif "z-transform" in lower or "z transform" in lower or "roc" in lower or "complex plane" in lower:
+        if re.search(r'\b(?:z[- ]transform|roc|region of convergence|complex plane|unit circle)\b', lower):
             return "The Z-Transform, Region of Convergence & System Stability"
-        elif "fourier" in lower or "frequency" in lower or "spectrum" in lower:
+        elif re.search(r'\b(?:fourier|frequency domain|spectrum)\b', lower):
             return "Fourier Analysis & Frequency-Domain Characterization"
-        elif "park" in lower or "direct axis" in lower or "quadrature axis" in lower or "rotor" in lower:
+        elif re.search(r'\b(?:park|direct axis|quadrature axis|rotor reference)\b', lower):
             return "Dynamic Modeling of Synchronous Machines & Park Transformation"
+        elif re.search(r'\b(?:ipl|cricket|bcci|premier league)\b', lower):
+            return "Indian Premier League (IPL) & Sports Governance"
 
         # Generic academic fallback: take topic keywords from opening sentence
         first_sent = clean_text.split(".")[0].strip()
@@ -418,8 +495,8 @@ class LectureToBookBuilder:
         triggers = self.tikz_gen.detect_diagram_triggers(full_text)
         tikz_blocks = self.tikz_gen.get_tikz_for_triggers(triggers)
 
-        # Format equations and build full transcript paragraphs
-        processed_paragraphs = [self.eq_formatter.promote_to_display_equations(p) for p in paragraphs]
+        # Sanitize text and inline math first, then promote major formulas to numbered display equations
+        processed_paragraphs = [self.eq_formatter.promote_to_display_equations(escape_latex_text(p)) for p in paragraphs]
 
         # Escape ampersands and strip math delimiters for clean document header
         clean_title_tex = clean_title.replace("$", "").replace("&", r"\&").strip()
