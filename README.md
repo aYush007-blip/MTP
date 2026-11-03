@@ -1,6 +1,6 @@
 # Edge-Native Mathematical Speech-to-LaTeX System
 
-An end-to-end, 100% offline edge-native speech-to-LaTeX transcription and typesetting system optimized for the **NVIDIA Jetson Orin Nano (8GB Unified Memory, Ampere SM87)**. Converts continuous engineering and mathematical lectures into publication-ready LaTeX documents and synchronized subtitles in real time.
+An end-to-end, 100% offline edge-native speech-to-LaTeX transcription and typesetting system optimized for the **NVIDIA Jetson Orin Nano (8GB Unified Memory, Ampere SM87)**. Converts continuous engineering and mathematical lectures into publication-ready LaTeX monographs, standalone PDFs with vector graphics, and synchronized subtitles in real time.
 
 ---
 
@@ -9,17 +9,21 @@ An end-to-end, 100% offline edge-native speech-to-LaTeX transcription and typese
 * **Dual-Engine Edge Pipeline:**
   * **Acoustic ASR Engine:** `whisper.cpp` (`small.en`) with **CUDA Flash Attention (`-fa`)**, multi-threaded decoding, and adaptive Voice Activity Detection (VAD) (~540 ms latency).
   * **Spoken-Math Typesetting SLM:** **Qwen2.5-1.5B-Instruct (Q4_K_M GGUF)** offloaded to Ampere GPU SM87 via `llama.cpp` server runtime (~290 ms inference).
+* **Headless Voice-Activated Edge Agent (Zero-Touch Monitorless Boot):**
+  * **Voice Command Navigation:** Controlled entirely by speech without an external monitor, keyboard, or mouse:
+    * Activation: *"Hey Jetson, start recording"* $\to$ spoken Piper neural countdown *"Ok, starting recording in 5... 4... 3... 2... 1... Recording started."*
+    * Termination: *"Hey Jetson, stop recording"* $\to$ spoken notice *"Recording stopped. Processing lecture, please wait."*
+  * **Automated USB Storage (`AYUSH`):** Operates 100% offline with zero GitHub uploads during recording. Automatically exports `.pdf`, `.tex`, `.md`, `.srt`, `.vtt`, `.wav`, and `.zip` directly to the inserted USB drive labeled **`AYUSH`** (`/media/ayush02/AYUSH/Lectures/<timestamp>/`) and flushes storage buffers via `sync`.
+  * **Safe-Shutdown Spoken Signal:** Announces *"Transcription successfully saved. You can turn off the system."* when all deliverables are written to flash.
+* **Textbook-Grade LaTeX Monograph & TikZ Vector Graphics:**
+  * **Timestamp-Free Academic Prose:** Eliminates all chunk timestamps from the paper, assembling spoken clauses into continuous academic paragraphs with hierarchical sectioning.
+  * **Numbered Display Equations:** Automatically promotes core definitions and laws into numbered `\begin{equation} ... \label{eq:...} \end{equation}` blocks.
+  * **Automated TikZ / PGFPlots Vector Illustrations:** Detects geometric coordinate discussions (e.g. real/imaginary $z$-plane, Region of Convergence (ROC), unit circle, synchronous machine $d-q$ rotor frames, phasors, Bode plots) and generates native TikZ vector graphics inside figures.
+  * **Multi-Pass Local AI Review:** Local Qwen2.5-1.5B SLM harmonizes cross-chunk mathematical notation and checks syntax.
+  * **Standalone PDF Compilation:** Automatically compiles the document into a high-fidelity `.pdf`.
 * **Continuous Long-Form Streaming:**
   * Tested and validated on full **32-minute** and **1-hour** university lectures.
   * Achieves **`0.27x – 0.34x` Real-Time Factor (RTF)** (**2.9x to 3.7x faster than real time**), providing $>65\%$ compute headroom for zero-latency live streaming.
-* **ASR Fidelity & Zero-Loss Acoustic Pipeline:**
-  * **Acoustic Padding ($\pm 250\text{ms}$):** Pre-roll and post-roll safety margins eliminate boundary word clipping.
-  * **Dynamic Prompt Chaining:** Whisper's autoregressive decoder is continuously conditioned on preceding transcript history, ensuring seamless sentence flow across chunks.
-  * **Minimum Chunk Safeguard ($\ge 2.5\text{s}$):** Merges ultra-short fragments to prevent Whisper attention collapse.
-  * **Lowered No-Speech Threshold (`0.40`) & Temperature Fallback (`0.0 \to 0.2`):** Captures soft, accented, and trailing academic speech.
-* **Live Showcase Web GUI & Headless Capabilities:**
-  * Modern glassmorphism UI with live KaTeX rendering over WebSockets.
-  * Full export suite: Markdown notes, standalone `.tex` document, SRT/VTT subtitles, per-chunk metrics CSV, and instant ZIP download.
 
 ---
 
@@ -39,17 +43,19 @@ An end-to-end, 100% offline edge-native speech-to-LaTeX transcription and typese
 
 ## ⚡ Quickstart
 
-### 1. Launch the Web Showcase GUI
+### 1. Run Headless Voice-Activated Agent
+```bash
+cd /mnt/thesis
+PYTHONPATH=/mnt/thesis/main/src /mnt/thesis/main/.venv/bin/python /mnt/thesis/main/src/headless_voice_agent.py
+```
+*(Say "Hey Jetson start recording" to begin; say "Hey Jetson stop recording" when done).*
+
+### 2. Launch the Web Showcase GUI
 ```bash
 cd /mnt/thesis
 ./run_gui.sh
 ```
 Open `http://localhost:8000` in your browser.
-
-### 2. Run Terminal-Based Live Streaming
-```bash
-/mnt/thesis/main/.venv/bin/python /mnt/thesis/main/src/live_streaming_terminal.py
-```
 
 ### 3. Run Benchmark on Any Lecture WAV
 ```bash
@@ -64,7 +70,7 @@ For complete setup instructions, flags, and deployment options, see [RUNNING_GUI
 
 ## 🛡️ Model Integrity & Backup Recovery
 
-All models are backed up in read-only storage on the internal eMMC (`/home/ayush02/models/backup_working_models/`).
+All models are backed up in read-only storage on internal eMMC (`/home/ayush02/models/backup_working_models/`) and USB drive `AYUSH` (`/media/ayush02/AYUSH/Speech2LaTeX_Backup/`).
 
 To verify or restore the exact models:
 ```bash
@@ -78,26 +84,30 @@ For cryptographic SHA-256 hashes and storage architecture, refer to [MODELS_MANI
 
 ```
 .
-├── RUNNING_GUIDE.md                     # Comprehensive operation & benchmarking manual
+├── RUNNING_GUIDE.md                     # Comprehensive operation manual (Headless, GUI, Benchmark)
 ├── MODELS_MANIFEST.md                   # Exact model registry, SHA-256 hashes & backup topology
 ├── SYSTEM_ARCHITECTURE_AND_DECISIONS.md # Detailed architectural log & design decisions
 ├── README.md                            # Project overview & benchmark summary
+├── headless_voice_agent_plan.md         # Full specification of offline headless edge agent
+├── speech2latex-headless.service        # systemd user service for auto-boot headless operation
 ├── run_gui.sh                           # Self-bootstrapping Web GUI launcher
-├── speech2latex.service                 # systemd user service for background deployment
-├── Speech2LaTeX.desktop                 # Desktop application shortcut
+├── speech2latex.service                 # systemd service for GUI showcase
 ├── evaluation_results/                  # Benchmark deliverables (Z-transform, Synchronous Machines)
 ├── scripts/
 │   └── setup_models.sh                  # One-command model verification & recovery tool
 └── main/
+    ├── assets/voice_prompts/            # Pre-rendered zero-latency TTS prompts
     ├── gui/                             # Web showcase application
-    │   ├── server.py                    # Aiohttp server daemon (port 8000)
-    │   ├── index.html                   # Responsive glassmorphism interface
-    │   └── static/                      # CSS, app logic, and local KaTeX bundle
     └── src/                             # Core algorithmic pipeline
+        ├── headless_voice_agent.py      # Master autonomous edge voice daemon
+        ├── edge_tts.py                  # Offline Piper neural TTS engine
+        ├── lecture_to_book.py           # Textbook monograph & TikZ vector graph synthesizer
+        ├── postprocess_lecture_ai.py    # Global AI review pass & standalone PDF compiler
+        ├── usb_exporter.py              # Automated USB AYUSH storage & sync manager
         ├── benchmark_lecture.py         # Long-form academic lecture benchmark engine
         ├── live_streaming_terminal.py   # Console-based real-time streaming runner
         ├── slm_translator.py            # Qwen2.5 SLM edge translator & ChatML wrapper
         ├── router.py                    # Fast heuristic math classifier & fallback router
         ├── audio.py                     # Vectorized audio decimation (pure NumPy)
-        └── live_vad.py                  # Real-time microphone capture & Neural VAD
+        └── energy_vad.py                # Real-time microphone capture & Adaptive VAD
 ```

@@ -1,178 +1,100 @@
-# Headless Voice-Activated Edge Speech-to-LaTeX: Architecture & Implementation Plan
+# Headless Voice-Activated Edge Speech-to-LaTeX: 100% Offline Architecture & Implementation Plan
 
-This document outlines the end-to-end design for transforming the NVIDIA Jetson Orin Nano Speech-to-LaTeX system into a **fully autonomous, monitorless academic recording agent** that generates publication-grade, textbook-formatted LaTeX papers with vector graphics.
+This document outlines the complete architectural design and step-by-step implementation for transforming the NVIDIA Jetson Orin Nano Speech-to-LaTeX system into a **fully autonomous, monitorless, 100% offline edge academic recording agent**.
+
+The system operates with zero internet dependency: upon boot, it auto-configures the audio hardware, listens for voice activation, gives spoken audio feedback, transcribes and structures the lecture into a textbook-quality academic document with TikZ vector graphs and numbered equations, compiles a PDF, and automatically exports all final deliverables to the inserted USB drive labeled **`AYUSH`** (`/media/ayush02/AYUSH`).
 
 ---
 
-## System Architecture Overview
+## 1. End-to-End System Architecture
 
 ```mermaid
 graph TD
-    A[Jetson Cold Boot / Power On] --> B[systemd: speech2latex-headless.service]
+    A[Cold Boot / Power On Jetson] --> B[systemd: speech2latex-headless.service]
     B --> C[Auto-Detect USB Mic/Earphones: ALSA hw:2,0]
-    B --> D[Auto-Spawn GPU Daemons: Whisper & Qwen2.5 SLM]
-    C & D --> E[Passive Wake-Word Listener: 'Hey Jetson...']
+    B --> D[Auto-Spawn GPU Daemons: Whisper & Qwen2.5-1.5B]
+    C & D --> E[Offline Wake-Word Listener: 'Hey Jetson...']
     
-    E -- 'Hey Jetson start recording' --> F[Offline Neural TTS: 'Starting in 5..4..3..2..1']
-    F --> G[Continuous Lecture Capture & Real-Time ASR/SLM]
+    E -- 'Hey Jetson start recording' --> F[Offline Piper TTS: 'Ok starting recording in 5 4 3 2 1 seconds, recording started']
+    F --> G[Continuous Lecture Capture & Low-Latency Stream Processing]
     
-    G -- 'Hey Jetson stop recording' --> H[Audio Halts & TTS: 'Processing lecture...']
+    G -- 'Hey Jetson stop recording' --> H[Audio Halts & Piper TTS: 'Recording stopped. Processing lecture, please wait.']
     H --> I[Post-Lecture Global AI Review & Formatting Engine]
     
-    subgraph Post-Processing Engine
-        I --> I1[Textbook Flow: Remove timestamps, format paragraphs]
-        I --> I2[Equation Environment: \\begin{equation} with numbers]
-        I --> I3[Automated TikZ/PGFPlots Visual Graph Generation]
-        I --> I4[Global Notation Harmonization & LaTeX Syntax Validation]
+    subgraph Offline Post-Processing & Typesetting Engine
+        I --> I1[Textbook Flow: Remove timestamps, synthesize cohesive paragraphs]
+        I --> I2[Equation Environment: Numbered \\begin{equation} with labels]
+        I --> I3[Automated TikZ/PGFPlots Vector Graph Synthesis]
+        I --> I4[Global Notation Harmonization & Syntax Self-Correction Pass]
+        I --> I5[Standalone PDF Compilation via TeX Engine]
     end
     
-    I --> J[Compile PDF via pdflatex & Export Deliverables]
-    J --> K[Offline TTS: 'Transcription successfully saved. You can turn off the system.']
-    J --> L[Auto-Push to GitHub & Backup to USB Drive]
+    I5 --> J[Automated USB Export: /media/ayush02/AYUSH/Lectures/<timestamp>/]
+    J --> K[Piper Neural TTS Spoken Announcement: 'Transcription successfully saved. You can turn off the system.']
 ```
 
 ---
 
-## 1. Feature 1: Textbook-Style LaTeX & Automated TikZ Vector Graphics
+## 2. Key Features & Design Specifications
 
-### 1.1 From Chunk Subtitles to Academic Book Chapters
-Currently, exports retain per-utterance chunks with timestamps. The new typesetting engine converts this into an academic monograph:
-* **Timestamp Elimination:** Timestamps are completely omitted from the `.tex` document (retained exclusively in `.srt`/`.vtt` subtitle files for video playback).
-* **Semantic Paragraph Assembly:** Successive spoken sentences are grouped into cohesive paragraphs using punctuation and topical transitions rather than VAD cut points.
-* **Hierarchical Sectioning:** The engine automatically structures the lecture into logical divisions:
-  ```latex
-  \section{Introduction and Physical Foundations}
-  ...
-  \subsection{Direct and Quadrature Axis Transformation}
-  ...
-  ```
+### 2.1 Feature 1: Textbook-Grade Formatting & Automated TikZ Vector Graphics
+* **Zero Timestamps in Document:** Spoken timestamps are removed from the LaTeX document (`.tex`) and PDF (retained solely in `.srt` and `.vtt` sidecars for multimedia alignment).
+* **Academic Monograph Paragraph Flow:** Consecutive speech bursts are fused into cohesive, grammatically sound prose with logical section headings (`\section{...}`, `\subsection{...}`).
+* **Numbered Display Equations (`\begin{equation}`):**
+  * Spoken mathematical relations (e.g. Park transform, $Z$-transform definition, Fourier integral, flux linkages) are automatically promoted to centered, numbered display environments:
+    $$\begin{equation}
+      \label{eq:z_transform}
+      X(z) = \sum_{n=-\infty}^{\infty} x[n] z^{-n}
+    \end{equation}$$
+  * Subsequent spoken references are cross-referenced via `\eqref{eq:...}`.
+* **Automated TikZ / PGFPlots Vector Graphics:**
+  * Detects when the lecturer discusses geometric planes, axes, or graphs (e.g., *"real and imaginary axes"*, *"unit circle"*, *"region of convergence"*, *"phasor diagram"*, *"direct and quadrature axes"*, *"Bode plot"*).
+  * Automatically generates self-contained native TikZ vector graphics embedded directly inside `figure` environments.
 
-### 1.2 Display Equations with Numbering (`\begin{equation}`)
-* **Inline vs. Display Math Classification:**
-  * Quick variables, indices, and units stay inline: `$x[n]$`, `$z$`, `$\omega$`, `$5\text{ V}$`.
-  * Major definitions, laws, and transfer functions are automatically promoted to numbered display environments:
-    ```latex
-    \begin{equation}
-      \label{eq:park_transform}
-      \begin{bmatrix} v_d \\ v_q \\ v_0 \end{bmatrix} = \mathbf{P}(\theta) \begin{bmatrix} v_a \\ v_b \\ v_c \end{bmatrix}
-    \end{equation}
-    ```
-* **Equation Referencing:** If the speaker later says *"as shown in the earlier equation"* or refers back to the flux equation, the AI links it via `\eqref{eq:...}`.
+### 2.2 Feature 2: 100% Headless Standalone Edge Agent with Spoken Voice Control
+* **Monitorless Boot:** Runs automatically in the background via systemd upon Jetson power-on without requiring an external monitor, keyboard, or mouse.
+* **Auto-Configuring Mic & Sound Card:** Auto-binds to `AB13X USB Audio` (`hw:2,0` or active ALSA audio device), calibrates gain, and prepares ALSA playback sinks.
+* **Offline Spoken Voice Activation & Stopping:**
+  * **Start Trigger:** Spoken phrase `"Hey Jetson, start recording"` or `"Jetson, start lecture"`.
+  * **Spoken Countdown:** Jetson speaks through connected headphones/speakers:
+    > *"Ok, starting recording in 5... 4... 3... 2... 1... Recording started."*
+  * **Stop Trigger:** Spoken phrase `"Hey Jetson, stop recording"` or `"Jetson, stop lecture"`.
+  * **Spoken Acknowledgment:** Jetson speaks:
+    > *"Recording stopped. Processing lecture, please wait."*
+* **Offline Neural TTS (Piper):** Fast, fully offline, ONNX-accelerated speech synthesis (~50ms latency on Jetson CPU) with natural voice quality (`en_US-lessac-medium`).
 
-### 1.3 Automated TikZ Vector Graphs & Geometric Illustrations
-When the lecturer describes geometric planes, graphs, or circuit topologies, the AI injects native **TikZ / PGFPlots** vector code directly into the LaTeX source:
-* **Complex $z$-Plane & ROC:**
-  ```latex
-  \begin{figure}[htbp]
-  \centering
-  \begin{tikzpicture}[scale=1.2]
-    \draw[->, thick] (-2.2, 0) -- (2.2, 0) node[right] {$\text{Re}(z)$};
-    \draw[->, thick] (0, -2.2) -- (0, 2.2) node[above] {$\text{Im}(z)$};
-    \draw[dashed, blue, thick] (0,0) circle (1.0);
-    \node[below right] at (1.0, 0) {$1$};
-    % ROC Shading outside radius r
-    \fill[red!15, even odd rule] (0,0) circle (2.0) (0,0) circle (1.4);
-    \draw[red, thick] (0,0) circle (1.4);
-    \node[above left] at (1.4, 0) {$r$};
-    \node[red] at (1.1, 1.1) {$\text{ROC}: |z| > r$};
-  \end{tikzpicture}
-  \caption{Region of Convergence (ROC) in the complex $z$-plane.}
-  \label{fig:z_plane_roc}
-  \end{figure}
-  ```
-* **Bode Plots, State Trajectories & Machine Phasors:** Generated using `\usepackage{pgfplots}` without requiring any external graphical dependencies.
+### 2.3 Feature 3: Post-Lecture Global AI Review & Error Minimization
+* **Post-Lecture Multi-Pass Review:**
+  * **Pass 1 (Mathematical Unification):** Reconciles notation across the entire hour-long recording, fixing acoustic misnomers and enforcing symbol consistency.
+  * **Pass 2 (Bookish Structuring):** Cleans conversational fillers, formats sections, abstracts, and numbered equations.
+  * **Pass 3 (TikZ Graphic Injection):** Synthesizes diagrams for geometric concepts.
+  * **Pass 4 (Syntax Guard & PDF Build):** Validates LaTeX syntax, compiles standalone `.pdf`, and automatically fixes compile anomalies.
 
----
-
-## 2. Feature 2: 100% Headless Standalone Operation with Voice Commands & Audio Feedback
-
-### 2.1 Monitorless Auto-Boot (`speech2latex-headless.service`)
-* Configured as a systemd system service triggered at boot:
-  ```ini
-  [Unit]
-  Description=Speech2LaTeX Autonomous Headless Edge Agent
-  After=sound.target network.target
-
-  [Service]
-  Type=simple
-  User=ayush02
-  WorkingDirectory=/mnt/thesis/main
-  ExecStart=/mnt/thesis/main/.venv/bin/python -u src/headless_voice_agent.py
-  Restart=always
-  RestartSec=3
-
-  [Install]
-  WantedBy=multi-user.target
-  ```
-* **Hardware Mic Negotiation:** On boot, the daemon executes our `get_best_input_stream_config` routine, binding to `AB13X USB Audio` (`hw:2,0`) or fallback ALSA card, and initializes audio output.
-
-### 2.2 Offline Wake-Word Detection
-* Uses a lightweight continuous listening loop operating on 1.5-second audio buffers:
-  * **Trigger Phrases:**
-    * Start: `"Hey Jetson, start recording"` / `"Jetson, start lecture"`
-    * Stop: `"Hey Jetson, stop recording"` / `"Jetson, stop lecture"`
-  * **Low-Power KWS:** Runs Whisper with a 1.5s slice or acoustic keyword detector. Compute utilization during standby is $< 5\%$.
-
-### 2.3 Offline Neural Text-to-Speech (Piper TTS)
-* **Engine:** `piper-tts` (fast, offline, ONNX-accelerated neural voice engine).
-  * Runs on Jetson in $\sim 50\text{ ms}$ with zero network connection.
-  * Voice model: High-clarity natural English (e.g. `en_US-lessac-medium.onnx`).
-* **Audible Interaction Flow:**
-  1. **On Wake Command:** Jetson outputs through earphones/speaker:
-     > *"Okay. Starting recording in 5... 4... 3... 2... 1... Recording started."*
-     *(The 5-second countdown allows the lecturer to position themselves and clear audio buffers).*
-  2. **On Stop Command:** Jetson outputs:
-     > *"Recording stopped. Compiling and typesetting lecture paper. Please wait."*
-  3. **On Completion:**
-     > *"Transcription and paper successfully saved. You can now safely turn off the system."*
+### 2.4 Feature 4: 100% Offline Local & USB Drive Storage (`AYUSH`)
+* **Strict Offline Operation:** Zero dependence on GitHub or internet services during live recording and post-processing.
+* **Automated USB Export:**
+  * Detects the mounted USB drive at `/media/ayush02/AYUSH`.
+  * Creates an organized timestamped folder: `/media/ayush02/AYUSH/Lectures/<timestamp>_<lecture_title>/`.
+  * Copies:
+    1. `<lecture_title>.pdf` (Compiled textbook document)
+    2. `<lecture_title>.tex` (Full LaTeX source with TikZ figures)
+    3. `<lecture_title>.md` (Clean Markdown book)
+    4. `<lecture_title>.srt` & `<lecture_title>.vtt` (Synchronized subtitle files)
+    5. `<lecture_title>_raw.wav` (Original captured audio)
+    6. `<lecture_title>_bundle.zip` (Complete archive for portable distribution)
+  * Runs system `sync` to ensure safe USB write completion.
+* **Spoken Safe-Shutdown Notice:** Once the write is verified, the Jetson speaks:
+  > *"Transcription successfully saved. You can turn off the system."*
 
 ---
 
-## 3. Feature 3: Post-Lecture Global AI Review & Formatting Pass
+## 3. Implementation Plan & Execution Milestones
 
-### 3.1 The Global Synthesis Engine (`postprocess_lecture_ai.py`)
-In live mode, processing occurs in 3–9 second chunks. Once the recording stops, the post-processor ingests the entire lecture transcript and executes a structured 4-step AI pass:
-
-```mermaid
-graph LR
-    R1[Raw Chunks Transcript] --> P1[Pass 1: Global Math Unification]
-    P1 --> P2[Pass 2: Bookish Flow & Sectioning]
-    P2 --> P3[Pass 3: TikZ Diagram Generation]
-    P3 --> P4[Pass 4: LaTeX Compilation & Syntax Guard]
-    P4 --> OUT[Final Standalone PDF & Clean TeX]
-```
-
-1. **Pass 1 — Global Mathematical Consistency:**
-   * Reconciles symbols across the entire hour. If the professor introduces stator flux as $\psi_s$ in minute 5, ensures it is consistently formatted throughout, eliminating transient acoustic misnomers.
-2. **Pass 2 — Bookish Flow & Display Equations:**
-   * Removes conversational fillers ("okay", "so let me see", "um").
-   * Identifies core mathematical relations and wraps them in numbered `\begin{equation} ... \end{equation}` blocks.
-   * Generates descriptive abstract and introduction.
-3. **Pass 3 — Contextual TikZ Visual Graph Insertion:**
-   * Detects spoken prompts like *"let us draw the axes"*, *"here is the phasor diagram"*, *"on the complex plane"*.
-   * Synthesizes precise TikZ code visualizing the discussed concepts.
-4. **Pass 4 — Automated pdflatex Compilation & Syntax Guard:**
-   * Compiles the generated `.tex` to `.pdf` via `pdflatex -interaction=nonstopmode`.
-   * Automatically captures any compile errors and runs a self-correction loop to guarantee a 100% valid document.
-
----
-
-## 4. Implementation Steps (Scheduled for Tomorrow)
-
-| Step | Component | Target Files | Key Objectives |
+| Milestone | Component | Target Files | Key Objectives |
 | :---: | :--- | :--- | :--- |
-| **1** | **Piper Neural TTS Setup** | `main/src/edge_tts.py` | Install standalone `piper` binary & model; test playback through `AB13X USB Audio`. |
-| **2** | **Headless Voice Agent Daemon** | `main/src/headless_voice_agent.py` | Wake-word listener, auto-mic configuration, countdown, recording state-machine. |
-| **3** | **Bookish LaTeX & TikZ Engine** | `main/src/lecture_to_book.py` | Transform transcripts into textbook format with numbered display math and TikZ graphs. |
-| **4** | **Global AI Review & PDF Compiler** | `main/src/postprocess_lecture_ai.py` | Full-lecture proofreading pass, notation consistency, `pdflatex` compilation. |
-| **5** | **Systemd Service Setup** | `/etc/systemd/system/speech2latex-headless.service` | Auto-start on boot, restart protection, headless validation. |
-| **6** | **End-to-End Validation** | Jetson Orin Nano Standalone | Test complete boot-to-export voice loop on live microphone and audio recordings. |
-
----
-
-## 5. Deliverables Expected Upon Execution
-
-1. `speech2latex-headless.service`: Zero-touch background daemon for monitorless Jetson deployment.
-2. `edge_tts.py`: Instantaneous offline voice feedback module.
-3. `lecture_to_book.py`: Publication-grade LaTeX formatter with native TikZ graph synthesis.
-4. `postprocess_lecture_ai.py`: Multi-pass AI editor delivering compilable, numbered academic papers.
+| **Step 1** | **Offline Neural TTS Engine** | `main/src/edge_tts.py` | Standalone Piper TTS with ALSA playback (`hw:2,0` / default sink); pre-render or synthesize prompt audio with zero network dependency. |
+| **Step 2** | **Bookish LaTeX & TikZ Synthesis** | `main/src/lecture_to_book.py` | Convert chunk transcripts to textbook chapters; numbered equations (`\begin{equation}`); automated TikZ generation for $z$-plane, ROC, $d-q$ axes, phasors. |
+| **Step 3** | **Global AI Review & PDF Compiler** | `main/src/postprocess_lecture_ai.py` | Multi-pass LLM review pass for symbol consistency; standalone compilation via TeX engine; error self-healing. |
+| **Step 4** | **USB Auto-Export Manager** | `main/src/usb_exporter.py` | Detect `/media/ayush02/AYUSH`; export PDF, TeX, MD, audio, and ZIP bundle; verify checksums and flush disk cache (`sync`). |
+| **Step 5** | **Headless Voice Agent Daemon** | `main/src/headless_voice_agent.py` | Hardware mic auto-negotiation; continuous voice command detection; countdown sequence; orchestrate recording $\to$ post-process $\to$ USB export $\to$ audio shutdown signal. |
+| **Step 6** | **Systemd Service Setup & Verification** | `speech2latex-headless.service` | Configure auto-boot on Jetson; test full end-to-end flow with USB drive `AYUSH` and live voice control. |

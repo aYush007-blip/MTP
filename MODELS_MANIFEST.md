@@ -48,3 +48,4 @@ An automated verification and recovery script is provided in [`scripts/setup_mod
 
 * **Qwen2.5-1.5B-Instruct-GGUF:** [Qwen/Qwen2.5-1.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)
 * **Whisper GGML Models:** [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp)
+
