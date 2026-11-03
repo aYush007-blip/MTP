@@ -68,7 +68,7 @@ def escape_latex_text(paragraph: str) -> str:
         'σ': r'\sigma', 'λ': r'\lambda', 'μ': r'\mu', 'α': r'\alpha',
         'β': r'\beta', 'γ': r'\gamma', 'δ': r'\delta', 'Δ': r'\Delta',
         '∞': r'\infty', '±': r'\pm', '≤': r'\le', '≥': r'\ge',
-        '≠': r'\ne', '×': r'\times', '•': r'\cdot'
+        '≠': r'\ne', '×': r'\times', '•': r'\cdot', '−': '-'
     }
 
     tokens = re.split(r'(\${1,2}[^\$]+\${1,2})', paragraph)
@@ -83,6 +83,11 @@ def escape_latex_text(paragraph: str) -> str:
             s = tok
             for uc, lc in unicode_map.items():
                 s = s.replace(uc, f" ${lc}$ ")
+            # Wrap stray math commands (\frac{...}{...}, \int, \sum, \lim, \partial) if found outside math mode
+            s = re.sub(r'(\\frac\{[^{}]+\}\{[^{}]+\})', r'$\1$', s)
+            s = re.sub(r'(\\int\b)', r'$\1$', s)
+            s = re.sub(r'(\\sum\b)', r'$\1$', s)
+            s = re.sub(r'(\\lim\b[^\s]+)', r'$\1$', s)
             s = re.sub(r'\b([a-zA-Z])\^([a-zA-Z0-9\-\+\*]+)\b', r'$\1^{\2}$', s)
             s = re.sub(r'([a-zA-Z])\^\(([^\)]+)\)', r'$\1^{\2}$', s)
             s = re.sub(r'([a-zA-Z])\^\{([^}]+)\}', r'$\1^{\2}$', s)
@@ -141,6 +146,15 @@ class TikZDiagramGenerator:
         ]
         if any(c in lower for c in bode_cues):
             triggers.append("bode_plot")
+
+        # 5. Feedback Control Systems / Block Diagrams
+        control_cues = [
+            "closed loop", "closed-loop", "open loop", "open-loop", "feedback",
+            "plant", "controller", "disturbance", "steady state error", "sensitivity",
+            "loop gain", "tracking", "regulation"
+        ]
+        if any(c in lower for c in control_cues):
+            triggers.append("control_feedback_loop")
 
         return triggers
 
@@ -270,6 +284,35 @@ class TikZDiagramGenerator:
 \label{fig:bode_response}
 \end{figure}"""
 
+    @staticmethod
+    def generate_control_system_tikz() -> str:
+        """Vector TikZ code for canonical closed-loop feedback architecture."""
+        return r"""\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[auto, node distance=1.8cm, >=Stealth]
+    \node [coordinate] (input) {};
+    \node [draw, fill=blue!5, thick, circle, right=1.0cm of input] (sum_ref) {$+$};
+    \node [draw, fill=blue!5, thick, rectangle, minimum height=0.9cm, minimum width=1.5cm, right=1.2cm of sum_ref] (controller) {$G_c(s)$};
+    \node [draw, fill=blue!5, thick, circle, right=1.5cm of controller] (sum_dist) {$+$};
+    \node [coordinate, above=1.2cm of sum_dist] (dist_in) {};
+    \node [draw, fill=blue!5, thick, rectangle, minimum height=0.9cm, minimum width=1.5cm, right=1.5cm of sum_dist] (plant) {$G(s)$};
+    \node [coordinate, right=1.2cm of plant] (branch) {};
+    \node [coordinate, right=1.5cm of branch] (output) {};
+    \node [draw, fill=blue!5, thick, rectangle, minimum height=0.9cm, minimum width=1.5cm, below=1.2cm of controller] (sensor) {$H(s)$};
+
+    \draw [->, thick] (input) -- node[above] {$R(s)$} (sum_ref);
+    \draw [->, thick] (sum_ref) -- node[above] {$E(s)$} (controller);
+    \draw [->, thick] (controller) -- node[above] {$U(s)$} (sum_dist);
+    \draw [->, thick] (dist_in) -- node[right] {$D(s)$} (sum_dist);
+    \draw [->, thick] (sum_dist) -- (plant);
+    \draw [->, thick] (plant) -- (branch) -- node[above] {$Y(s)$} (output);
+    \draw [->, thick] (branch) |- (sensor);
+    \draw [->, thick] (sensor) -| node[pos=0.95, left] {$-$} (sum_ref);
+\end{tikzpicture}
+\caption{Canonical closed-loop feedback architecture with reference $R(s)$, disturbance $D(s)$, controller $G_c(s)$, plant $G(s)$, and sensor feedback $H(s)$.}
+\label{fig:feedback_block_diagram}
+\end{figure}"""
+
     def get_tikz_for_triggers(self, triggers: List[str]) -> List[str]:
         """Generate TikZ blocks for identified triggers without duplicates."""
         blocks = []
@@ -286,6 +329,8 @@ class TikZDiagramGenerator:
                 blocks.append(self.generate_phasor_tikz())
             elif t == "bode_plot":
                 blocks.append(self.generate_bode_plot_tikz())
+            elif t == "control_feedback_loop":
+                blocks.append(self.generate_control_system_tikz())
         return blocks
 
 
