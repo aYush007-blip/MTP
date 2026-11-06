@@ -76,3 +76,4 @@ echo "   6. Say 'Stop Recording' when lecture ends."
 echo "   7. Wait for voice prompt: 'Transcription successfully saved'."
 echo "   8. Unplug USB drive and take your notes."
 echo "======================================================================"
+

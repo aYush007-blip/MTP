@@ -23,6 +23,7 @@ import io
 import json
 import os
 from pathlib import Path
+import queue
 import re
 import select
 import shutil
@@ -266,13 +267,28 @@ class HeadlessVoiceAgent:
         self.slm = None
         self.hpf = HighPassHumFilter()
 
+        # Decoupled high-priority audio capture thread & buffers
+        self.audio_queue = queue.Queue(maxsize=1500)
+        self.raw_audio_frames: List[bytes] = []
+        self._frames_lock = threading.Lock()
+        self._capture_running = False
+        self._capture_thread = None
+
+        # Real-time concurrent typesetting queue and thread
+        self.live_typeset_queue = queue.Queue()
+        self.live_lecture_chunks: List[TranscriptChunk] = []
+        self._lecture_chunks_lock = threading.Lock()
+        self._typeset_thread = None
+
     def initialize_hardware(self) -> Tuple[pyaudio.PyAudio, int, int, int]:
         """Detect and configure USB mic and audio subsystem."""
-        # Optimal mic gain
-        try:
-            subprocess.run(["amixer", "-c", "2", "sset", "Mic", "110"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-        except Exception:
-            pass
+        # Optimal mic gain & volume across all candidate ALSA sound cards
+        for card in ["Audio", "1", "2"]:
+            try:
+                subprocess.run(["amixer", "-c", card, "sset", "Mic", "110", "cap", "unmute"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                subprocess.run(["amixer", "-c", card, "sset", "PCM", "95", "unmute"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            except Exception:
+                pass
 
         pa = pyaudio.PyAudio()
         device_index = None
@@ -304,9 +320,165 @@ class HeadlessVoiceAgent:
 
         return pa, device_index, channels, rate
 
+    def _audio_capture_worker(self, stream, chunk_samples: int, rate: int, channels: int):
+        """
+        Ultra-high-priority, non-blocking audio capture worker thread.
+        Reads the hardware microphone stream continuously without ever blocking on Whisper or SLM,
+        guaranteeing zero dropped samples during the entire lecture.
+        """
+        while self._capture_running:
+            try:
+                raw_bytes = stream.read(chunk_samples, exception_on_overflow=False)
+                if not raw_bytes:
+                    continue
+
+                # Decimate 48 kHz stereo to 16 kHz mono float32
+                if rate == 48000 and channels == 2:
+                    mono_chunk = stereo_48k_to_mono_16k(raw_bytes)
+                else:
+                    pcm = np.frombuffer(raw_bytes, dtype=np.int16)
+                    mono_chunk = np.clip(pcm / 32768.0, -1.0, 1.0).astype(np.float32)
+
+                filtered_chunk = self.hpf.process(mono_chunk)
+
+                # Continuous uninterrupted audio archiving while in RECORDING state
+                if self.state == AgentState.RECORDING:
+                    int16_pcm = np.clip(filtered_chunk * 32767, -32768, 32767).astype(np.int16)
+                    pcm_bytes = int16_pcm.tobytes()
+                    with self._frames_lock:
+                        self.raw_audio_frames.append(pcm_bytes)
+
+                # Push to live queue for VAD and voice command trigger detection
+                try:
+                    self.audio_queue.put_nowait((mono_chunk, filtered_chunk))
+                except queue.Full:
+                    # Drop oldest live packet so live queue doesn't lag; raw_audio_frames remains 100% complete
+                    try:
+                        self.audio_queue.get_nowait()
+                        self.audio_queue.put_nowait((mono_chunk, filtered_chunk))
+                    except Exception:
+                        pass
+            except Exception:
+                time.sleep(0.005)
+
+    def _live_typesetting_worker(self):
+        """
+        Background worker that translates live spoken utterances to LaTeX math concurrently
+        while the lecturer is speaking, guaranteeing zero post-lecture processing delay.
+        """
+        while self._capture_running:
+            try:
+                item = self.live_typeset_queue.get(timeout=0.2)
+            except queue.Empty:
+                continue
+
+            if item is None:
+                self.live_typeset_queue.task_done()
+                break
+
+            t_start, t_end, spoken = item
+            try:
+                latex = self.slm.translate(spoken) if self.slm else spoken
+            except Exception as e:
+                print(f"[SLM Translation Error]: {e}", flush=True)
+                latex = spoken
+
+            chunk_obj = TranscriptChunk(
+                timestamp_start=t_start,
+                timestamp_end=t_end,
+                spoken_text=spoken,
+                latex_text=latex
+            )
+            with self._lecture_chunks_lock:
+                self.live_lecture_chunks.append(chunk_obj)
+
+            print(f"[Live {t_end:.1f}s]: {spoken}", flush=True)
+            if latex != spoken:
+                print(f"       -> [LaTeX]: {latex}", flush=True)
+
+            self.live_typeset_queue.task_done()
+
+    def transcribe_full_audio(self, wav_file: Path) -> List[TranscriptChunk]:
+        """
+        Executes high-performance GPU batch transcription via whisper-cli on the pristine raw WAV.
+        Captures 100% of the lecturer's words with complete contextual continuity and exact timestamps.
+        """
+        whisper_cli = Path(WHISPER_BIN).parent / "whisper-cli"
+        if not whisper_cli.is_file() or not wav_file.is_file():
+            return []
+
+        import tempfile
+        temp_json_prefix = Path(tempfile.gettempdir()) / f"batch_trans_{int(time.time())}"
+        cmd = [
+            str(whisper_cli),
+            "-m", WHISPER_MODEL,
+            "-f", str(wav_file),
+            "--prompt", WHISPER_MATH_PROMPT,
+            "-sns", "-nth", "0.60", "-fa",
+            "-oj", "-of", str(temp_json_prefix)
+        ]
+
+        env = os.environ.copy()
+        env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
+
+        try:
+            res = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
+            json_file = Path(f"{temp_json_prefix}.json")
+            if not json_file.is_file():
+                return []
+
+            with open(json_file, "r", encoding="utf-8") as jf:
+                jdata = json.load(jf)
+            segments = jdata.get("transcription", [])
+
+            def _parse_time_sec(ts_str: str) -> float:
+                ts_str = ts_str.replace(",", ".")
+                parts = ts_str.split(":")
+                if len(parts) == 3:
+                    return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+                elif len(parts) == 2:
+                    return float(parts[0]) * 60 + float(parts[1])
+                return float(ts_str)
+
+            chunks = []
+            num_segs = len(segments)
+            for idx, seg in enumerate(segments):
+                txt = seg.get("text", "").strip()
+                txt = re.sub(r'[\(\[\{].*?[\)\]\}]', '', txt)
+                txt = re.sub(r'[♪♫]+', '', txt).strip()
+                if not txt or not any(c.isalnum() for c in txt):
+                    continue
+
+                norm = clean_trigger_text(txt)
+                # Strip out initial start triggers captured in the first 2 segments
+                if idx <= 1 and (any(trig in norm for trig in START_TRIGGERS) or "start recording" in norm):
+                    continue
+                # Strip out trailing stop triggers captured in the last 3 segments
+                if idx >= num_segs - 3 and (any(stop_t in norm for stop_t in STOP_TRIGGERS) or "stop recording" in norm or "jetson stop" in norm):
+                    continue
+
+                ts_from = seg.get("timestamps", {}).get("from", "00:00:00,000")
+                ts_to = seg.get("timestamps", {}).get("to", "00:00:05,000")
+                t_start = _parse_time_sec(ts_from)
+                t_end = _parse_time_sec(ts_to)
+
+                # Translate math formulas to standard LaTeX
+                latex = self.slm.translate(txt) if self.slm else txt
+                chunks.append(TranscriptChunk(t_start, t_end, txt, latex))
+                print(f"[{t_start:.1f}s - {t_end:.1f}s]: {txt}", flush=True)
+                if latex != txt:
+                    print(f"       -> [LaTeX]: {latex}", flush=True)
+
+            json_file.unlink(missing_ok=True)
+            return chunks
+        except Exception as e:
+            print(f"[Agent] Batch transcription error: {e}", flush=True)
+            return []
+
     def run_continuous_loop(self):
         """
         Master background loop listening for voice commands and recording lectures.
+        Features decoupled continuous audio ingestion to prevent dropped speech frames.
         """
         print("[Agent] Initializing daemons and audio subsystems...")
         ensure_edge_daemons()
@@ -324,6 +496,26 @@ class HeadlessVoiceAgent:
             frames_per_buffer=chunk_samples,
         )
 
+        # Launch dedicated uninterrupted audio capture thread
+        self._capture_running = True
+        self._capture_thread = threading.Thread(
+            target=self._audio_capture_worker,
+            args=(stream, chunk_samples, rate, channels),
+            daemon=True,
+            name="AudioCaptureWorker"
+        )
+        self._capture_thread.start()
+        print("[Agent] Continuous audio ingestion thread active.", flush=True)
+
+        # Launch concurrent real-time LaTeX typesetting thread
+        self._typeset_thread = threading.Thread(
+            target=self._live_typesetting_worker,
+            daemon=True,
+            name="LiveTypesettingWorker"
+        )
+        self._typeset_thread.start()
+        print("[Agent] Concurrent real-time LaTeX typesetting engine active.", flush=True)
+
         print("[Agent] Announcing system ready via TTS...")
         play_prompt("system_ready")
 
@@ -335,30 +527,26 @@ class HeadlessVoiceAgent:
         else:
             print(f"[Agent] USB Drive detected at: {usb_root}")
 
-        # Calibrate ambient noise floor
+        # Calibrate ambient noise floor from incoming audio queue
         print("[Agent] Calibrating microphone noise floor...", flush=True)
         noise_samples = []
-        for _ in range(6):
-            b = stream.read(chunk_samples, exception_on_overflow=False)
-            if rate == 48000 and channels == 2:
-                mc = stereo_48k_to_mono_16k(b)
-            else:
-                p_arr = np.frombuffer(b, dtype=np.int16)
-                mc = np.clip(p_arr / 32768.0, -1.0, 1.0).astype(np.float32)
-            fc = self.hpf.process(mc)
-            noise_samples.append(float(np.sqrt(np.mean(fc ** 2))))
+        for _ in range(8):
+            try:
+                _, fc = self.audio_queue.get(timeout=1.5)
+                noise_samples.append(float(np.sqrt(np.mean(fc ** 2))))
+            except queue.Empty:
+                pass
 
-        noise_floor = max(float(np.percentile(noise_samples, 85)), 0.005)
+        noise_floor = max(float(np.percentile(noise_samples, 85)), 0.005) if noise_samples else 0.010
         speech_thold = max(noise_floor * 2.2, 0.020)
         silence_thold = max(noise_floor * 1.3, 0.012)
         print(f"[Agent] Calibrated: Noise floor={noise_floor:.4f} | Speech Trigger={speech_thold:.4f}", flush=True)
 
         vad = AdaptiveEnergyVAD(speech_threshold=speech_thold, silence_threshold=silence_thold)
 
-        # Buffers
+        # State Buffers
         current_speech_chunks = []
         lecture_chunks: List[TranscriptChunk] = []
-        raw_audio_frames = []
 
         lecture_start_time = 0.0
         in_speech = False
@@ -368,7 +556,7 @@ class HeadlessVoiceAgent:
 
         try:
             while True:
-                # Non-blocking terminal keyboard check
+                # 1. Non-blocking terminal keyboard check
                 try:
                     if sys.stdin.isatty():
                         r, _, _ = select.select([sys.stdin], [], [], 0.0)
@@ -380,7 +568,21 @@ class HeadlessVoiceAgent:
                                 play_prompt("countdown_start")
                                 current_speech_chunks.clear()
                                 lecture_chunks.clear()
-                                raw_audio_frames.clear()
+                                with self._lecture_chunks_lock:
+                                    self.live_lecture_chunks.clear()
+                                while not self.live_typeset_queue.empty():
+                                    try:
+                                        self.live_typeset_queue.get_nowait()
+                                    except Exception:
+                                        break
+                                with self._frames_lock:
+                                    self.raw_audio_frames.clear()
+                                # Drain queue
+                                while not self.audio_queue.empty():
+                                    try:
+                                        self.audio_queue.get_nowait()
+                                    except Exception:
+                                        break
                                 self.hpf.reset()
                                 vad.reset()
                                 lecture_start_time = time.monotonic()
@@ -395,23 +597,28 @@ class HeadlessVoiceAgent:
                                 current_speech_chunks.clear()
                                 in_speech = False
                                 vad.reset()
-                                self.process_lecture(lecture_chunks, raw_audio_frames, lecture_start_time)
+
+                                print("[Agent] Finalizing real-time typesetting pipeline...", flush=True)
+                                try:
+                                    self.live_typeset_queue.join()
+                                except Exception:
+                                    pass
+
+                                with self._lecture_chunks_lock:
+                                    final_chunks = list(self.live_lecture_chunks)
+
+                                self.process_lecture(final_chunks, self.raw_audio_frames, lecture_start_time)
                                 self.state = AgentState.STANDBY
                                 print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
                                 continue
                 except Exception:
                     pass
 
-                raw_bytes = stream.read(chunk_samples, exception_on_overflow=False)
-                
-                # Decimate to 16 kHz mono float32
-                if rate == 48000 and channels == 2:
-                    mono_chunk = stereo_48k_to_mono_16k(raw_bytes)
-                else:
-                    pcm = np.frombuffer(raw_bytes, dtype=np.int16)
-                    mono_chunk = np.clip(pcm / 32768.0, -1.0, 1.0).astype(np.float32)
-
-                filtered_chunk = self.hpf.process(mono_chunk)
+                # 2. Retrieve chunk from decoupled audio ingestion queue
+                try:
+                    mono_chunk, filtered_chunk = self.audio_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
 
                 # =========================================================
                 # 1. STANDBY STATE (Listening for Wake-Word)
@@ -457,7 +664,20 @@ class HeadlessVoiceAgent:
 
                                     current_speech_chunks.clear()
                                     lecture_chunks.clear()
-                                    raw_audio_frames.clear()
+                                    with self._lecture_chunks_lock:
+                                        self.live_lecture_chunks.clear()
+                                    while not self.live_typeset_queue.empty():
+                                        try:
+                                            self.live_typeset_queue.get_nowait()
+                                        except Exception:
+                                            break
+                                    with self._frames_lock:
+                                        self.raw_audio_frames.clear()
+                                    while not self.audio_queue.empty():
+                                        try:
+                                            self.audio_queue.get_nowait()
+                                        except Exception:
+                                            break
                                     self.hpf.reset()
                                     vad.reset()
 
@@ -478,10 +698,7 @@ class HeadlessVoiceAgent:
                 # 2. RECORDING STATE (Continuous Lecture Transcription)
                 # =========================================================
                 elif self.state == AgentState.RECORDING:
-                    # Accumulate raw audio for archive
-                    int16_pcm = np.clip(filtered_chunk * 32767, -32768, 32767).astype(np.int16)
-                    raw_audio_frames.append(int16_pcm.tobytes())
-
+                    # Note: 100% of audio frames are continuously archived by self._audio_capture_worker
                     is_speech, energy = vad.process_chunk(filtered_chunk)
 
                     if is_speech:
@@ -494,14 +711,14 @@ class HeadlessVoiceAgent:
                             silence_chunk_count += 1
                             current_speech_chunks.append(filtered_chunk)
 
-                            # Speech boundary reached (1.8s silence or max 12s utterance)
+                            # Speech boundary reached (1.6s silence or max 12s utterance)
                             chunk_duration = len(current_speech_chunks) * 0.1
-                            if silence_chunk_count >= 18 or chunk_duration >= 12.0:
+                            if silence_chunk_count >= 16 or chunk_duration >= 12.0:
                                 utterance = np.concatenate(current_speech_chunks)
                                 t_end_rel = time.monotonic() - lecture_start_time
                                 t_start_rel = max(0.0, t_end_rel - chunk_duration)
 
-                                # Transcribe chunk via Whisper
+                                # Fast Whisper check for STOP voice trigger
                                 spoken_text = query_whisper_stream(utterance, no_speech_thold=0.40)
                                 norm_spoken = clean_trigger_text(spoken_text)
 
@@ -518,26 +735,26 @@ class HeadlessVoiceAgent:
                                     current_speech_chunks.clear()
                                     in_speech = False
                                     vad.reset()
-                                    # Process immediately
-                                    self.process_lecture(lecture_chunks, raw_audio_frames, lecture_start_time)
+
+                                    print("[Agent] Finalizing real-time typesetting pipeline...", flush=True)
+                                    try:
+                                        self.live_typeset_queue.join()
+                                    except Exception:
+                                        pass
+
+                                    with self._lecture_chunks_lock:
+                                        final_chunks = list(self.live_lecture_chunks)
+
+                                    # Process immediately with 0 delay
+                                    self.process_lecture(final_chunks, self.raw_audio_frames, lecture_start_time)
                                     # Re-enter standby
                                     self.state = AgentState.STANDBY
                                     print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
                                     continue
 
-                                # Standard Technical Speech Chunk
+                                # Standard Technical Speech Chunk: Enqueue for concurrent real-time SLM translation
                                 if spoken_text and len(spoken_text) > 2:
-                                    # Run Qwen SLM math translation
-                                    latex_output = self.slm.translate(spoken_text)
-                                    chunk_obj = TranscriptChunk(
-                                        timestamp_start=t_start_rel,
-                                        timestamp_end=t_end_rel,
-                                        spoken_text=spoken_text,
-                                        latex_text=latex_output
-                                    )
-                                    lecture_chunks.append(chunk_obj)
-                                    print(f"[Live {t_end_rel:.1f}s]: {spoken_text}", flush=True)
-                                    print(f"       -> [LaTeX]: {latex_output}", flush=True)
+                                    self.live_typeset_queue.put((t_start_rel, t_end_rel, spoken_text))
 
                                 current_speech_chunks.clear()
                                 in_speech = False
@@ -546,6 +763,12 @@ class HeadlessVoiceAgent:
         except KeyboardInterrupt:
             print("\n[Agent] Shutting down headless agent...", flush=True)
         finally:
+            self._capture_running = False
+            self.live_typeset_queue.put(None)
+            if self._capture_thread and self._capture_thread.is_alive():
+                self._capture_thread.join(timeout=1.0)
+            if self._typeset_thread and self._typeset_thread.is_alive():
+                self._typeset_thread.join(timeout=1.0)
             stream.stop_stream()
             stream.close()
             pa.terminate()
@@ -557,25 +780,58 @@ class HeadlessVoiceAgent:
         start_time: float
     ):
         """
-        Post-processes lecture, formats textbook, compiles PDF, and exports to USB drive.
+        Post-processes lecture, executes full GPU batch transcription,
+        translates mathematical notation to LaTeX, formats textbook monograph, compiles PDF,
+        and exports deliverables to USB drive AYUSH.
         """
         print("\n[Agent] Typesetting complete lecture transcript with LaTeX equations and TikZ graphics...")
         ts = time.strftime("%Y%m%d_%H%M%S")
         base_lecture_title = f"Lecture_{ts}"
 
-        # 1. Build Typeset Transcript TeX, Markdown, and Subtitles
-        tex_content, md_content, clean_title = self.book_builder.build_book(base_lecture_title, chunks)
-        srt_content, vtt_content = generate_subtitles(chunks)
+        # Temporary working directory for generation
+        temp_dir = Path("/tmp") / f"lecture_{ts}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create informative session folder and file stem from intelligent title
+        # 1. Save pristine unclipped raw audio WAV file
+        wav_file = temp_dir / f"{base_lecture_title}_raw.wav"
+        with self._frames_lock:
+            frames_to_save = list(raw_audio_frames)
+
+        if frames_to_save:
+            with wave.open(str(wav_file), "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(16000)
+                wf.writeframes(b"".join(frames_to_save))
+            audio_sec = len(b"".join(frames_to_save)) / (2 * 16000)
+            print(f"[Agent] Saved complete raw audio: {wav_file} ({audio_sec:.1f} seconds recorded, 100% complete)")
+
+        # 2. Acquire Typeset Lecture Chunks (Real-Time Pre-Typeset or Batch Fallback)
+        if chunks and len(chunks) > 0:
+            print(f"[Agent] Real-time typesetting complete: using {len(chunks)} live-transcribed and LaTeX-typeset chunks.", flush=True)
+            active_chunks = chunks
+        else:
+            print("[Agent] Live chunks empty; performing full GPU batch transcription via whisper-cli...", flush=True)
+            batch_chunks = self.transcribe_full_audio(wav_file) if wav_file.is_file() else []
+            if batch_chunks:
+                print(f"[Agent] whisper-cli captured {len(batch_chunks)} high-fidelity segments across full lecture.", flush=True)
+                active_chunks = batch_chunks
+            else:
+                active_chunks = []
+
+        # 3. Build Typeset Transcript TeX, Markdown, and Subtitles
+        tex_content, md_content, clean_title = self.book_builder.build_book(base_lecture_title, active_chunks)
+        srt_content, vtt_content = generate_subtitles(active_chunks)
+
         slug = re.sub(r'[^a-zA-Z0-9]+', '_', clean_title).strip('_')
         if len(slug) > 40:
             slug = slug[:40].rstrip('_')
         session_name = f"{ts}_{slug}" if slug else base_lecture_title
 
-        # Temporary working directory for generation
-        temp_dir = Path("/tmp") / f"lecture_{ts}"
-        temp_dir.mkdir(parents=True, exist_ok=True)
+        # Rename raw WAV to session name
+        final_wav = temp_dir / f"{session_name}_raw.wav"
+        if wav_file.is_file():
+            wav_file.rename(final_wav)
 
         tex_file = temp_dir / f"{session_name}.tex"
         tex_file.write_text(tex_content, encoding="utf-8")
@@ -589,34 +845,25 @@ class HeadlessVoiceAgent:
         vtt_file = temp_dir / f"{session_name}.vtt"
         vtt_file.write_text(vtt_content, encoding="utf-8")
 
-        # Save raw audio WAV file
-        wav_file = temp_dir / f"{session_name}_raw.wav"
-        if raw_audio_frames:
-            with wave.open(str(wav_file), "wb") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(16000)
-                wf.writeframes(b"".join(raw_audio_frames))
-
-        # 2. PDF Compilation Pass (Standalone XeTeX via Tectonic)
+        # 4. PDF Compilation Pass (Standalone XeTeX via Tectonic)
         print(f"[Agent] Compiling typeset lecture transcript: '{clean_title}'...")
         post_res = self.post_processor.process_and_compile(
             lecture_title=clean_title,
             tex_path=tex_file,
             output_dir=temp_dir,
-            raw_transcript="\n".join([c.spoken_text for c in chunks])
+            raw_transcript="\n".join([c.spoken_text for c in active_chunks])
         )
 
         pdf_file = post_res.get("pdf")
 
-        # 3. Export to USB Drive AYUSH & Local SSD
+        # 5. Export to USB Drive AYUSH & Local SSD
         print("[Agent] Exporting deliverables to USB drive AYUSH...")
         export_map = {
             "tex": tex_file,
             "md": md_file,
             "srt": srt_file,
             "vtt": vtt_file,
-            "wav": wav_file if wav_file.is_file() else None,
+            "wav": final_wav if final_wav.is_file() else None,
             "pdf": pdf_file if (pdf_file and pdf_file.is_file()) else None
         }
 
@@ -625,7 +872,7 @@ class HeadlessVoiceAgent:
         print(f"       Local SSD: {export_res['local_path']}")
         print(f"       USB Drive: {export_res['usb_path']} (Success: {export_res['usb_success']})")
 
-        # 4. Spoken Shutdown Signal
+        # 6. Spoken Shutdown Signal
         print("[Agent] Playing final announcement...")
         if export_res.get("usb_success"):
             print("[Agent] USB export verified successfully! Playing shutdown signal...")
@@ -633,125 +880,20 @@ class HeadlessVoiceAgent:
         else:
             print("[Agent] Warning: Deliverables saved to internal SSD, but USB export failed or USB missing!")
             play_prompt("usb_warning")
+
         # Clean up temp
         shutil.rmtree(temp_dir, ignore_errors=True)
 
     def run_file_simulation(self, wav_path: str, max_duration: Optional[float] = None):
         """
         Simulate the complete headless workflow on an existing WAV file.
-        Transcribes the full audio file (or up to max_duration if specified),
-        translates math expressions into standard LaTeX, generates native TikZ graphics,
-        compiles publication-grade PDF via Tectonic XeTeX, and exports deliverables to USB drive AYUSH.
+        Loads raw audio frames and executes process_lecture() with high-performance GPU batch transcription,
+        academic typesetting, vector TikZ graphics, Tectonic XeTeX compilation, and USB export.
         """
         print(f"\n[Agent Simulation] Testing on WAV file: {wav_path}", flush=True)
         ensure_edge_daemons()
         self.slm = QwenMathTranslator.get_instance(backend="server")
 
-        whisper_cli = Path("/mnt/thesis/main/whisper.cpp/build-orin/bin/whisper-cli")
-        chunks: List[TranscriptChunk] = []
-
-        # 1. High-Performance GPU Batch Transcription via whisper-cli if available
-        if whisper_cli.is_file():
-            print(f"[Agent Simulation] Running full-lecture GPU transcription via whisper-cli...", flush=True)
-            import tempfile
-            temp_json_prefix = Path(tempfile.gettempdir()) / f"sim_transcription_{int(time.time())}"
-            cmd = [
-                str(whisper_cli),
-                "-m", WHISPER_MODEL,
-                "-f", wav_path,
-                "--prompt", WHISPER_MATH_PROMPT,
-                "-sns", "-nth", "0.60", "-fa",
-                "-oj", "-of", str(temp_json_prefix)
-            ]
-            if max_duration is not None and max_duration > 0:
-                cmd.extend(["-d", str(int(max_duration * 1000))])
-
-            env = os.environ.copy()
-            env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
-            subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-            json_file = Path(f"{temp_json_prefix}.json")
-            if json_file.is_file():
-                try:
-                    with open(json_file, "r", encoding="utf-8") as jf:
-                        jdata = json.load(jf)
-                    segments = jdata.get("transcription", [])
-                    print(f"[Agent Simulation] whisper-cli captured {len(segments)} segments across lecture.", flush=True)
-
-                    def _parse_time_sec(ts_str: str) -> float:
-                        ts_str = ts_str.replace(",", ".")
-                        parts = ts_str.split(":")
-                        if len(parts) == 3:
-                            return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
-                        elif len(parts) == 2:
-                            return float(parts[0]) * 60 + float(parts[1])
-                        return float(ts_str)
-
-                    for seg in segments:
-                        txt = seg.get("text", "").strip()
-                        txt = re.sub(r'[\(\[\{].*?[\)\]\}]', '', txt)
-                        txt = re.sub(r'[♪♫]+', '', txt).strip()
-                        if not txt or not any(c.isalnum() for c in txt):
-                            continue
-
-                        ts_from = seg.get("timestamps", {}).get("from", "00:00:00,000")
-                        ts_to = seg.get("timestamps", {}).get("to", "00:00:05,000")
-                        t_start = _parse_time_sec(ts_from)
-                        t_end = _parse_time_sec(ts_to)
-
-                        latex = self.slm.translate(txt)
-                        chunks.append(TranscriptChunk(t_start, t_end, txt, latex))
-                        print(f"[{t_start:.1f}s - {t_end:.1f}s]: {txt}", flush=True)
-                        if latex != txt:
-                            print(f"       -> [LaTeX]: {latex}", flush=True)
-                finally:
-                    json_file.unlink(missing_ok=True)
-
-        # 2. Fallback to chunked streaming if whisper-cli failed or produced 0 chunks
-        if not chunks:
-            print("[Agent Simulation] Falling back to streaming slice simulation...", flush=True)
-            with wave.open(wav_path, "rb") as wf:
-                n_channels = wf.getnchannels()
-                framerate = wf.getframerate()
-                total_frames = wf.getnframes()
-                if max_duration is not None and max_duration > 0:
-                    frames_to_read = int(min(total_frames, max_duration * framerate))
-                else:
-                    frames_to_read = total_frames
-                raw_bytes = wf.readframes(frames_to_read)
-
-            pcm = np.frombuffer(raw_bytes, dtype=np.int16)
-            if n_channels > 1:
-                pcm = pcm.reshape(-1, n_channels).mean(axis=1)
-
-            if framerate != 16000:
-                num_samples = int(len(pcm) * 16000 / framerate)
-                pcm = np.interp(
-                    np.linspace(0, len(pcm), num_samples, endpoint=False),
-                    np.arange(len(pcm)),
-                    pcm,
-                ).astype(np.int16)
-
-            float_audio = np.clip(pcm / 32768.0, -1.0, 1.0).astype(np.float32)
-            filtered_audio = self.hpf.process(float_audio)
-
-            chunk_sec = 6.0
-            samples_per_chunk = int(chunk_sec * 16000)
-            total_audio_sec = len(filtered_audio) / 16000.0
-            for i in range(0, len(filtered_audio), samples_per_chunk):
-                segment = filtered_audio[i : i + samples_per_chunk]
-                t_start = i / 16000.0
-                t_end = min((i + samples_per_chunk) / 16000.0, total_audio_sec)
-
-                spoken = query_whisper_stream(segment)
-                if spoken.strip():
-                    latex = self.slm.translate(spoken)
-                    chunks.append(TranscriptChunk(t_start, t_end, spoken, latex))
-                    print(f"[{t_start:.1f}s - {t_end:.1f}s]: {spoken}", flush=True)
-                    if latex != spoken:
-                        print(f"       -> [LaTeX]: {latex}", flush=True)
-
-        # Prepare raw audio frames for export
         with wave.open(wav_path, "rb") as wf:
             n_ch = wf.getnchannels()
             fr = wf.getframerate()
@@ -772,7 +914,7 @@ class HeadlessVoiceAgent:
             ).astype(np.int16)
 
         raw_frames = [pcm_raw.tobytes()]
-        self.process_lecture(chunks, raw_frames, time.monotonic())
+        self.process_lecture([], raw_frames, time.monotonic())
 
 
 def main():

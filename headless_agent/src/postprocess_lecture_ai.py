@@ -425,21 +425,38 @@ class PostLectureProcessor:
         sections = []
         curr_sec_title = "Theoretical Background and Motivation"
         curr_paras = []
+        in_doc = False
+        in_ignored_env = 0
         for line in tex_content.splitlines():
             line_s = line.strip()
+            if r"\begin{document}" in line_s:
+                in_doc = True
+                continue
+            if r"\end{document}" in line_s:
+                in_doc = False
+                break
+            if not in_doc:
+                continue
+
+            # Skip environments not meant for body paragraphs (figures, tikz, display equations, title centers)
+            if any(env in line_s for env in [r"\begin{figure}", r"\begin{tikzpicture}", r"\begin{equation}", r"\begin{center}"]):
+                in_ignored_env += 1
+                continue
+            if any(env in line_s for env in [r"\end{figure}", r"\end{tikzpicture}", r"\end{equation}", r"\end{center}"]):
+                in_ignored_env = max(0, in_ignored_env - 1)
+                continue
+            if in_ignored_env > 0:
+                continue
+
             if line_s.startswith(r"\section{"):
                 if curr_paras:
                     sections.append((curr_sec_title, curr_paras))
                     curr_paras = []
                 m_sec = re.match(r'\\section\{([^}]+)\}', line_s)
                 curr_sec_title = m_sec.group(1) if m_sec else "Section"
-            elif line_s and not line_s.startswith((
-                r"\begin{", r"\end{", r"\usepackage", r"\documentclass", "%",
-                r"\title", r"\author", r"\date", r"\maketitle", r"\geometry",
-                r"\hypersetup", r"\definecolor", r"\pagestyle", r"\fancy",
-                r"\renewcommand", r"\vspace", r"\hrule", r"\pgfplotsset", r"\usetikzlibrary"
-            )):
-                curr_paras.append(line_s)
+            elif line_s and not line_s.startswith(("%", r"\vspace", r"\hrule")):
+                clean_line = re.sub(r'\\(?:textbf|textit|text|emph)\{([^}]+)\}', r'\1', line_s)
+                curr_paras.append(clean_line)
         if curr_paras:
             sections.append((curr_sec_title, curr_paras))
 

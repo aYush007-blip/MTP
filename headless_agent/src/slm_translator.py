@@ -25,20 +25,48 @@ SYSTEM_PROMPT = (
     "Your task is to take a spoken lecture transcript and convert mathematical formulas, symbols, physical laws, "
     "and equations into standard inline LaTeX ($...$).\n\n"
     "RULES:\n"
-    "1. Function notation: Continuous functions use parentheses (e.g., $f(x)$, $u(x, t)$, $T(r)$, $H(s)$, $G(j\\omega)$, $i(t)$, $V(t)$, $I_0$). "
-    "Discrete sequences use brackets (e.g., $x[n]$, $y[n]$, $x[2n]$, $x[n/N]$, $h[k]$).\n"
-    "2. Calculus & relations: Derivatives use \\frac{d...}{d...} (e.g., $\\frac{di}{dt}$, $\\frac{\\partial u}{\\partial x}$). "
-    "Use standard engineering notation for integrals ($\\int$), sums ($\\sum$), and vectors ($\\nabla$).\n"
-    "3. VERBATIM FIDELITY: You MUST preserve EVERY surrounding word, sentence, and technical explanation VERBATIM. "
+    "1. Signal & function notation: Continuous-time signals ALWAYS convert 'x of t' -> $x(t)$, 'y of t' -> $y(t)$, 'h of t' -> $h(t)$, 'u of t' -> $u(t)$. "
+    "Transform domains convert 'x of s' -> $X(s)$, 'y of s' -> $Y(s)$, 'h of s' -> $H(s)$, 'x of z' -> $X(z)$, 'y of z' -> $Y(z)$. "
+    "Discrete sequences use brackets: 'x of n' -> $x[n]$, 'y of n' -> $y[n]$, 'h of n' -> $h[n]$.\n"
+    "2. Limits and Theorems: Spoken limits convert to standard LaTeX arrows: 'limit s going to infinity s times x of s' -> $\\lim_{s \\to \\infty} s X(s)$, "
+    "'limit as t goes to infinity' -> $\\lim_{t \\to \\infty}$, 'limit as s goes to 0' -> $\\lim_{s \\to 0}$, 'x0 plus' -> $x(0^+)$, 'x0 minus' -> $x(0^-)$.\n"
+    "3. Exponentials, Powers & Fractions: 'e to the power minus t u of t' -> $e^{-t} u(t)$, 'e to the power minus 3t' -> $e^{-3t}$, '1 by s plus 3' -> $\\frac{1}{s+3}$, "
+    "'1 by s plus 1 minus 1 by s plus 2' -> $\\frac{1}{s+1} - \\frac{1}{s+2}$, 'cos omega t' -> $\\cos(\\omega t)$, 'cos omega 0 t' -> $\\cos(\\omega_0 t)$.\n"
+    "4. Complex Plane & ROC: 'real part of s greater than minus 1' -> $\\text{Re}(s) > -1$, 'real part of s' -> $\\text{Re}(s)$, 'imaginary part of s' -> $\\text{Im}(s)$, 'j omega' -> $j\\omega$, 't less than 0' -> $t < 0$.\n"
+    "5. VERBATIM FIDELITY: You MUST preserve EVERY surrounding word, sentence, and technical explanation VERBATIM. "
     "NEVER summarize, condense, delete, or omit non-mathematical speech. The output must match the input word-for-word, "
     "only formatting spoken math expressions into inline LaTeX ($...$). NEVER wrap normal conversational words in LaTeX.\n"
-    "4. Clean disfluencies: Turn spoken stutters into the intended mathematical formula.\n"
-    "5. CRITICAL: NEVER repeat, echo, or quote preceding context. NEVER output \"Spoken transcript:\", meta labels, or markdown blocks. "
+    "6. Clean disfluencies: Turn spoken stutters into the intended mathematical formula.\n"
+    "7. CRITICAL: NEVER repeat, echo, or quote preceding context. NEVER output \"Spoken transcript:\", meta labels, or markdown blocks. "
     "Output ONLY the inline LaTeX-typeset transcript of the current user message."
 )
 
 
 FEW_SHOT_MESSAGES = [
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nThen we can determine the value of the signal just after origin that is x0 plus and this will be equal to limit s going to infinity s times x of s where x of s is the Laplace transform of x of t."
+    },
+    {
+        "role": "assistant",
+        "content": "Then we can determine the value of the signal just after the origin that is $x(0^+)$ and this will be equal to $\\lim_{s \\to \\infty} s X(s)$, where $X(s)$ is the Laplace transform of $x(t)$."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nSignals like e to the power minus t u of t converge to zero as limit t goes to infinity, but a signal like x of t equals cos omega t continues to oscillate."
+    },
+    {
+        "role": "assistant",
+        "content": "Signals like $e^{-t} u(t)$ converge to $0$ as $\\lim_{t \\to \\infty}$, but a signal like $x(t) = \\cos(\\omega t)$ continues to oscillate."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nSo let us find the Laplace transform of x of t, this is equal to 1 by s plus 3, with ROC real part of s greater than minus 3 because it is causal for t less than 0."
+    },
+    {
+        "role": "assistant",
+        "content": "So let us find the Laplace transform of $x(t)$, this is equal to $\\frac{1}{s + 3}$, with ROC $\\text{Re}(s) > -3$ because it is causal for $t < 0$."
+    },
     {
         "role": "user",
         "content": "Spoken transcript:\nLet's apply Kirchhoff's voltage law: r i plus l d i by d t equals zero with initial condition i of zero is i zero."
@@ -49,11 +77,11 @@ FEW_SHOT_MESSAGES = [
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nIn the momentum equation, rho times partial v with respect to t equals minus grad p plus mu del squared v."
+        "content": "Spoken transcript:\nTaking the Laplace transform of the second derivative of y of t gives s squared Y of s minus s y of zero minus y prime of zero."
     },
     {
         "role": "assistant",
-        "content": "In the momentum equation, $\\rho \\frac{\\partial \\mathbf{v}}{\\partial t} = -\\nabla p + \\mu \\nabla^2 \\mathbf{v}$."
+        "content": "Taking the Laplace transform of the second derivative of $y(t)$ gives $s^2 Y(s) - s y(0) - y'(0)$."
     },
     {
         "role": "user",
@@ -263,6 +291,13 @@ class QwenMathTranslator:
                 spoken_overlap = len(set(words_out) & words_raw) / max(1, len(set(words_out)))
                 context_overlap = len(set(words_out) & words_ctx) / max(1, len(set(words_out)))
                 if context_overlap > 0.6 and spoken_overlap < 0.2:
+                    return raw_text
+
+            # Prompt leakage / cross-domain physics formula hallucination check
+            physics_tokens = [r"\nabla", r"\mu \nabla", r"\partial \mathbf{v}", r"momentum equation"]
+            if any(pt in s for pt in physics_tokens):
+                raw_lower = raw_text.lower()
+                if not any(pt.replace("\\", "").lower() in raw_lower for pt in physics_tokens):
                     return raw_text
 
         return s
