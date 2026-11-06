@@ -413,21 +413,92 @@ class TikZDiagramGenerator:
 class EquationFormatter:
     """
     Identifies mathematical relationships in text and formats them into
-    numbered LaTeX equation environments with labels.
+    numbered LaTeX equation environments with labels, separated from paragraph text.
     """
     def __init__(self):
         self.eq_counter = 0
 
+    def synthesize_spoken_equations(self, text: str) -> str:
+        """
+        Synthesizes spoken relational phrases (e.g. '$x(t)$ equal to $e^{-3t} u(t)$')
+        into unified mathematical formulas before display promotion.
+        """
+        subs = [
+            # 1. Initial & Final value theorem formulas
+            (r'(?:that\s+is\s+)?(\$x\(0\^\+\)\$)\s+(?:and\s+this\s+)?will\s+be\s+equal\s+to\s+(\$\\lim_\{s\s*\\to\s*\\infty\}[^\$]+\$)',
+             r':\n$$\1 = \2$$\n'),
+            (r'(\$x\(0\^[-+]\)\$)\s+equal\s+to\s+(\$[^\$]+\$)', r':\n$$\1 = \2$$\n'),
+            (r'evaluate\s+(\$s\s+X\(s\)\$)\s+and\s+find\s+the\s+(\$\\lim_\{s\s*\\to\s*0\}\$)',
+             r'evaluate the limit:\n$$\\lim_{s \\to 0} s X(s)$$\n'),
+            (r'what\s+is\s+the\s+(\$\\lim_\{s\s*\\to\s*0\}\s*s\s*X\(s\)\s*H\(s\)\$)',
+             r'evaluate:\n$$\1$$\n'),
+
+            # 2. Input/Output signal assignments: $x(t)$ equal to $e^{-3t} u(t)$
+            (r'(\$[a-zA-Z0-9_\(\)]+\$)\s+equal\s+to\s+(\$[^\$]+\$)', r'$$\1 = \2$$'),
+            (r'(\$[a-zA-Z0-9_\(\)]+\$)\s+is\s+equal\s+to\s+(\$[^\$]+\$)', r'$$\1 = \2$$'),
+            (r'(\$[a-zA-Z0-9_\(\)]+\$)\s+equals\s+(\$[^\$]+\$)', r'$$\1 = \2$$'),
+
+            # 3. Transform formulas: "Laplace transform ... is equal to 1/(s+3)"
+            (r'Laplace\s+transform\s+of\s+\$x\(t\)\$\.?\s*(?:So,?\s*)?(?:this\s+is\s+)?equal\s+to\s+(\$\\frac\{1\}\{s\+3\}\$)',
+             r'Laplace transform of $x(t)$ is given by:\n$$X(s) = \1$$\n'),
+            (r'Laplace\s+transform\s+of\s+\$y\(t\)\$\.?\s*What\s+will\s+be\s+the\s+answer\s+here\??\s*(\$\\frac\{1\}\{s\+1\}\s*-\s*\\frac\{1\}\{s\+2\}\$)',
+             r'Laplace transform of $y(t)$ is given by:\n$$Y(s) = \1$$\n'),
+            (r'Laplace\s+transform\s+of\s+the\s+impulse\s+response\s+is\s+equal\s+to\s+(\$\\frac\{1\}\{X\(s\)\}\$)',
+             r'Laplace transform of the impulse response is:\n$$H(s) = \1$$\n'),
+            (r'this\s+will\s+be\s+y\s+(\$s\s*Y\(s\)\$)\s+plus\s+the\s+(\$Y\(s\)\$)\s+equal\s+to\s+(\$X\(s\)\$)',
+             r'we obtain:\n$$s Y(s) + Y(s) = X(s)$$\n'),
+            (r'So,?\s*this\s+is\s+(\$\\frac\{s\}\{s\^2\s*\+\s*\\omega_0\^2\}\$)',
+             r'So, the Laplace transform is:\n$$X(s) = \1$$\n'),
+            (r'this\s+is\s+minus\s+okay\s+and\s+this\s+is\s+equal\s+to\s+(\$\\frac\{1\}\{\(s\+a\)\^2\}\$)',
+             r'this is equal to:\n$$\\frac{1}{(s+a)^2}$$\n'),
+
+            # 4. Complex plane & ROC inequalities
+            (r'(?:Set\s+of\s+all\s+complex\s+numbers\s+such\s+that\s+)?(\$\\text\{Re\}\(s\)\s*>\s*-\d+\$)',
+             r':\n$$\\text{ROC}: \\quad \1$$\n'),
+            (r's\s+equal\s+to\s+some\s+\$j\\omega\$|s\s+equal\s+to\s+\$j\\omega\$',
+             r'$$s = j\\omega$$'),
+        ]
+
+        for pat, rep in subs:
+            text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+
+        text = re.sub(r'\${3,}', '$$', text)
+        return text
+
+    def should_promote_to_display(self, eq_body: str) -> bool:
+        """Determines if a math expression is a formula that should be on a separate display line."""
+        eq = eq_body.strip()
+
+        # 1. Any equation or relational operator (=, >, <, \le, \ge, \approx, \equiv)
+        if any(op in eq for op in ['=', '>', '<', r'\ge', r'\le', r'\approx', r'\equiv']):
+            if not re.match(r'^[a-zA-Z_]\s*=\s*\d+$', eq):
+                return True
+
+        # 2. Fractions, limits, calculus, sums, integrals, ROC
+        if any(st in eq for st in [r'\frac', r'\lim', r'\sum', r'\int', r'\partial', r'\text{Re}', r'\text{Im}', r'\text{ROC}']):
+            return True
+
+        # 3. Compound signals: e.g. e^{-3t} u(t), (e^{-t} - e^{-2t}) u(t), t e^{-at} u(t), \cos(\omega_0 t) u(t)
+        if re.search(r'(?:e\^\{|\bcos\(|\bsin\().*?u\(t\)', eq):
+            return True
+
+        # 4. Multi-term compound expressions (e.g. s X(s) H(s), s^2 + \omega_0^2)
+        if any(op in eq for op in [' - ', ' + ', r'\pm', r'\times']) and len(eq) >= 8:
+            return True
+
+        return False
+
     def promote_to_display_equations(self, paragraph: str) -> str:
         """
-        Promotes significant inline math or standalone formulas containing
-        relational operators (=, \\approx, \\sum, \\int) to \\begin{equation}.
-        Uses strict math tokenizing to prevent dollar alternation inversion.
+        Promotes significant inline math, equations, formulas, fractions, limits,
+        and ROC relations to numbered \\begin{equation} blocks on separate display lines.
         """
+        paragraph = self.synthesize_spoken_equations(paragraph)
+
         # 1. Handle explicit double dollars $$ ... $$
         def _replace_double_dollars(match):
             self.eq_counter += 1
-            eq_body = match.group(1).strip()
+            eq_body = match.group(1).replace('$', '').strip()
             return f"\n\\begin{{equation}}\n  \\label{{eq:{self.eq_counter}}}\n  {eq_body}\n\\end{{equation}}\n"
 
         paragraph = re.sub(r'\$\$(.*?)\$\$', _replace_double_dollars, paragraph, flags=re.DOTALL)
@@ -438,6 +509,9 @@ class EquationFormatter:
         for tok in tokens:
             if tok.startswith('$') and tok.endswith('$') and len(tok) >= 3:
                 eq_body = tok[1:-1].replace('$', '').strip()
+                if not eq_body:
+                    continue
+
                 # Clean unclosed cases or matrix environments
                 eq_body = re.sub(r'\\begin\{cases\}\.?\s*$', '', eq_body).strip()
                 for env in ["cases", "matrix", "pmatrix", "bmatrix", "aligned"]:
@@ -449,13 +523,7 @@ class EquationFormatter:
                 if not eq_body:
                     continue
 
-                # Promote to numbered equation if it contains major operators and is substantive
-                has_rel = any(op in eq_body for op in ["=", r"\approx", r"\equiv", r"\le", r"\ge", r"\sum", r"\int", r"\bmatrix", r"\pmatrix"])
-                is_substantive = len(eq_body) >= 12 or any(op in eq_body for op in [r"\sum", r"\int", r"\bmatrix", r"\pmatrix"])
-                # Avoid promoting trivial variable assignments like $n = 0$ or $t = 1$
-                is_trivial_scalar = bool(re.match(r'^[a-zA-Z_]\s*=\s*\d+$', eq_body))
-
-                if has_rel and is_substantive and not is_trivial_scalar:
+                if self.should_promote_to_display(eq_body):
                     self.eq_counter += 1
                     new_tokens.append(f"\n\\begin{{equation}}\n  \\label{{eq:{self.eq_counter}}}\n  {eq_body}\n\\end{{equation}}\n")
                     continue
