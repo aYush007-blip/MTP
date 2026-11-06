@@ -31,7 +31,8 @@ SYSTEM_PROMPT = (
     "2. Limits and Theorems: Spoken limits convert to standard LaTeX arrows: 'limit s going to infinity s times x of s' -> $\\lim_{s \\to \\infty} s X(s)$, "
     "'limit as t goes to infinity' -> $\\lim_{t \\to \\infty}$, 'limit as s goes to 0' -> $\\lim_{s \\to 0}$, 'x0 plus' -> $x(0^+)$, 'x0 minus' -> $x(0^-)$.\n"
     "3. Exponentials, Powers & Fractions: 'e to the power minus t u of t' -> $e^{-t} u(t)$, 'e to the power minus 3t' -> $e^{-3t}$, '1 by s plus 3' -> $\\frac{1}{s+3}$, "
-    "'1 by s plus 1 minus 1 by s plus 2' -> $\\frac{1}{s+1} - \\frac{1}{s+2}$, 'cos omega t' -> $\\cos(\\omega t)$, 'cos omega 0 t' -> $\\cos(\\omega_0 t)$.\n"
+    "'1 by s plus 1 minus 1 by s plus 2' -> $\\frac{1}{s+1} - \\frac{1}{s+2}$, 'cos omega 0' -> $\\cos(\\omega_0 t)$, 'cos omega 0 t' -> $\\cos(\\omega_0 t)$, "
+    "'e power j omega 0' -> $e^{j\\omega_0 t}$, 't to the power n minus 1' / 'e to the power n minus 1' -> $t^{n-1}$, '1 by s plus a to the power' -> $\\frac{1}{(s+a)^n}$.\n"
     "4. Complex Plane & ROC: 'real part of s greater than minus 1' -> $\\text{Re}(s) > -1$, 'real part of s' -> $\\text{Re}(s)$, 'imaginary part of s' -> $\\text{Im}(s)$, 'j omega' -> $j\\omega$, 't less than 0' -> $t < 0$.\n"
     "5. VERBATIM FIDELITY: You MUST preserve EVERY surrounding word, sentence, and technical explanation VERBATIM. "
     "NEVER summarize, condense, delete, or omit non-mathematical speech. The output must match the input word-for-word, "
@@ -66,6 +67,14 @@ FEW_SHOT_MESSAGES = [
     {
         "role": "assistant",
         "content": "So let us find the Laplace transform of $x(t)$, this is equal to $\\frac{1}{s + 3}$, with ROC $\\text{Re}(s) > -3$ because it is causal for $t < 0$."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nNow let us look at the second signal which is x2 of t equal to cos omega 0, and we want to find Laplace transform of e power j omega 0."
+    },
+    {
+        "role": "assistant",
+        "content": "Now let us look at the second signal which is $x_2(t) = \\cos(\\omega_0 t)$, and we want to find Laplace transform of $e^{j\\omega_0 t}$."
     },
     {
         "role": "user",
