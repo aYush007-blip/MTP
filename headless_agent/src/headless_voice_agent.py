@@ -105,6 +105,149 @@ STOP_TRIGGERS = [
     "turn off recording",
 ]
 
+STATUS_TRIGGERS = [
+    "hey jetson whats the status",
+    "hey jetson what is the status",
+    "hey jetson what's the status",
+    "hey jetson status",
+    "jetson whats the status",
+    "jetson what is the status",
+    "jetson what's the status",
+    "jetson status",
+    "whats the status",
+    "what is the status",
+    "what's the status",
+    "status please",
+    "status update",
+    "status",
+    "how much time",
+    "how much longer",
+    "how long will it take",
+    "how long",
+    "are you done",
+    "is it done",
+    "is it finished",
+    "are you finished",
+    "progress",
+]
+
+
+class ProcessingStage(str, Enum):
+    IDLE = "IDLE"
+    STARTING = "STARTING"
+    SAVING_AUDIO = "SAVING_AUDIO"
+    TRANSCRIBING = "TRANSCRIBING"
+    STRUCTURING_NOTES = "STRUCTURING_NOTES"
+    COMPILING_PDF = "COMPILING_PDF"
+    EXPORTING_USB = "EXPORTING_USB"
+    COMPLETE = "COMPLETE"
+    FAILED = "FAILED"
+
+
+class ProcessingTracker:
+    """
+    Thread-safe progress and remaining-time tracker for the post-lecture pipeline.
+    Calculates dynamic time remaining and selects optimal instant neural voice prompts.
+    """
+    def __init__(self):
+        self.stage = ProcessingStage.IDLE
+        self.start_time = 0.0
+        self.estimated_total_sec = 25.0
+        self.lock = threading.Lock()
+
+    def start_pipeline(self, estimated_total: float = 25.0):
+        with self.lock:
+            self.stage = ProcessingStage.STARTING
+            self.start_time = time.monotonic()
+            self.estimated_total_sec = max(estimated_total, 15.0)
+
+    def set_stage(self, stage: ProcessingStage, additional_est: Optional[float] = None):
+        with self.lock:
+            self.stage = stage
+            if additional_est is not None:
+                elapsed = time.monotonic() - self.start_time
+                self.estimated_total_sec = elapsed + additional_est
+
+    def get_remaining_seconds(self) -> int:
+        with self.lock:
+            if self.stage in (ProcessingStage.IDLE, ProcessingStage.COMPLETE):
+                return 0
+            elapsed = time.monotonic() - self.start_time if self.start_time > 0 else 0.0
+            rem = int(self.estimated_total_sec - elapsed)
+            return max(5, rem)
+
+    def get_status_prompt_and_text(self) -> Tuple[str, str]:
+        with self.lock:
+            stage = self.stage
+            elapsed = time.monotonic() - self.start_time if self.start_time > 0 else 0.0
+            rem = max(5, int(self.estimated_total_sec - elapsed))
+
+        if stage == ProcessingStage.IDLE:
+            return "status_standby", "Jetson speech agent is in standby and ready to record. Say hey Jetson start recording to begin."
+        elif stage == ProcessingStage.COMPLETE:
+            return "status_complete", "Lecture processing is complete. Notes have been saved to your USB drive. Device is shutting down."
+        elif stage in (ProcessingStage.STARTING, ProcessingStage.SAVING_AUDIO):
+            return "status_saving_audio_20s", f"Processing lecture. Saving audio recording. Approximately {rem} seconds remaining."
+        elif stage == ProcessingStage.TRANSCRIBING:
+            if rem > 40:
+                return "status_transcribing_60s", f"Processing lecture. Transcribing speech. Approximately {rem} seconds remaining."
+            else:
+                return "status_transcribing_30s", f"Processing lecture. Transcribing speech. Approximately {rem} seconds remaining."
+        elif stage == ProcessingStage.STRUCTURING_NOTES:
+            if rem > 18:
+                return "status_formatting_20s", f"Processing lecture. Formatting mathematical equations. Approximately {rem} seconds remaining."
+            else:
+                return "status_formatting_15s", f"Processing lecture. Formatting mathematical equations. Approximately {rem} seconds remaining."
+        elif stage == ProcessingStage.COMPILING_PDF:
+            if rem > 12:
+                return "status_compiling_15s", f"Processing lecture. Compiling PDF document. Approximately {rem} seconds remaining."
+            else:
+                return "status_compiling_10s", f"Processing lecture. Compiling PDF document. Approximately {rem} seconds remaining."
+        elif stage == ProcessingStage.EXPORTING_USB:
+            if rem > 7:
+                return "status_exporting_10s", f"Processing lecture. Transferring files to USB drive. Almost done, about ten seconds remaining."
+            else:
+                return "status_exporting_5s", f"Processing lecture. Finalizing USB write. About five seconds remaining."
+        else:
+            return "status_formatting_15s", f"Processing lecture. Approximately {rem} seconds remaining."
+
+
+def trigger_system_shutdown(delay_sec: float = 2.0):
+    """
+    Safely flush filesystem buffers and initiate system power-off.
+    Employs triple redundancy across systemctl, logind D-Bus, and shutdown.
+    """
+    print(f"[Agent] Flushing filesystem buffers before shutdown...", flush=True)
+    subprocess.run(["sync"], check=False)
+    time.sleep(delay_sec)
+
+    # 1. Standard systemd poweroff
+    print("[Agent] Initiating system poweroff via systemctl...", flush=True)
+    try:
+        res = subprocess.run(["systemctl", "poweroff"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+        if res.returncode == 0:
+            return
+        print(f"[Agent] systemctl poweroff returned code {res.returncode}: {res.stderr.strip()}", flush=True)
+    except Exception as e:
+        print(f"[Agent] systemctl poweroff exception: {e}", flush=True)
+
+    # 2. D-Bus login1 Manager PowerOff
+    try:
+        res = subprocess.run([
+            "busctl", "call", "org.freedesktop.login1", "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager", "PowerOff", "b", "true"
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+        if res.returncode == 0:
+            return
+    except Exception:
+        pass
+
+    # 3. Sudoers passwordless shutdown fallback
+    try:
+        subprocess.run(["sudo", "-n", "shutdown", "-h", "now"], check=False)
+    except Exception:
+        pass
+
 
 class AgentState(Enum):
     STANDBY = "STANDBY"
@@ -259,8 +402,10 @@ class HeadlessVoiceAgent:
     """
     Main edge controller for zero-touch speech-to-LaTeX monograph generation.
     """
-    def __init__(self):
+    def __init__(self, auto_shutdown: bool = True):
         self.state = AgentState.STANDBY
+        self.auto_shutdown = auto_shutdown
+        self.status_tracker = ProcessingTracker()
         self.exporter = LectureExporter()
         self.book_builder = LectureToBookBuilder()
         self.post_processor = PostLectureProcessor()
@@ -279,6 +424,60 @@ class HeadlessVoiceAgent:
         self.live_lecture_chunks: List[TranscriptChunk] = []
         self._lecture_chunks_lock = threading.Lock()
         self._typeset_thread = None
+
+        # Asynchronous background post-processing coordination
+        self._proc_done_event = threading.Event()
+        self._proc_res_box = {}
+
+    def report_status(self):
+        """Announce current post-processing status and remaining time via neural TTS."""
+        prompt_name, fallback_text = self.status_tracker.get_status_prompt_and_text()
+        print(f"\n[Agent Status Response]: Prompt '{prompt_name}' -> \"{fallback_text}\"", flush=True)
+        if not play_prompt(prompt_name, non_blocking=False):
+            speak(fallback_text, non_blocking=False)
+
+    def _initiate_stop_and_process(self, lecture_start_time: float):
+        """
+        Transitions agent to PROCESSING state and launches the post-lecture
+        pipeline in a decoupled background thread so the voice agent remains
+        fully responsive to status queries.
+        """
+        self.state = AgentState.PROCESSING
+        play_prompt("recording_stopped", non_blocking=False)
+
+        print("[Agent] Finalizing real-time typesetting pipeline...", flush=True)
+        try:
+            self.live_typeset_queue.join()
+        except Exception:
+            pass
+
+        with self._lecture_chunks_lock:
+            final_chunks = list(self.live_lecture_chunks)
+        with self._frames_lock:
+            frames_to_save = list(self.raw_audio_frames)
+
+        # Estimate processing time: ~25s for live pre-typeset, or 30s + 0.02*duration for batch
+        audio_dur = (len(frames_to_save) * len(frames_to_save[0]) / 32000.0) if frames_to_save else 0.0
+        est_total = 25.0 if final_chunks else (30.0 + audio_dur * 0.02)
+        self.status_tracker.start_pipeline(est_total)
+
+        self._proc_done_event.clear()
+        self._proc_res_box.clear()
+
+        def _worker():
+            try:
+                res = self.process_lecture(final_chunks, frames_to_save, lecture_start_time)
+                self._proc_res_box["res"] = res
+            except Exception as e:
+                self._proc_res_box["err"] = e
+                print(f"[Agent] Lecture post-processing error: {e}", flush=True)
+                self.status_tracker.set_stage(ProcessingStage.FAILED)
+            finally:
+                self._proc_done_event.set()
+
+        proc_thread = threading.Thread(target=_worker, daemon=True, name="LecturePostProcessor")
+        proc_thread.start()
+        print(f"[Agent] Background post-processing worker active (Estimated ~{int(est_total)}s). Listening for status queries...", flush=True)
 
     def initialize_hardware(self) -> Tuple[pyaudio.PyAudio, int, int, int]:
         """Detect and configure USB mic and audio subsystem."""
@@ -592,24 +791,19 @@ class HeadlessVoiceAgent:
                                 continue
                             elif self.state == AgentState.RECORDING:
                                 print("\n[Agent] Keyboard Enter detected! Stopping recording...", flush=True)
-                                self.state = AgentState.PROCESSING
-                                play_prompt("recording_stopped")
+                                self._initiate_stop_and_process(lecture_start_time)
                                 current_speech_chunks.clear()
                                 in_speech = False
                                 vad.reset()
-
-                                print("[Agent] Finalizing real-time typesetting pipeline...", flush=True)
-                                try:
-                                    self.live_typeset_queue.join()
-                                except Exception:
-                                    pass
-
-                                with self._lecture_chunks_lock:
-                                    final_chunks = list(self.live_lecture_chunks)
-
-                                self.process_lecture(final_chunks, self.raw_audio_frames, lecture_start_time)
-                                self.state = AgentState.STANDBY
-                                print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
+                                while not self.audio_queue.empty():
+                                    try:
+                                        self.audio_queue.get_nowait()
+                                    except Exception:
+                                        break
+                                continue
+                            elif self.state == AgentState.PROCESSING:
+                                print("\n[Agent] Keyboard Enter detected during processing! Status query triggered...", flush=True)
+                                self.report_status()
                                 continue
                 except Exception:
                     pass
@@ -657,6 +851,11 @@ class HeadlessVoiceAgent:
                                            ("jetson" in norm_spoken and "start" in norm_spoken) or \
                                            (norm_spoken.startswith("start") and len(norm_spoken.split()) <= 3)
 
+                                is_status = any(trig in norm_spoken for trig in STATUS_TRIGGERS) or \
+                                            ("status" in norm_spoken) or \
+                                            ("how long" in norm_spoken) or \
+                                            ("how much time" in norm_spoken)
+
                                 if is_start:
                                     print(f"[Agent] Wake-Word Activated! Starting countdown...", flush=True)
                                     self.state = AgentState.COUNTDOWN
@@ -686,6 +885,16 @@ class HeadlessVoiceAgent:
                                     print("[Agent] Recording started! Capturing live lecture...", flush=True)
                                     in_speech = False
                                     continue
+                                elif is_status:
+                                    print(f"[Agent] Standby Status Query Activated: '{spoken}'", flush=True)
+                                    self.report_status()
+                                    while not self.audio_queue.empty():
+                                        try:
+                                            self.audio_queue.get_nowait()
+                                        except Exception:
+                                            break
+                                    self.hpf.reset()
+                                    vad.reset()
                                 else:
                                     if spoken:
                                         print("[Standby] (Say 'Hey Jetson start recording' or 'Start recording' to begin)", flush=True)
@@ -730,31 +939,106 @@ class HeadlessVoiceAgent:
 
                                 if is_stop:
                                     print(f"\n[Agent] Stop-Command Detected: '{spoken_text}'", flush=True)
-                                    self.state = AgentState.PROCESSING
-                                    play_prompt("recording_stopped")
+                                    self._initiate_stop_and_process(lecture_start_time)
                                     current_speech_chunks.clear()
                                     in_speech = False
                                     vad.reset()
-
-                                    print("[Agent] Finalizing real-time typesetting pipeline...", flush=True)
-                                    try:
-                                        self.live_typeset_queue.join()
-                                    except Exception:
-                                        pass
-
-                                    with self._lecture_chunks_lock:
-                                        final_chunks = list(self.live_lecture_chunks)
-
-                                    # Process immediately with 0 delay
-                                    self.process_lecture(final_chunks, self.raw_audio_frames, lecture_start_time)
-                                    # Re-enter standby
-                                    self.state = AgentState.STANDBY
-                                    print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
+                                    while not self.audio_queue.empty():
+                                        try:
+                                            self.audio_queue.get_nowait()
+                                        except Exception:
+                                            break
                                     continue
 
                                 # Standard Technical Speech Chunk: Enqueue for concurrent real-time SLM translation
                                 if spoken_text and len(spoken_text) > 2:
                                     self.live_typeset_queue.put((t_start_rel, t_end_rel, spoken_text))
+
+                                current_speech_chunks.clear()
+                                in_speech = False
+                                vad.reset()
+
+                # =========================================================
+                # 3. PROCESSING STATE (Background Typesetting + Voice Status Query)
+                # =========================================================
+                elif self.state == AgentState.PROCESSING:
+                    # 1. Check if background pipeline completed
+                    if self._proc_done_event.is_set():
+                        proc_res = self._proc_res_box.get("res") or {}
+                        usb_success = proc_res.get("usb_success", False)
+                        self.status_tracker.set_stage(ProcessingStage.COMPLETE)
+
+                        if usb_success:
+                            print(f"[Agent] Lecture post-processing complete and verified on USB drive AYUSH!", flush=True)
+                            if self.auto_shutdown:
+                                print("[Agent] Playing final announcement with auto-shutdown countdown...", flush=True)
+                                play_prompt("transcription_saved_shutdown", non_blocking=False)
+                                print("[Agent] Auto-shutdown initiated in 5 seconds. Goodbye!", flush=True)
+                                time.sleep(5.0)
+                                trigger_system_shutdown()
+                                sys.exit(0)
+                            else:
+                                play_prompt("transcription_saved", non_blocking=False)
+                                self.state = AgentState.STANDBY
+                                print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
+                                continue
+                        else:
+                            print("[Agent] Warning: Deliverables saved to internal SSD, but USB export failed or USB missing!", flush=True)
+                            play_prompt("usb_warning", non_blocking=False)
+                            if self.auto_shutdown:
+                                print("[Agent] Auto-shutdown initiated in 5 seconds...", flush=True)
+                                time.sleep(5.0)
+                                trigger_system_shutdown()
+                                sys.exit(0)
+                            else:
+                                self.state = AgentState.STANDBY
+                                print("\n[Agent] Standby mode active. Say 'Hey Jetson start recording' to begin...", flush=True)
+                                continue
+
+                    # 2. While processing is in progress, listen for status queries
+                    is_speech, energy = vad.process_chunk(filtered_chunk)
+                    if is_speech:
+                        if not in_speech:
+                            in_speech = True
+                        current_speech_chunks.append(filtered_chunk)
+                        silence_chunk_count = 0
+                    else:
+                        if in_speech:
+                            silence_chunk_count += 1
+                            current_speech_chunks.append(filtered_chunk)
+
+                            # Speech boundary (0.7s silence or max 4s phrase)
+                            if silence_chunk_count >= 7 or len(current_speech_chunks) >= 40:
+                                utterance = np.concatenate(current_speech_chunks)
+                                spoken = query_whisper_stream(
+                                    utterance,
+                                    no_speech_thold=0.30,
+                                    prompt="Hey Jetson, what is the status? How much time is left? Status update."
+                                )
+                                norm_spoken = clean_trigger_text(spoken)
+                                if spoken:
+                                    print(f"\n[Processing Heard]: \"{spoken}\"", flush=True)
+
+                                is_status = any(trig in norm_spoken for trig in STATUS_TRIGGERS) or \
+                                            ("status" in norm_spoken) or \
+                                            ("how long" in norm_spoken) or \
+                                            ("how much time" in norm_spoken) or \
+                                            ("are you done" in norm_spoken) or \
+                                            ("is it done" in norm_spoken) or \
+                                            ("is it finished" in norm_spoken) or \
+                                            ("finished" in norm_spoken) or \
+                                            ("progress" in norm_spoken)
+
+                                if is_status:
+                                    print(f"[Agent] Status Query Triggered during processing! Replying...", flush=True)
+                                    self.report_status()
+                                    while not self.audio_queue.empty():
+                                        try:
+                                            self.audio_queue.get_nowait()
+                                        except Exception:
+                                            break
+                                    self.hpf.reset()
+                                    vad.reset()
 
                                 current_speech_chunks.clear()
                                 in_speech = False
@@ -793,6 +1077,7 @@ class HeadlessVoiceAgent:
         temp_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Save pristine unclipped raw audio WAV file
+        self.status_tracker.set_stage(ProcessingStage.SAVING_AUDIO)
         wav_file = temp_dir / f"{base_lecture_title}_raw.wav"
         with self._frames_lock:
             frames_to_save = list(raw_audio_frames)
@@ -812,6 +1097,7 @@ class HeadlessVoiceAgent:
             active_chunks = chunks
         else:
             print("[Agent] Live chunks empty; performing full GPU batch transcription via whisper-cli...", flush=True)
+            self.status_tracker.set_stage(ProcessingStage.TRANSCRIBING)
             batch_chunks = self.transcribe_full_audio(wav_file) if wav_file.is_file() else []
             if batch_chunks:
                 print(f"[Agent] whisper-cli captured {len(batch_chunks)} high-fidelity segments across full lecture.", flush=True)
@@ -820,6 +1106,7 @@ class HeadlessVoiceAgent:
                 active_chunks = []
 
         # 3. Build Typeset Transcript TeX, Markdown, and Subtitles
+        self.status_tracker.set_stage(ProcessingStage.STRUCTURING_NOTES)
         tex_content, md_content, clean_title = self.book_builder.build_book(base_lecture_title, active_chunks)
         srt_content, vtt_content = generate_subtitles(active_chunks)
 
@@ -846,6 +1133,7 @@ class HeadlessVoiceAgent:
         vtt_file.write_text(vtt_content, encoding="utf-8")
 
         # 4. PDF Compilation Pass (Standalone XeTeX via Tectonic)
+        self.status_tracker.set_stage(ProcessingStage.COMPILING_PDF)
         print(f"[Agent] Compiling typeset lecture transcript: '{clean_title}'...")
         post_res = self.post_processor.process_and_compile(
             lecture_title=clean_title,
@@ -857,6 +1145,7 @@ class HeadlessVoiceAgent:
         pdf_file = post_res.get("pdf")
 
         # 5. Export to USB Drive AYUSH & Local SSD
+        self.status_tracker.set_stage(ProcessingStage.EXPORTING_USB)
         print("[Agent] Exporting deliverables to USB drive AYUSH...")
         export_map = {
             "tex": tex_file,
@@ -872,17 +1161,11 @@ class HeadlessVoiceAgent:
         print(f"       Local SSD: {export_res['local_path']}")
         print(f"       USB Drive: {export_res['usb_path']} (Success: {export_res['usb_success']})")
 
-        # 6. Spoken Shutdown Signal
-        print("[Agent] Playing final announcement...")
-        if export_res.get("usb_success"):
-            print("[Agent] USB export verified successfully! Playing shutdown signal...")
-            play_prompt("transcription_saved")
-        else:
-            print("[Agent] Warning: Deliverables saved to internal SSD, but USB export failed or USB missing!")
-            play_prompt("usb_warning")
+        self.status_tracker.set_stage(ProcessingStage.COMPLETE)
 
         # Clean up temp
         shutil.rmtree(temp_dir, ignore_errors=True)
+        return export_res
 
     def run_file_simulation(self, wav_path: str, max_duration: Optional[float] = None):
         """
@@ -914,16 +1197,22 @@ class HeadlessVoiceAgent:
             ).astype(np.int16)
 
         raw_frames = [pcm_raw.tobytes()]
-        self.process_lecture([], raw_frames, time.monotonic())
+        res = self.process_lecture([], raw_frames, time.monotonic())
+        if res.get("usb_success"):
+            play_prompt("transcription_saved")
+        else:
+            play_prompt("usb_warning")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Headless Autonomous Speech-to-LaTeX Edge Agent")
     parser.add_argument("--sim-file", type=str, default=None, help="Test simulation on a WAV audio file")
     parser.add_argument("--max-duration", type=float, default=None, help="Optional max duration to process in seconds (default: entire file)")
+    parser.add_argument("--no-auto-shutdown", action="store_true", help="Disable automatic system shutdown upon post-processing completion")
     args = parser.parse_args()
 
-    agent = HeadlessVoiceAgent()
+    auto_shutdown = False if (args.sim_file or args.no_auto_shutdown) else True
+    agent = HeadlessVoiceAgent(auto_shutdown=auto_shutdown)
     if args.sim_file:
         agent.run_file_simulation(args.sim_file, max_duration=args.max_duration)
     else:

@@ -2,6 +2,7 @@
 Description=Speech2LaTeX Autonomous Headless Edge Agent
 After=sound.target network.target local-fs.target
 Wants=sound.target
+SuccessAction=poweroff
 
 [Service]
 Type=simple

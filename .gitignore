@@ -49,6 +49,7 @@ live_tests/
 logs/
 .Trash-*/
 *.wav
+!headless_agent/assets/voice_prompts/*.wav
 
 # IDE & OS
 .vscode/
