@@ -1106,7 +1106,7 @@ class LectureToBookBuilder:
 
 \begin{{center}}
   {{\LARGE\bfseries\color{{primarydark}} {clean_title_tex}}} \\[0.5em]
-  {{\small\color{{mutedgray}} Academic Monograph \quad $\cdot$ \quad {date_str}}}
+  {{\small\color{{mutedgray}} {date_str}}}
 \end{{center}}
 
 \vspace{{0.3em}}
