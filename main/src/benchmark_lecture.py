@@ -49,15 +49,14 @@ try:
     )
 except ImportError:
     WHISPER_MATH_PROMPT = (
-        "Engineering lecture: calculus, linear algebra, differential equations, "
-        "mechanics, thermodynamics, fluid dynamics, circuits, control systems, "
-        "electromagnetics, algorithms, stress, strain, shear, entropy, enthalpy, heat flux, "
-        "curl, divergence, gradient, partial derivative, Navier-Stokes, Reynolds number, "
-        "Kirchhoff's laws, KCL, KVL, inductance, resistance, capacitance, flux, current i(t), voltage v(t), "
-        "transfer function, eigenvalues, vectors, tensors, matrices, summations, integrals, "
-        "state-space, transient, steady state, impulse response, step response, convolution, Bode plot, Nyquist, "
-        "discrete-time sequences x[n], y[n], downsampling, upsampling, difference equations, z-transform, ROC, "
-        "units: Pascals, Newtons, Joules, Watts, Hertz, Farads, Ohms, Kelvin, meters per second."
+        "Electrical Engineering lecture: signals and systems, continuous-time x(t), x1(t), x2(t), y(t), impulse response h(t), "
+        "convolution x(t)*h(t), discrete-time x[n], y[n], h[n], unit step u(t), u[n], Dirac delta delta(t), Kronecker delta delta[n], "
+        "Laplace transform X(s), s = sigma + j*omega, ROC, e^(s*t), e^(-s*t), e^(j*omega_0*t), cos(omega_0*t), sin(omega_0*t), "
+        "transfer function H(s)=Y(s)/X(s), initial value theorem lim t->0 x(t) = lim s->inf s*X(s), final value theorem lim t->inf x(t) = lim s->0 s*X(s), "
+        "Fourier series a_k, CTFT X(j*omega), DTFT X(e^(j*omega)), Z-transform X(z), z = r*e^(j*Omega), Nyquist sampling rate omega_s = 2*omega_m, sinc, "
+        "damping ratio zeta, natural frequency omega_n, characteristic equation, Bode plot, state-space dot x = Ax + Bu, "
+        "KCL KVL, phasor impedance j omega L, 1/(j omega C), Thevenin Norton, complex power P + jQ, sqrt(3)*VL*IL*cos(phi), "
+        "synchronous speed Ns = 120f/P, slip s, back EMF Eb, Park d-q-0, Maxwell equations curl E = -dB/dt, Poynting vector, small-signal gm."
     )
 
     def clean_whisper_text(text: str) -> str:

@@ -426,66 +426,68 @@ class EquationFormatter:
         subs = [
             # 1. Initial & Final value theorem formulas
             (r'(?:that\s+is\s+)?(\$x\(0\^\+\)\$)\s+(?:and\s+this\s+)?will\s+be\s+equal\s+to\s+(\$\\lim_\{s\s*\\to\s*\\infty\}[^\$]+\$)',
-             r':\n$$\1 = \2$$\n'),
-            (r'(\$x\(0\^[-+]\)\$)\s+equal\s+to\s+(\$[^\$]+\$)', r':\n$$\1 = \2$$\n'),
+             lambda m: f":\n$${m.group(1).replace('$', '').strip()} = {m.group(2).replace('$', '').strip()}$$\n"),
+            (r'(\$x\(0\^[-+]\)\$)\s+equal\s+to\s+(\$[^\$]+\$)',
+             lambda m: f":\n$${m.group(1).replace('$', '').strip()} = {m.group(2).replace('$', '').strip()}$$\n"),
             (r'evaluate\s+(\$s\s+X\(s\)\$)\s+and\s+find\s+the\s+(\$\\lim_\{s\s*\\to\s*0\}\$)',
-             r'evaluate the limit:\n$$\\lim_{s \\to 0} s X(s)$$\n'),
+             lambda m: 'evaluate the limit:\n$$\\lim_{s \\to 0} s X(s)$$\n'),
             (r'what\s+is\s+the\s+(\$\\lim_\{s\s*\\to\s*0\}\s*s\s*X\(s\)\s*H\(s\)\$)',
-             r'evaluate:\n$$\1$$\n'),
+             lambda m: f"evaluate:\n$${m.group(1).replace('$', '').strip()}$$\n"),
 
-            # 2. Input/Output signal assignments: $x(t)$ equal to $e^{-3t} u(t)$
-            (r'(\$[a-zA-Z0-9_\(\)]+\$)\s+equal\s+to\s+(\$[^\$]+\$)', r':\n$$\1 = \2$$\n'),
-            (r'(\$[a-zA-Z0-9_\(\)]+\$)\s+is\s+equal\s+to\s+(\$[^\$]+\$)', r':\n$$\1 = \2$$\n'),
-            (r'(\$[a-zA-Z0-9_\(\)]+\$)\s+equals\s+(\$[^\$]+\$)', r':\n$$\1 = \2$$\n'),
-            (r'(\$x_?2?\(t\)\$)\s+equal\s+to\s+(\$\\cos\([^\$]+\$)', r':\n$$\1 = \2$$\n'),
-            (r'(\$x_?1?\(t\)\$)\s+is\s+(\$\\cos\([^\$]+\$)', r':\n$$\1 = \2$$\n'),
-            (r'(\$x_?2?\(t\)\$)\s+(\$\\cos\([^\$]+\$)', r':\n$$\1 = \2$$\n'),
+            # 2. Input/Output signal assignments: e.g. $x(t)$ equal to $e^{-3t} u(t)$, $x_2(t)$ equal to $\cos(\omega_0 t)$
+            (r'(\$[a-zA-Z0-9_{}\(\)\[\]]+\$)\s+(?:is\s+equal\s+to|equal\s+to|equals)\s+(\$[^\$]+\$)',
+             lambda m: f":\n$${m.group(1).replace('$', '').strip()} = {m.group(2).replace('$', '').strip()}$$\n"),
+            (r'(\$[a-zA-Z0-9_{}\(\)\[\]]+\$)\s+(\$\\cos\([^\$]+\$|\$\\sin\([^\$]+\$|\$e\^\{[^\$]+\$)',
+             lambda m: f":\n$${m.group(1).replace('$', '').strip()} = {m.group(2).replace('$', '').strip()}$$\n"),
 
             # 3. Transform formulas & general properties
             (r'(?:In\s+general\s+(?:say\s+)?)?\$t\^\{n-1\}\$,?\s*\$\(n-1\)!?\$\s*\$e\^\{-at\}\s*u\(t\)\$\s+is\s+going\s+to\s+be\s+(\$\\frac\{1\}\{\(s\+a\)\^n\}\$)',
-             r'In general, we have:\n$$\\mathcal{L}\\left\\{\\frac{t^{n-1}}{(n-1)!} e^{-at} u(t)\\right\\} = \\frac{1}{(s+a)^n}$$\n'),
+             lambda m: 'In general, we have:\n$$\\mathcal{L}\\left\\{\\frac{t^{n-1}}{(n-1)!} e^{-at} u(t)\\right\\} = \\frac{1}{(s+a)^n}$$\n'),
             (r'Laplace\s+transform\s+of\s+\$x\(t\)\$\.?\s*(?:So,?\s*)?(?:this\s+is\s+)?equal\s+to\s+(\$\\frac\{1\}\{s\+3\}\$)',
-             r'Laplace transform of $x(t)$ is given by:\n$$X(s) = \1$$\n'),
+             lambda m: f"Laplace transform of $x(t)$ is given by:\n$$X(s) = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'Laplace\s+transform\s+of\s+\$y\(t\)\$\.?\s*What\s+will\s+be\s+the\s+answer\s+here\??\s*(\$\\frac\{1\}\{s\+1\}\s*-\s*\\frac\{1\}\{s\+2\}\$)',
-             r'Laplace transform of $y(t)$ is given by:\n$$Y(s) = \1$$\n'),
+             lambda m: f"Laplace transform of $y(t)$ is given by:\n$$Y(s) = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'Laplace\s+transform\s+of\s+the\s+impulse\s+response\s+is\s+equal\s+to\s+(\$\\frac\{1\}\{X\(s\)\}\$)',
-             r'Laplace transform of the impulse response is:\n$$H(s) = \1$$\n'),
+             lambda m: f"Laplace transform of the impulse response is:\n$$H(s) = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'this\s+will\s+be\s+y\s+(\$s\s*Y\(s\)\$)\s+plus\s+the\s+(\$Y\(s\)\$)\s+equal\s+to\s+(\$X\(s\)\$)',
-             r'we obtain:\n$$s Y(s) + Y(s) = X(s)$$\n'),
+             lambda m: 'we obtain:\n$$s Y(s) + Y(s) = X(s)$$\n'),
             (r'So,?\s*this\s+is\s+(\$\\frac\{s\}\{s\^2\s*\+\s*\\omega_0\^2\}\$)',
-             r'So, the Laplace transform is:\n$$X(s) = \1$$\n'),
+             lambda m: f"So, the Laplace transform is:\n$$X(s) = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'this\s+is\s+minus\s+okay\s+and\s+this\s+is\s+equal\s+to\s+(\$\\frac\{1\}\{\(s\+a\)\^2\}\$)',
-             r'this is equal to:\n$$\\frac{1}{(s+a)^2}$$\n'),
+             lambda m: f"this is equal to:\n$${m.group(1).replace('$', '').strip()}$$\n"),
 
             # 4. Complex plane & ROC inequalities
             (r'(?:Set\s+of\s+all\s+complex\s+numbers\s+such\s+that\s+)?(\$\\text\{Re\}\(s\)\s*>\s*-\d+\$)',
-             r':\n$$\\text{ROC}: \\quad \1$$\n'),
+             lambda m: f":\n$$\\text{{ROC}}: \\quad {m.group(1).replace('$', '').strip()}$$\n"),
             (r's\s+equal\s+to\s+some\s+\$j\\omega\$|s\s+equal\s+to\s+\$j\\omega\$',
-             r'$$s = j\\omega$$'),
+             lambda m: '$$s = j\\omega$$'),
 
             # 5. Control Systems & Circuits
             (r'transfer\s+function\s+(?:is\s+)?(\$\\frac\{\\omega_n\^2\}\{s\^2\s*\+\s*2\\zeta\\omega_n\s*s\s*\+\s*\\omega_n\^2\}\$)',
-             r'transfer function is given by:\n$$H(s) = \1$$\n'),
+             lambda m: f"transfer function is given by:\n$$H(s) = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'closed\s+loop\s+transfer\s+function\s+(?:is\s+)?(\$\\frac\{G\(s\)\}\{1\s*\+\s*G\(s\)H\(s\)\}\$)',
-             r'closed-loop transfer function is:\n$$T(s) = \1$$\n'),
+             lambda m: f"closed-loop transfer function is:\n$$T(s) = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'characteristic\s+equation\s+(?:is\s+)?(\$s\^2\s*\+\s*2\\zeta\\omega_n\s*s\s*\+\s*\\omega_n\^2\s*=\s*0\$)',
-             r'characteristic equation:\n$$\1$$\n'),
+             lambda m: f"characteristic equation:\n$${m.group(1).replace('$', '').strip()}$$\n"),
 
             # 6. Electrical Machines & Power Systems
             (r'synchronous\s+speed\s+(?:is\s+)?(\$\\frac\{120\s*f\}\{P\}\$)',
-             r'synchronous speed is:\n$$N_s = \1$$\n'),
+             lambda m: f"synchronous speed is:\n$$N_s = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'slip\s+(?:is\s+)?(\$\\frac\{N_s\s*-\s*N\}\{N_s\}\$)',
-             r'slip is defined as:\n$$s = \1$$\n'),
+             lambda m: f"slip is defined as:\n$$s = {m.group(1).replace('$', '').strip()}$$\n"),
             (r'three\s+phase\s+power\s+(?:is\s+)?(\$\\sqrt\{3\}\s*V_L\s*I_L\s*\\cos\\phi\$)',
-             r'three-phase power:\n$$P = \1$$\n'),
+             lambda m: f"three-phase power:\n$$P = {m.group(1).replace('$', '').strip()}$$\n"),
 
             # 7. Electromagnetics (Maxwell)
             (r'Maxwell\'?s?\s+curl\s+equation\s+(\$\\nabla\s*\\times\s*\\mathbf\{E\}\s*=\s*-\\frac\{\\partial\s*\\mathbf\{B\}\}\{\\partial\s*t\}\$)',
-             r'Maxwell\'s Faraday equation:\n$$\1$$\n'),
+             lambda m: f"Maxwell's Faraday equation:\n$${m.group(1).replace('$', '').strip()}$$\n"),
         ]
 
         for pat, rep in subs:
-            text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+            if callable(rep):
+                text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+            else:
+                text = re.sub(pat, rep, text, flags=re.IGNORECASE)
 
         text = re.sub(r'\${3,}', '$$', text)
         return text
@@ -499,15 +501,22 @@ class EquationFormatter:
             if not re.match(r'^[a-zA-Z_]\s*=\s*\d+$', eq):
                 return True
 
-        # 2. Fractions, limits, calculus, sums, integrals, ROC
-        if any(st in eq for st in [r'\frac', r'\lim', r'\sum', r'\int', r'\partial', r'\text{Re}', r'\text{Im}', r'\text{ROC}']):
+        # 2. Fractions, calculus, sums, integrals, ROC
+        if any(st in eq for st in [r'\frac', r'\sum', r'\int', r'\partial', r'\text{Re}', r'\text{Im}', r'\text{ROC}']):
             return True
 
-        # 3. Compound signals: e.g. e^{-3t} u(t), (e^{-t} - e^{-2t}) u(t), t e^{-at} u(t), \cos(\omega_0 t) u(t)
+        # 3. Limits: Only promote if accompanied by an evaluation expression (not naked \lim_{t \to \infty})
+        if r'\lim' in eq:
+            clean_lim = re.sub(r'\\lim_\{[^}]+\}', '', eq).strip()
+            if clean_lim and (any(c.isalpha() for c in clean_lim) or '=' in clean_lim):
+                return True
+            return False
+
+        # 4. Compound signals: e.g. e^{-3t} u(t), (e^{-t} - e^{-2t}) u(t), t e^{-at} u(t), \cos(\omega_0 t) u(t)
         if re.search(r'(?:e\^\{|\bcos\(|\bsin\().*?u\(t\)', eq):
             return True
 
-        # 4. Multi-term compound expressions (e.g. s X(s) H(s), s^2 + \omega_0^2)
+        # 5. Multi-term compound expressions (e.g. s X(s) H(s), s^2 + \omega_0^2)
         if any(op in eq for op in [' - ', ' + ', r'\pm', r'\times']) and len(eq) >= 8:
             return True
 
@@ -792,6 +801,15 @@ class LectureToBookBuilder:
         for f in fillers:
             text = re.sub(f, '', text, flags=re.IGNORECASE)
 
+        # Protect existing valid LaTeX math blocks ($$...$$ and $...$) from double-wrapping
+        math_blocks = []
+        def _mask_math(m):
+            idx = len(math_blocks)
+            math_blocks.append(m.group(0))
+            return f"__AGY_MATH_BLOCK_{idx}__"
+
+        text = re.sub(r'(\$\$[^\$]+\$\$|\$[^\$]+\$)', _mask_math, text)
+
         # Spoken phonetic speech normalization for math & technical symbols across STEM disciplines
         speech_subs = [
             # Acoustic corrections & discrete signals
@@ -849,24 +867,30 @@ class LectureToBookBuilder:
             (r'\be\s+(?:to\s+the\s+)?power\s+minus\s+t\s+u\s+of\s+t\b', lambda m: r'$e^{-t} u(t)$'),
             (r'\bt\s+(?:times\s+)?e\s+(?:to\s+the\s+)?power\s+minus\s+a\s+t\s+u\s+of\s+t\b', lambda m: r'$t e^{-at} u(t)$'),
             (r'\be\s+(?:to\s+the\s+)?power\s+minus\s+a\s+t\s+u\s+of\s+t\b', lambda m: r'$e^{-at} u(t)$'),
-            (r'\be\s+(?:to\s+the\s+)?power\s+(?:plus\s+)?j\s+omega\s*0\s*(?:t)?\b', lambda m: r'$e^{j \omega_0 t}$'),
-            (r'\be\s+(?:to\s+the\s+)?power\s+minus\s+j\s+omega\s*0\s*(?:t)?\b', lambda m: r'$e^{-j \omega_0 t}$'),
-            (r'\be\s+(?:to\s+the\s+)?power\s+(?:plus\s+)?j\s+omega\s*(?:t)?\b', lambda m: r'$e^{j \omega t}$'),
-            (r'\be\s+(?:to\s+the\s+)?power\s+minus\s+j\s+omega\s*(?:t)?\b', lambda m: r'$e^{-j \omega t}$'),
+            (r'\be\s+(?:to\s+the\s+)?power\s+(?:plus\s+)?j\s*(?:omega|ω)\s*(?:0|_0|\s*zero)?\s*t\b', lambda m: r'$e^{j\omega_0 t}$'),
+            (r'\be\s+(?:to\s+the\s+)?power\s+minus\s+j\s*(?:omega|ω)\s*(?:0|_0|\s*zero)?\s*t\b', lambda m: r'$e^{-j\omega_0 t}$'),
+            (r'\be\s+(?:to\s+the\s+)?power\s+(?:plus\s+)?j\s*(?:omega|ω)\s*(?:0|_0|\s*zero)?\b', lambda m: r'$e^{j\omega_0}$'),
+            (r'\be\s+(?:to\s+the\s+)?power\s+minus\s+j\s*(?:omega|ω)\s*(?:0|_0|\s*zero)?\b', lambda m: r'$e^{-j\omega_0}$'),
+            (r'\be\s+(?:to\s+the\s+)?power\s+(?:plus\s+)?j\s*(?:omega|ω)\s*t\b', lambda m: r'$e^{j\omega t}$'),
+            (r'\be\s+(?:to\s+the\s+)?power\s+minus\s+j\s*(?:omega|ω)\s*t\b', lambda m: r'$e^{-j\omega t}$'),
             (r'\be\s+power\s+minus\s+0\s*t\b', lambda m: r'$e^{-0 t}$'),
             (r'\be\s+power\s+minus\s+s\s*t\b', lambda m: r'$e^{-st}$'),
-            (r'\bcos\s+omega\s*0\s*(?:t)?\s+u\s+of\s+t\b', lambda m: r'$\cos(\omega_0 t) u(t)$'),
-            (r'\bcos\s+omega\s*0\s*(?:t)?\b', lambda m: r'$\cos(\omega_0 t)$'),
-            (r'\bcos\s+omega\s*(?:t)?\s+u\s+of\s+t\b', lambda m: r'$\cos(\omega t) u(t)$'),
-            (r'\bcos\s+omega\s*(?:t)?\b', lambda m: r'$\cos(\omega t)$'),
-            (r'\bsin\s+omega\s*0\s*(?:t)?\s+u\s+of\s+t\b', lambda m: r'$\sin(\omega_0 t) u(t)$'),
-            (r'\bsin\s+omega\s*0\s*(?:t)?\b', lambda m: r'$\sin(\omega_0 t)$'),
-            (r'\bsin\s+omega\s*(?:t)?\s+u\s+of\s+t\b', lambda m: r'$\sin(\omega t) u(t)$'),
-            (r'\bsin\s+omega\s*(?:t)?\b', lambda m: r'$\sin(\omega t)$'),
-            (r'\b[et]\s+(?:to\s+the\s+)?power\s+n\s+minus\s+1\b', lambda m: r'$t^{n-1}$'),
+            (r'\bcos(?:\s*\(|\s+)(?:omega|ω)\s*(?:0|_0|\s*zero)?\s*(?:t)?\)?\s+u\s+of\s+t\b', lambda m: r'$\cos(\omega_0 t) u(t)$'),
+            (r'\bcos(?:\s*\(|\s+)(?:omega|ω)\s*(?:0|_0|\s*zero)?\s*(?:t)?\)?\b', lambda m: r'$\cos(\omega_0 t)$'),
+            (r'\bcos(?:\s*\(|\s+)(?:omega|ω)\s*(?:t)?\)?\s+u\s+of\s+t\b', lambda m: r'$\cos(\omega t) u(t)$'),
+            (r'\bcos(?:\s*\(|\s+)(?:omega|ω)\s*(?:t)?\)?\b', lambda m: r'$\cos(\omega t)$'),
+            (r'\bsin(?:\s*\(|\s+)(?:omega|ω)\s*(?:0|_0|\s*zero)?\s*(?:t)?\)?\s+u\s+of\s+t\b', lambda m: r'$\sin(\omega_0 t) u(t)$'),
+            (r'\bsin(?:\s*\(|\s+)(?:omega|ω)\s*(?:0|_0|\s*zero)?\s*(?:t)?\)?\b', lambda m: r'$\sin(\omega_0 t)$'),
+            (r'\bsin(?:\s*\(|\s+)(?:omega|ω)\s*(?:t)?\)?\s+u\s+of\s+t\b', lambda m: r'$\sin(\omega t) u(t)$'),
+            (r'\bsin(?:\s*\(|\s+)(?:omega|ω)\s*(?:t)?\)?\b', lambda m: r'$\sin(\omega t)$'),
+            (r'\be\s+(?:to\s+the\s+)?power\s+n\s+minus\s+1\b', lambda m: r'$e^{n-1}$'),
+            (r'\bt\s+(?:to\s+the\s+)?power\s+n\s+minus\s+1\b', lambda m: r'$t^{n-1}$'),
             (r'\bn\s+minus\s+1\s+factorial\b', lambda m: r'$(n-1)!$'),
 
             # --- 5. ROC, Impedances & Complex Plane ---
+            (r'\bmagnitude\s+of\s+z\s+(?:is\s+)?greater\s+than\s+([0-9a-zA-Z]+)\b', lambda m: rf'$|z| > {m.group(1)}$'),
+            (r'\bmagnitude\s+of\s+z\s+(?:is\s+)?less\s+than\s+([0-9a-zA-Z]+)\b', lambda m: rf'$|z| < {m.group(1)}$'),
+            (r'\bmagnitude\s+of\s+z\b', lambda m: r'$|z|$'),
             (r'\b1\s+by\s+j\s+omega\s+c\b|\b1\s+over\s+j\s+omega\s+c\b', lambda m: r'$\frac{1}{j\omega C}$'),
             (r'\bj\s+omega\s+l\b', lambda m: r'$j\omega L$'),
             (r'\breal\s+part\s+of\s+s\s+is\s+greater\s+than\s+minus\s+(\d+)\b', lambda m: rf'$\text{{Re}}(s) > -{m.group(1)}$'),
@@ -953,28 +977,63 @@ class LectureToBookBuilder:
             (r'\bdy\s+by\s+dt\b|\bd\s+y\s+by\s+d\s+t\b', lambda m: r'$\frac{dy}{dt}$'),
             (r'\bdx\s+by\s+dt\b|\bd\s+x\s+by\s+d\s+t\b', lambda m: r'$\frac{dx}{dt}$'),
 
-            # --- 7. Base continuous-time signals & transforms ---
-            (r'\bx\s+of\s+t\b', lambda m: r'$x(t)$'),
-            (r'\bx\s+of\s+s\b|\bx\s+of\s+p\b', lambda m: r'$X(s)$'),
-            (r'\by\s+of\s+t\b', lambda m: r'$y(t)$'),
-            (r'\by\s+of\s+s\b', lambda m: r'$Y(s)$'),
-            (r'\bh\s+of\s+t\b', lambda m: r'$h(t)$'),
-            (r'\bh\s+of\s+s\b', lambda m: r'$H(s)$'),
-            (r'\bu\s+of\s+t\b', lambda m: r'$u(t)$'),
-            (r'\bx2\s+of\s+t\b', lambda m: r'$x_2(t)$'),
-            (r'\bx1\s+of\s+t\b', lambda m: r'$x_1(t)$'),
-            (r'\bx\s+of\s+n\b', lambda m: r'$x[n]$'),
-            (r'\by\s+of\s+n\b', lambda m: r'$y[n]$'),
-            (r'\bh\s+of\s+n\b', lambda m: r'$h[n]$'),
-            (r'\bxt\b', lambda m: r'$x(t)$'),
-            (r'\byt\b', lambda m: r'$y(t)$'),
-            (r'\bht\b', lambda m: r'$h(t)$'),
-            (r'\bxs\b', lambda m: r'$X(s)$'),
-            (r'\bys\b', lambda m: r'$Y(s)$'),
-            (r'\bhs\b', lambda m: r'$H(s)$'),
+            # --- 12. Base continuous-time signals, discrete sequences & transforms ---
+            # Signals with subscripts and continuous argument (t): x2 (t), x 2 of t, x2 of t, x1(t), x(t), x of t
+            (r'(?<![\\$])\b([xyhu])\s*([0-9]|k|n)?\s*(?:\(\s*t\s*\)|\s+of\s+t)(?![\\$])',
+             lambda m: f"${m.group(1).lower()}{'_' + m.group(2) if m.group(2) else ''}(t)$"),
+
+            # Discrete sequences: x[n], x of n, x2[n], x 2 of n, x of 2n, x of n minus k
+            (r'(?<![\\$])\b([xyhu])\s+of\s+(\d*n(?:\s*[\+\-]\s*[0-9a-zA-Z]+)?)(?![\\$])',
+             lambda m: f"${m.group(1).lower()}[{m.group(2).replace(' ', '')}]$"),
+            (r'(?<![\\$])\b([xyhu])\s*([0-9]|k|m)?\s*(?:\[\s*n\s*\]|\s+of\s+n)(?![\\$])',
+             lambda m: f"${m.group(1).lower()}{'_' + m.group(2) if m.group(2) else ''}[n]$"),
+
+            # S-domain transforms: X(s), X of s, X1(s), X 1 of s, H(s), Y(s)
+            (r'(?<![\\$])\b([XYHG])\s*([0-9]|k)?\s*(?:\(\s*s\s*\)|\s+of\s+s|\s+of\s+p)(?![\\$])',
+             lambda m: f"${m.group(1).upper()}{'_' + m.group(2) if m.group(2) else ''}(s)$"),
+
+            # Z-domain transforms: X(z), X of z, H(z), Y(z)
+            (r'(?<![\\$])\b([XYHG])\s*([0-9]|k)?\s*(?:\(\s*z\s*\)|\s+of\s+z)(?![\\$])',
+             lambda m: f"${m.group(1).upper()}{'_' + m.group(2) if m.group(2) else ''}(z)$"),
+
+            # Frequency-domain transforms: X(j\omega), H(j\omega)
+            (r'(?<![\\$])\b([XYHG])\s+of\s+j\s*(?:omega|ω)(?![\\$])',
+             lambda m: f"${m.group(1).upper()}(j\\omega)$"),
+
+            # DTFT transforms: X(e^{j\Omega})
+            (r'(?<![\\$])\b([XYHG])\s+of\s+e\s+(?:to\s+the\s+)?j\s*(?:capital\s+omega|omega|ω|Ω)(?![\\$])',
+             lambda m: f"${m.group(1).upper()}(e^{{j\\Omega}})$"),
+
+            # Dirac delta and Kronecker delta
+            (r'(?<![\\$])\bdelta\s*(?:\(\s*t\s*\)|\s+of\s+t)(?![\\$])', lambda m: r'$\delta(t)$'),
+            (r'(?<![\\$])\bdelta\s*(?:\[\s*n\s*\]|\s+of\s+n)(?![\\$])', lambda m: r'$\delta[n]$'),
+
+            # ASR short abbreviations
+            (r'(?<![\\$])\bxt(?![\\$])\b', lambda m: r'$x(t)$'),
+            (r'(?<![\\$])\byt(?![\\$])\b', lambda m: r'$y(t)$'),
+            (r'(?<![\\$])\bht(?![\\$])\b', lambda m: r'$h(t)$'),
+            (r'(?<![\\$])\bxs(?![\\$])\b', lambda m: r'$X(s)$'),
+            (r'(?<![\\$])\bys(?![\\$])\b', lambda m: r'$Y(s)$'),
+            (r'(?<![\\$])\bhs(?![\\$])\b', lambda m: r'$H(s)$'),
         ]
+        def _safe_rep(rep_fn):
+            def _wrapped(m):
+                val = rep_fn(m) if callable(rep_fn) else m.expand(rep_fn)
+                if "$" in val:
+                    def _mask_inner(match):
+                        idx = len(math_blocks)
+                        math_blocks.append(match.group(0))
+                        return f"__AGY_MATH_BLOCK_{idx}__"
+                    return re.sub(r'(\$\$[^\$]+\$\$|\$[^\$]+\$)', _mask_inner, val)
+                return val
+            return _wrapped
+
         for pat, rep in speech_subs:
-            text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+            text = re.sub(pat, _safe_rep(rep), text, flags=re.IGNORECASE)
+
+        # Restore protected LaTeX math blocks
+        for idx, blk in enumerate(math_blocks):
+            text = text.replace(f"__AGY_MATH_BLOCK_{idx}__", blk)
 
         # Clean stray dots, comma-dot artifacts, and whitespace
         text = re.sub(r'[,;]\s*\.', '.', text)
