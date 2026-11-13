@@ -71,9 +71,13 @@ LLAMA_BIN = "/mnt/thesis/llama.cpp/build/bin/llama-server"
 LLAMA_MODEL = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
 WHISPER_MATH_PROMPT = (
-    "Fourier transform, Laplace, Z-transform, region of convergence, continuous-time signal, "
-    "discrete-time, integral, derivative, calculus, omega, theta, phi, pi, infinity, x(t), f(x), "
-    "e to the power, differential equation, matrix, vector, sinusoids, Park transform, direct axis, quadrature axis."
+    "Electrical Engineering lecture: signals and systems, continuous-time x(t), discrete-time x[n], "
+    "Laplace transform X(s), region of convergence ROC, transfer function H(s), G(s), Fourier CTFT, DTFT, "
+    "Z-transform, initial value theorem, final value theorem, damping ratio zeta, natural frequency omega_n, "
+    "characteristic equation, Routh-Hurwitz, Bode plot, Nyquist, state-space dot x = Ax + Bu, y = Cx + Du, "
+    "Kirchhoff's laws KCL KVL, phasor impedance j omega L, one over j omega C, Thevenin Norton, complex power P + jQ, "
+    "synchronous speed Ns = 120f/P, slip s, back EMF Eb, torque, Park transform direct quadrature d-q-0, "
+    "Maxwell's equations, curl E, divergence B, wave impedance eta 377 ohms, Poynting vector, op-amp, small-signal gm."
 )
 
 START_TRIGGERS = [

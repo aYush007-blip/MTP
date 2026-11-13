@@ -462,6 +462,26 @@ class EquationFormatter:
              r':\n$$\\text{ROC}: \\quad \1$$\n'),
             (r's\s+equal\s+to\s+some\s+\$j\\omega\$|s\s+equal\s+to\s+\$j\\omega\$',
              r'$$s = j\\omega$$'),
+
+            # 5. Control Systems & Circuits
+            (r'transfer\s+function\s+(?:is\s+)?(\$\\frac\{\\omega_n\^2\}\{s\^2\s*\+\s*2\\zeta\\omega_n\s*s\s*\+\s*\\omega_n\^2\}\$)',
+             r'transfer function is given by:\n$$H(s) = \1$$\n'),
+            (r'closed\s+loop\s+transfer\s+function\s+(?:is\s+)?(\$\\frac\{G\(s\)\}\{1\s*\+\s*G\(s\)H\(s\)\}\$)',
+             r'closed-loop transfer function is:\n$$T(s) = \1$$\n'),
+            (r'characteristic\s+equation\s+(?:is\s+)?(\$s\^2\s*\+\s*2\\zeta\\omega_n\s*s\s*\+\s*\\omega_n\^2\s*=\s*0\$)',
+             r'characteristic equation:\n$$\1$$\n'),
+
+            # 6. Electrical Machines & Power Systems
+            (r'synchronous\s+speed\s+(?:is\s+)?(\$\\frac\{120\s*f\}\{P\}\$)',
+             r'synchronous speed is:\n$$N_s = \1$$\n'),
+            (r'slip\s+(?:is\s+)?(\$\\frac\{N_s\s*-\s*N\}\{N_s\}\$)',
+             r'slip is defined as:\n$$s = \1$$\n'),
+            (r'three\s+phase\s+power\s+(?:is\s+)?(\$\\sqrt\{3\}\s*V_L\s*I_L\s*\\cos\\phi\$)',
+             r'three-phase power:\n$$P = \1$$\n'),
+
+            # 7. Electromagnetics (Maxwell)
+            (r'Maxwell\'?s?\s+curl\s+equation\s+(\$\\nabla\s*\\times\s*\\mathbf\{E\}\s*=\s*-\\frac\{\\partial\s*\\mathbf\{B\}\}\{\\partial\s*t\}\$)',
+             r'Maxwell\'s Faraday equation:\n$$\1$$\n'),
         ]
 
         for pat, rep in subs:
@@ -846,7 +866,9 @@ class LectureToBookBuilder:
             (r'\b[et]\s+(?:to\s+the\s+)?power\s+n\s+minus\s+1\b', lambda m: r'$t^{n-1}$'),
             (r'\bn\s+minus\s+1\s+factorial\b', lambda m: r'$(n-1)!$'),
 
-            # --- 5. ROC & Complex Plane ---
+            # --- 5. ROC, Impedances & Complex Plane ---
+            (r'\b1\s+by\s+j\s+omega\s+c\b|\b1\s+over\s+j\s+omega\s+c\b', lambda m: r'$\frac{1}{j\omega C}$'),
+            (r'\bj\s+omega\s+l\b', lambda m: r'$j\omega L$'),
             (r'\breal\s+part\s+of\s+s\s+is\s+greater\s+than\s+minus\s+(\d+)\b', lambda m: rf'$\text{{Re}}(s) > -{m.group(1)}$'),
             (r'\breal\s+part\s+of\s+s\s+greater\s+than\s+minus\s+(\d+)\b', lambda m: rf'$\text{{Re}}(s) > -{m.group(1)}$'),
             (r'\breal\s+part\s+of\s+s\s+greater\s+than\s+(\d+)\b', lambda m: rf'$\text{{Re}}(s) > {m.group(1)}$'),
@@ -862,7 +884,71 @@ class LectureToBookBuilder:
             (r'\bs\s+equal\s+to\s+sigma\s+plus\s+j\s+omega\b', lambda m: r'$s = \sigma + j\omega$'),
             (r'\bsigma\s*0\b', lambda m: r'$\sigma_0$'),
 
-            # --- 6. Derivatives & Differentials ---
+            # --- 6. Control Systems & Second-Order Dynamics ---
+            (r'\bclosed\s+loop\s+transfer\s+function\s+g\s+of\s+s\s+over\s+1\s+plus\s+g\s+of\s+s\s+h\s+of\s+s\b', lambda m: r'$\frac{G(s)}{1 + G(s)H(s)}$'),
+            (r'\bg\s+of\s+s\s+over\s+1\s+plus\s+g\s+of\s+s\s+h\s+of\s+s\b', lambda m: r'$\frac{G(s)}{1 + G(s)H(s)}$'),
+            (r'\bg\s+of\s+s\s+times\s+h\s+of\s+s\b|\bg\s+of\s+s\s+h\s+of\s+s\b', lambda m: r'$G(s)H(s)$'),
+            (r'\bg\s+of\s+s\b', lambda m: r'$G(s)$'),
+            (r'\bt\s+of\s+s\b', lambda m: r'$T(s)$'),
+            (r'\bomega\s*n\s*squared?\s+over\s+s\s*squared?\s+plus\s+2\s*zeta\s*omega\s*n\s*s\s+plus\s+omega\s*n\s*squared?\b', lambda m: r'$\frac{\omega_n^2}{s^2 + 2\zeta\omega_n s + \omega_n^2}$'),
+            (r'\bs\s*squared?\s+plus\s+2\s*zeta\s*omega\s*n\s*s\s+plus\s+omega\s*n\s*squared?\b', lambda m: r'$s^2 + 2\zeta\omega_n s + \omega_n^2$'),
+            (r'\bnatural\s+frequency\s+omega\s*n\b', lambda m: r'natural frequency $\omega_n$'),
+            (r'\bdamping\s+ratio\s+zeta\b', lambda m: r'damping ratio $\zeta$'),
+            (r'(?<![\\$])\bomega\s*n\b(?![\\$])', lambda m: r'$\omega_n$'),
+            (r'(?<![\\$])\bzeta\b(?![\\$])', lambda m: r'$\zeta$'),
+            (r'\bx\s+dot\s+equals\s+a\s*x\s+plus\s+b\s*u\b', lambda m: r'$\dot{\mathbf{x}} = \mathbf{A}\mathbf{x} + \mathbf{B}\mathbf{u}$'),
+            (r'\by\s+equals\s+c\s*x\s+plus\s+d\s*u\b', lambda m: r'$\mathbf{y} = \mathbf{C}\mathbf{x} + \mathbf{D}\mathbf{u}$'),
+            (r'\bpeak\s+overshoot\s+m\s*p\b', lambda m: r'peak overshoot $M_p$'),
+            (r'\brise\s+time\s+t\s*r\b', lambda m: r'rise time $t_r$'),
+            (r'\bpeak\s+time\s+t\s*p\b', lambda m: r'peak time $t_p$'),
+            (r'\bsettling\s+time\s+t\s*s\b', lambda m: r'settling time $t_s$'),
+
+            # --- 7. Circuits, Phasors & Impedances ---
+            (r'\bsquare\s+root\s+(?:of\s+)?3\s+v\s*l\s+i\s*l\s+cos\s+phi\b', lambda m: r'$\sqrt{3} V_L I_L \cos\phi$'),
+            (r'\bz\s+of\s+s\b', lambda m: r'$Z(s)$'),
+            (r'\bv\s+t\s+h\b|\bv\s+th\b', lambda m: r'$V_{th}$'),
+            (r'\bz\s+t\s+h\b|\bz\s+th\b', lambda m: r'$Z_{th}$'),
+            (r'\br\s+t\s+h\b|\br\s+th\b', lambda m: r'$R_{th}$'),
+            (r'\bi\s+n\s*orton\b', lambda m: r'$I_N$'),
+            (r'\bk\s*c\s*l\b', lambda m: r'$\text{KCL}$'),
+            (r'\bk\s*v\s*l\b', lambda m: r'$\text{KVL}$'),
+            (r'\bl\s+d\s*i\s+by\s+d\s*t\b', lambda m: r'$L \frac{di}{dt}$'),
+            (r'\bc\s+d\s*v\s+by\s+d\s*t\b', lambda m: r'$C \frac{dv}{dt}$'),
+            (r'\bp\s+plus\s+j\s*q\b', lambda m: r'$P + jQ$'),
+            (r'\bcos\s+phi\b', lambda m: r'$\cos\phi$'),
+
+            # --- 8. Electrical Machines & Power Systems ---
+            (r'\b120\s*f\s+by\s+p\b|\b120\s*f\s+over\s+p\b', lambda m: r'$\frac{120 f}{P}$'),
+            (r'\bn\s*s\s+minus\s+n\s+by\s+n\s*s\b|\bn\s*s\s+minus\s+n\s+over\s+n\s*s\b', lambda m: r'$\frac{N_s - N}{N_s}$'),
+            (r'\bsynchronous\s+speed\s+n\s*s\b', lambda m: r'synchronous speed $N_s$'),
+            (r'\bback\s+e\s*m\s*f\s+e\s*b\b', lambda m: r'back EMF $E_b$'),
+            (r'\bm\s+d\s+square\s+delta\s+by\s+d\s+t\s+square\s+equals\s+p\s*m\s+minus\s+p\s*e\b', lambda m: r'$M \frac{d^2\delta}{dt^2} = P_m - P_e$'),
+            (r'\bd\s+square\s+delta\s+by\s+d\s+t\s+square\b', lambda m: r'$\frac{d^2\delta}{dt^2}$'),
+            (r'\bp\s*m\s+minus\s+p\s*e\b', lambda m: r'$P_m - P_e$'),
+            (r'\bx\s*d\b', lambda m: r'$X_d$'),
+            (r'\bx\s*q\b', lambda m: r'$X_q$'),
+            (r'\bi\s*d\b', lambda m: r'$I_d$'),
+            (r'\bi\s*q\b', lambda m: r'$I_q$'),
+
+            # --- 9. Electromagnetics & Field Theory ---
+            (r'\bcurl\s+of\s+e\s+equals\s+minus\s+partial\s+b\s+with\s+respect\s+to\s+t\b', lambda m: r'$\nabla \times \mathbf{E} = -\frac{\partial \mathbf{B}}{\partial t}$'),
+            (r'\bcurl\s+of\s+e\b', lambda m: r'$\nabla \times \mathbf{E}$'),
+            (r'\bcurl\s+of\s+h\b', lambda m: r'$\nabla \times \mathbf{H}$'),
+            (r'\bdivergence\s+of\s+d\b', lambda m: r'$\nabla \cdot \mathbf{D}$'),
+            (r'\bdivergence\s+of\s+b\b', lambda m: r'$\nabla \cdot \mathbf{B}$'),
+            (r'\bpoynting\s+vector\s+s\s+equals\s+e\s+cross\s+h\b', lambda m: r'$\mathbf{S} = \mathbf{E} \times \mathbf{H}$'),
+            (r'\be\s+cross\s+h\b', lambda m: r'$\mathbf{E} \times \mathbf{H}$'),
+            (r'\bintrinsic\s+(?:wave\s+)?impedance\s+eta\b', lambda m: r'intrinsic impedance $\eta$'),
+            (r'\b377\s+ohms\b', lambda m: r'$377\,\Omega$'),
+
+            # --- 10. Electronics & Semiconductor Parameters ---
+            (r'\bsmall\s+signal\s+transconductance\s+g\s*m\b', lambda m: r'transconductance $g_m$'),
+            (r'\bg\s*m\b', lambda m: r'$g_m$'),
+            (r'\br\s+pi\b', lambda m: r'$r_\pi$'),
+            (r'\bv\s+g\s*s\b', lambda m: r'$V_{GS}$'),
+            (r'\bv\s+d\s*s\b', lambda m: r'$V_{DS}$'),
+
+            # --- 11. Derivatives & Differentials ---
             (r'\bd2y\s+by\s+dt2\b|\bd\s+square\s+y\s+by\s+d\s+t\s+square\b', lambda m: r'$\frac{d^2y}{dt^2}$'),
             (r'\bdy\s+by\s+dt\b|\bd\s+y\s+by\s+d\s+t\b', lambda m: r'$\frac{dy}{dt}$'),
             (r'\bdx\s+by\s+dt\b|\bd\s+x\s+by\s+d\s+t\b', lambda m: r'$\frac{dx}{dt}$'),
