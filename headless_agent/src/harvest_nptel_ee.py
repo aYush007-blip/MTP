@@ -166,3 +166,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     harvest_all_lectures(max_lectures=args.max)
+
