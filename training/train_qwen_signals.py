@@ -37,9 +37,9 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs (default: 1 for ~15 mins)")
     parser.add_argument("--max-steps", type=int, default=-1,
                         help="Max training steps (if > 0 overrides epochs, e.g. 500 steps)")
-    parser.add_argument("--batch-size", type=int, default=4,
-                        help="Per-device batch size (default: 4 for rock-solid VRAM safety)")
-    parser.add_argument("--grad-accum", type=int, default=4,
+    parser.add_argument("--batch-size", type=int, default=2,
+                        help="Per-device batch size (default: 2 keeps cross-entropy logits memory lightweight)")
+    parser.add_argument("--grad-accum", type=int, default=8,
                         help="Gradient accumulation steps (effective batch = batch * accum = 16)")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate (default: 2e-4)")
     parser.add_argument("--max-length", type=int, default=512,
@@ -51,12 +51,35 @@ def parse_args():
     parser.add_argument("--no-qlora", dest="qlora", action="store_false",
                         help="Force native 16-bit LoRA (runs 10x faster on Tensor Cores; recommended for >=12GB GPUs)")
     parser.add_argument("--grad-checkpointing", action="store_true", default=True,
-                        help="Enable gradient checkpointing (default: True to keep VRAM strictly under 5GB)")
+                        help="Enable gradient checkpointing (default: True to keep VRAM strictly under 4GB)")
     parser.add_argument("--no-grad-checkpointing", dest="grad_checkpointing", action="store_false",
                         help="Disable gradient checkpointing")
     parser.add_argument("--merge-and-export", action="store_true", default=True,
                         help="Automatically merge LoRA adapter into base model after training")
     return parser.parse_args()
+
+
+def kill_stale_gpu_processes():
+    """Kills orphan/zombie processes holding GPU memory from previously interrupted cells."""
+    try:
+        import os, signal, subprocess
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"],
+            text=True
+        )
+        my_pid = os.getpid()
+        for line in out.strip().splitlines():
+            p = line.strip()
+            if p.isdigit():
+                pid = int(p)
+                if pid != my_pid:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                        print(f"[GPU Cleanup] Terminated stale background process {pid} to release VRAM.")
+                    except Exception:
+                        pass
+    except Exception:
+        pass
 
 
 def ensure_decompressed(data_dir: Path) -> tuple[Path, Path]:
@@ -130,6 +153,8 @@ def main():
         if args.grad_checkpointing is None:
             args.grad_checkpointing = False
     else:
+        kill_stale_gpu_processes()
+        torch.cuda.empty_cache()
         gpu_name = torch.cuda.get_device_name(0)
         gpu_mem = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         cc_major, cc_minor = torch.cuda.get_device_capability(0)
