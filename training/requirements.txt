@@ -9,3 +9,4 @@ scipy
 sentencepiece
 protobuf
 gguf>=0.6.0
+

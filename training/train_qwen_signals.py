@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 """
-Standalone Fine-Tuning Pipeline for Qwen2.5-1.5B on Signals & Systems Transduction.
+Standalone Fine-Tuning Pipeline for Qwen2.5-1.5B-Instruct on Signals & Systems Transduction.
 Compatible with Windows (NVIDIA GPU), Linux, and Google Colab.
 
 Features:
   - Memory-safe QLoRA 4-bit (bitsandbytes) by default (runs on 6GB-8GB GPUs)
   - Full FP16/BF16 LoRA option for 16GB+ GPUs
-  - Auto-decompresses train.jsonl.gz if train.jsonl is not present
+  - Assistant-only loss masking (-100 on system & user prompt tokens)
+  - Auto-decompresses train.jsonl.gz / val.jsonl.gz (and refreshes if .gz is newer)
+  - Compatible with both transformers 4.x and 5.x
   - Targets all attention and MLP projection layers
-  - Merges trained LoRA adapter directly into base weights for 1-click GGUF conversion
+  - Merges trained LoRA adapter directly into base weights for GGUF conversion
 """
 
 import argparse
 import gzip
+import inspect
 import os
 from pathlib import Path
 import shutil
 import sys
 import time
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Fine-tune Qwen2.5-1.5B on Signals & Systems dataset.")
@@ -29,9 +33,11 @@ def parse_args():
                         help="Directory to save checkpoints and merged model")
     parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=4, help="Per-device batch size")
-    parser.add_argument("--grad-accum", type=int, default=4, help="Gradient accumulation steps (effective batch = batch * accum)")
+    parser.add_argument("--grad-accum", type=int, default=4,
+                        help="Gradient accumulation steps (effective batch = batch * accum)")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
-    parser.add_argument("--max-length", type=int, default=512, help="Max sequence token length")
+    parser.add_argument("--max-length", type=int, default=1024,
+                        help="Max sequence token length (1024 covers multi-sentence derivations)")
     parser.add_argument("--lora-rank", type=int, default=16, help="LoRA rank dimension")
     parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha scaling parameter")
     parser.add_argument("--qlora", action="store_true", default=True,
@@ -44,21 +50,17 @@ def parse_args():
 
 
 def ensure_decompressed(data_dir: Path) -> tuple[Path, Path]:
-    """Ensures train.jsonl and val.jsonl are uncompressed and ready to load."""
+    """Ensures train.jsonl and val.jsonl are uncompressed and up-to-date with .gz archives."""
     train_file = data_dir / "train.jsonl"
     val_file = data_dir / "val.jsonl"
     train_gz = data_dir / "train.jsonl.gz"
     val_gz = data_dir / "val.jsonl.gz"
 
-    if not train_file.exists() and train_gz.exists():
-        print(f"[Dataset] Decompressing {train_gz} -> {train_file}...")
-        with gzip.open(train_gz, "rb") as f_in, open(train_file, "wb") as f_out:
-            shutil.copyfileobj(f_in, f_out)
-
-    if not val_file.exists() and val_gz.exists():
-        print(f"[Dataset] Decompressing {val_gz} -> {val_file}...")
-        with gzip.open(val_gz, "rb") as f_in, open(val_file, "wb") as f_out:
-            shutil.copyfileobj(f_in, f_out)
+    for plain, gz in [(train_file, train_gz), (val_file, val_gz)]:
+        if gz.exists() and (not plain.exists() or gz.stat().st_mtime > plain.stat().st_mtime):
+            print(f"[Dataset] Decompressing {gz} -> {plain}...")
+            with gzip.open(gz, "rb") as f_in, open(plain, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
 
     if not train_file.exists():
         raise FileNotFoundError(f"Training dataset not found in {data_dir}. Expected train.jsonl or train.jsonl.gz")
@@ -77,6 +79,7 @@ def main():
     print(f"Output Directory: {args.output_dir}")
     print(f"Epochs:           {args.epochs}")
     print(f"Batch Size:       {args.batch_size} (effective batch = {args.batch_size * args.grad_accum})")
+    print(f"Max Length:       {args.max_length}")
     print(f"Learning Rate:    {args.lr}")
     print(f"Quantization:     {'4-bit QLoRA (NF4)' if args.qlora else '16-bit LoRA'}")
     print(f"LoRA Rank/Alpha:  r={args.lora_rank}, alpha={args.lora_alpha}")
@@ -92,7 +95,7 @@ def main():
             AutoTokenizer,
             TrainingArguments,
             Trainer,
-            DataCollatorForSeq2Seq
+            DataCollatorForSeq2Seq,
         )
     except ImportError as e:
         print(f"\n[ERROR] Missing required packages: {e}")
@@ -121,6 +124,7 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model_id, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
 
     print(f"[2/5] Loading base model weights...")
     model_kwargs = {
@@ -133,15 +137,20 @@ def main():
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.float16 if not torch.cuda.is_bf16_supported() else torch.bfloat16,
+            bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
             bnb_4bit_use_double_quant=True,
         )
         model_kwargs["quantization_config"] = bnb_config
     else:
-        dtype = torch.bfloat16 if (torch.cuda.is_available() and torch.cuda.is_bf16_supported()) else (torch.float16 if torch.cuda.is_available() else torch.float32)
+        dtype = (
+            torch.bfloat16
+            if (torch.cuda.is_available() and torch.cuda.is_bf16_supported())
+            else (torch.float16 if torch.cuda.is_available() else torch.float32)
+        )
         model_kwargs["torch_dtype"] = dtype
 
     model = AutoModelForCausalLM.from_pretrained(args.model_id, **model_kwargs)
+    model.config.use_cache = False
 
     if args.qlora and device == "cuda":
         model = prepare_model_for_kbit_training(model)
@@ -159,8 +168,8 @@ def main():
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
-    # 5. Tokenize Dataset
-    print(f"\n[4/5] Tokenizing dataset using ChatML template...")
+    # 5. Tokenize Dataset with Assistant-Only Loss Masking
+    print(f"\n[4/5] Tokenizing dataset using ChatML template (assistant-only loss masking)...")
     data_files = {"train": str(train_path)}
     if val_path.exists():
         data_files["validation"] = str(val_path)
@@ -169,20 +178,44 @@ def main():
 
     def preprocess_chatml(example):
         messages = example["messages"]
-        text = tokenizer.apply_chat_template(messages, tokenize=False)
-        tokens = tokenizer(
-            text,
+        prompt_messages = messages[:-1]  # system + user
+        prompt_text = tokenizer.apply_chat_template(
+            prompt_messages, tokenize=False, add_generation_prompt=True
+        )
+        full_text = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=False
+        )
+
+        prompt_ids = tokenizer(prompt_text, add_special_tokens=False)["input_ids"]
+        full_tokens = tokenizer(
+            full_text,
             max_length=args.max_length,
             truncation=True,
             padding=False,
+            add_special_tokens=False,
         )
-        tokens["labels"] = tokens["input_ids"].copy()
-        return tokens
 
-    tokenized_dataset = raw_dataset.map(preprocess_chatml, batched=False, remove_columns=["messages"])
-    data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, pad_to_multiple_of=8, return_tensors="pt")
+        input_ids = full_tokens["input_ids"]
+        labels = input_ids.copy()
+        # Mask system + user prompt tokens so loss is computed ONLY on assistant LaTeX output
+        mask_len = min(len(prompt_ids), len(labels))
+        for i in range(mask_len):
+            labels[i] = -100
 
-    # 6. Training Arguments & Trainer
+        full_tokens["labels"] = labels
+        return full_tokens
+
+    tokenized_dataset = raw_dataset.map(
+        preprocess_chatml, batched=False, remove_columns=["messages"]
+    )
+    data_collator = DataCollatorForSeq2Seq(
+        tokenizer=tokenizer,
+        pad_to_multiple_of=8,
+        label_pad_token_id=-100,
+        return_tensors="pt",
+    )
+
+    # 6. Training Arguments & Trainer (compatible with transformers 4.x and 5.x)
     output_path = Path(args.output_dir)
     adapter_path = output_path / "lora_adapter"
     merged_path = output_path / "merged_model"
@@ -191,33 +224,41 @@ def main():
     use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     use_fp16 = torch.cuda.is_available() and not use_bf16
 
-    training_args = TrainingArguments(
-        output_dir=str(adapter_path),
-        per_device_train_batch_size=args.batch_size,
-        gradient_accumulation_steps=args.grad_accum,
-        learning_rate=args.lr,
-        num_train_epochs=args.epochs,
-        logging_steps=20,
-        eval_strategy="epoch" if val_path.exists() else "no",
-        save_strategy="epoch",
-        fp16=use_fp16,
-        bf16=use_bf16,
-        optim="adamw_torch",
-        warmup_ratio=0.05,
-        lr_scheduler_type="cosine",
-        report_to="none",
-        save_total_limit=1,
-        gradient_checkpointing=True,
-    )
+    ta_params = inspect.signature(TrainingArguments.__init__).parameters
+    eval_key = "eval_strategy" if "eval_strategy" in ta_params else "evaluation_strategy"
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=tokenized_dataset["train"],
-        eval_dataset=tokenized_dataset.get("validation", None),
-        tokenizer=tokenizer,
-        data_collator=data_collator,
-    )
+    ta_kwargs = {
+        "output_dir": str(adapter_path),
+        "per_device_train_batch_size": args.batch_size,
+        "per_device_eval_batch_size": args.batch_size,
+        "gradient_accumulation_steps": args.grad_accum,
+        "learning_rate": args.lr,
+        "num_train_epochs": args.epochs,
+        "logging_steps": 25,
+        eval_key: "epoch" if val_path.exists() else "no",
+        "save_strategy": "epoch",
+        "fp16": use_fp16,
+        "bf16": use_bf16,
+        "optim": "paged_adamw_8bit" if (args.qlora and device == "cuda") else "adamw_torch",
+        "warmup_ratio": 0.05,
+        "lr_scheduler_type": "cosine",
+        "report_to": "none",
+        "save_total_limit": 1,
+        "gradient_checkpointing": True,
+    }
+    training_args = TrainingArguments(**ta_kwargs)
+
+    trainer_params = inspect.signature(Trainer.__init__).parameters
+    tok_key = "processing_class" if "processing_class" in trainer_params else "tokenizer"
+    trainer_kwargs = {
+        "model": model,
+        "args": training_args,
+        "train_dataset": tokenized_dataset["train"],
+        "eval_dataset": tokenized_dataset.get("validation", None),
+        tok_key: tokenizer,
+        "data_collator": data_collator,
+    }
+    trainer = Trainer(**trainer_kwargs)
 
     # 7. Execute Training
     print(f"\n[5/5] Commencing Fine-Tuning across {args.epochs} Epochs...")

@@ -9,8 +9,8 @@ This folder contains the complete, self-contained training suite to fine-tune **
 ```
 training/
 ├── data/
-│   ├── train.jsonl.gz           # 13,500 training samples (1.17 MB compressed)
-│   └── val.jsonl.gz             # 1,500 validation samples (129 KB compressed)
+│   ├── train.jsonl.gz           # 10,467 unique training samples (0.83 MB compressed, 12.44 MB raw)
+│   └── val.jsonl.gz             # 1,179 unique validation samples (96 KB compressed, 1.40 MB raw, 0% overlap)
 ├── train_qwen_signals_colab.ipynb # 1-Click Google Colab Notebook
 ├── train_qwen_signals.py        # Cross-platform training script (Windows / Linux)
 ├── requirements.txt             # Python dependencies
@@ -60,9 +60,9 @@ pip install -r requirements.txt
 
 ### 3. Run Fine-Tuning
 ```powershell
-python train_qwen_signals.py --qlora --epochs 3 --batch-size 4 --grad-accum 4
+python train_qwen_signals.py --qlora --epochs 3 --batch-size 4 --grad-accum 4 --max-length 1024
 ```
-*Note: If you have a 16GB+ GPU (RTX 3090, 4080, 4090), you can pass `--no-qlora` for full 16-bit LoRA training.*
+*Note: Uses assistant-only loss masking so gradients focus 100% on spoken-to-LaTeX output. If you have a 16GB+ GPU (RTX 3090, 4080, 4090), you can pass `--no-qlora` for full 16-bit LoRA training.*
 
 After training completes, the merged HuggingFace model is saved in:
 `training\output_qwen_signals\merged_model\`
@@ -75,15 +75,17 @@ To convert the merged model into GGUF for the Jetson:
 
 ```bash
 # 1. Clone llama.cpp if not already present
-git clone https://github.com/ggerganov/llama.cpp.git
+git clone --depth 1 https://github.com/ggml-org/llama.cpp.git
 cd llama.cpp
 
 # 2. Convert HuggingFace model to FP16 GGUF
 python convert_hf_to_gguf.py ../output_qwen_signals/merged_model --outfile qwen2.5-1.5b-ee-fp16.gguf
 
 # 3. Quantize FP16 to Q4_K_M (the fast edge format)
-# On Windows, build llama-quantize or use pre-built llama.cpp binaries:
-.\llama-quantize.exe qwen2.5-1.5b-ee-fp16.gguf qwen2.5-1.5b-instruct-q4_k_m.gguf Q4_K_M
+# Build llama-quantize with CMake (or download pre-built Windows release binaries from llama.cpp Releases):
+cmake -B build -DGGML_CUDA=OFF
+cmake --build build --target llama-quantize --config Release
+./build/bin/llama-quantize qwen2.5-1.5b-ee-fp16.gguf qwen2.5-1.5b-instruct-q4_k_m.gguf Q4_K_M
 ```
 
 ---
@@ -118,3 +120,4 @@ print(json.loads(urllib.request.urlopen(req).read().decode('utf-8'))['content'])
 "
 ```
 The model will now natively output academic LaTeX with zero fallback overhead!
+
