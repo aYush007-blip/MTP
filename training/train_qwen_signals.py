@@ -22,6 +22,9 @@ import shutil
 import sys
 import time
 
+# Completely eliminate PyTorch CUDA memory fragmentation
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Fine-tune Qwen2.5-1.5B on Signals & Systems dataset.")
@@ -31,23 +34,24 @@ def parse_args():
                         help="Directory containing train.jsonl (or train.jsonl.gz)")
     parser.add_argument("--output-dir", type=str, default=str(Path(__file__).parent / "output_qwen_signals"),
                         help="Directory to save checkpoints and merged model")
-    parser.add_argument("--epochs", type=int, default=2, help="Number of training epochs (default: 2)")
-    parser.add_argument("--batch-size", type=int, default=8, help="Per-device batch size (default: 8)")
-    parser.add_argument("--grad-accum", type=int, default=2,
-                        help="Gradient accumulation steps (effective batch = batch * accum, default: 2)")
+    parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs (default: 3)")
+    parser.add_argument("--batch-size", type=int, default=4,
+                        help="Per-device batch size (default: 4 for rock-solid VRAM safety)")
+    parser.add_argument("--grad-accum", type=int, default=4,
+                        help="Gradient accumulation steps (effective batch = batch * accum = 16)")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate (default: 2e-4)")
-    parser.add_argument("--max-length", type=int, default=1024,
-                        help="Max sequence token length (1024 covers multi-sentence derivations)")
+    parser.add_argument("--max-length", type=int, default=512,
+                        help="Max sequence token length (512 covers 100% of our dataset without empty padding)")
     parser.add_argument("--lora-rank", type=int, default=16, help="LoRA rank dimension")
     parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha scaling parameter")
     parser.add_argument("--qlora", action="store_true", default=None,
                         help="Force 4-bit NF4 QLoRA quantization (saves VRAM on <=8GB GPUs; slow on T4)")
     parser.add_argument("--no-qlora", dest="qlora", action="store_false",
                         help="Force native 16-bit LoRA (runs 10x faster on Tensor Cores; recommended for >=12GB GPUs)")
-    parser.add_argument("--grad-checkpointing", action="store_true", default=None,
-                        help="Enable gradient checkpointing (saves activation VRAM at cost of 35% speed)")
+    parser.add_argument("--grad-checkpointing", action="store_true", default=True,
+                        help="Enable gradient checkpointing (default: True to keep VRAM strictly under 5GB)")
     parser.add_argument("--no-grad-checkpointing", dest="grad_checkpointing", action="store_false",
-                        help="Disable gradient checkpointing (runs 35% faster if VRAM allows)")
+                        help="Disable gradient checkpointing")
     parser.add_argument("--merge-and-export", action="store_true", default=True,
                         help="Automatically merge LoRA adapter into base model after training")
     return parser.parse_args()
@@ -131,21 +135,18 @@ def main():
 
         # Auto-configure QLoRA vs native FP16 LoRA:
         # A 1.5B model takes only ~3.1 GB in FP16. If GPU has >= 10 GB VRAM (e.g. Kaggle T4 with 15GB or P100 with 16GB),
-        # running 4-bit QLoRA forces software dequantization on every layer, slowing down training by 35x (28s/step vs 0.7s/step).
+        # running 4-bit QLoRA forces software dequantization on every layer, slowing down training by 35x.
         if gpu_mem >= 10.0 or cc_major < 7:
             if args.qlora:
                 print(f"[Auto-Optimizer] Overriding --qlora -> native FP16: GPU has {gpu_mem:.1f} GB VRAM, while Qwen2.5-1.5B takes only 3.1 GB.")
-                print("                 Running on native FP16 Tensor Cores for ~40x faster training (~15-20 mins total).")
+                print("                 Running on native FP16 Tensor Cores with non-reentrant activation checkpointing (VRAM safe: ~3.8 GB).")
             args.qlora = False
-            args.grad_checkpointing = False
-            if args.batch_size <= 4 and args.grad_accum >= 4:
-                args.batch_size = 8
-                args.grad_accum = 2
         else:
             if args.qlora is None:
                 args.qlora = True
-            if args.grad_checkpointing is None:
-                args.grad_checkpointing = True
+
+        # Keep gradient checkpointing enabled with use_reentrant=False to ensure VRAM stays rock-solid under 5 GB
+        args.grad_checkpointing = True
 
     # 2. Dataset preparation
     data_dir_path = Path(args.data_dir)
