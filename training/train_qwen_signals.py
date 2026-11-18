@@ -32,18 +32,24 @@ def parse_args():
                         help="HuggingFace model ID or local directory")
     parser.add_argument("--data-dir", type=str, default=str(Path(__file__).parent / "data"),
                         help="Directory containing train.jsonl (or train.jsonl.gz)")
+    parser.add_argument("--dataset", choices=["fast", "full"], default="fast",
+                        help="Dataset variant: 'fast' (1,200 golden samples, ~8 mins) or 'full' (10,467 samples, ~15 hrs)")
+    parser.add_argument("--full", action="store_true", help="Shortcut to use the full 10,467 sample dataset")
+    parser.add_argument("--target-modules", type=str, default="attention",
+                        choices=["attention", "minimal", "all"],
+                        help="LoRA target modules: 'attention' (q,k,v,o - fast & high quality), 'minimal' (q,v), or 'all' (attention + mlp - slow)")
     parser.add_argument("--output-dir", type=str, default=str(Path(__file__).parent / "output_qwen_signals"),
                         help="Directory to save checkpoints and merged model")
-    parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs (default: 1 for ~15 mins)")
+    parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs (default: 1 for ~8 mins)")
     parser.add_argument("--max-steps", type=int, default=-1,
-                        help="Max training steps (if > 0 overrides epochs, e.g. 500 steps)")
-    parser.add_argument("--batch-size", type=int, default=2,
-                        help="Per-device batch size (default: 2 keeps cross-entropy logits memory lightweight)")
-    parser.add_argument("--grad-accum", type=int, default=8,
-                        help="Gradient accumulation steps (effective batch = batch * accum = 16)")
+                        help="Max training steps (if > 0 overrides epochs, e.g. 150 steps)")
+    parser.add_argument("--batch-size", type=int, default=4,
+                        help="Per-device batch size (default: 4)")
+    parser.add_argument("--grad-accum", type=int, default=2,
+                        help="Gradient accumulation steps (effective batch = batch * accum = 8)")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate (default: 2e-4)")
     parser.add_argument("--max-length", type=int, default=512,
-                        help="Max sequence token length (512 covers 100% of our dataset without empty padding)")
+                        help="Max sequence token length (512 covers 100 percent of our dataset without empty padding)")
     parser.add_argument("--lora-rank", type=int, default=16, help="LoRA rank dimension")
     parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha scaling parameter")
     parser.add_argument("--qlora", action="store_true", default=None,
@@ -51,7 +57,7 @@ def parse_args():
     parser.add_argument("--no-qlora", dest="qlora", action="store_false",
                         help="Force native 16-bit LoRA (runs 10x faster on Tensor Cores; recommended for >=12GB GPUs)")
     parser.add_argument("--grad-checkpointing", action="store_true", default=True,
-                        help="Enable gradient checkpointing (default: True to keep VRAM strictly under 4GB)")
+                        help="Enable gradient checkpointing (default: True to keep VRAM strictly under 5GB)")
     parser.add_argument("--no-grad-checkpointing", dest="grad_checkpointing", action="store_false",
                         help="Disable gradient checkpointing")
     parser.add_argument("--merge-and-export", action="store_true", default=True,
@@ -82,32 +88,59 @@ def kill_stale_gpu_processes():
         pass
 
 
-def ensure_decompressed(data_dir: Path) -> tuple[Path, Path]:
-    """Ensures train.jsonl and val.jsonl are uncompressed and up-to-date with .gz archives."""
-    train_file = data_dir / "train.jsonl"
-    val_file = data_dir / "val.jsonl"
-    train_gz = data_dir / "train.jsonl.gz"
-    val_gz = data_dir / "val.jsonl.gz"
+def ensure_decompressed(data_dir: Path, dataset_type: str = "fast") -> tuple[Path, Path]:
+    """Ensures dataset jsonl files are uncompressed and up-to-date with .gz archives."""
+    if dataset_type == "fast":
+        train_base = "train_fast"
+        val_base = "val_fast"
+    else:
+        train_base = "train"
+        val_base = "val"
+
+    train_file = data_dir / f"{train_base}.jsonl"
+    val_file = data_dir / f"{val_base}.jsonl"
+    train_gz = data_dir / f"{train_base}.jsonl.gz"
+    val_gz = data_dir / f"{val_base}.jsonl.gz"
+
+    # Fallback to full train/val if fast doesn't exist
+    if not train_gz.exists() and not train_file.exists():
+        print(f"[Dataset] {train_base}.jsonl(.gz) not found, falling back to full train.jsonl(.gz)...")
+        train_file = data_dir / "train.jsonl"
+        val_file = data_dir / "val.jsonl"
+        train_gz = data_dir / "train.jsonl.gz"
+        val_gz = data_dir / "val.jsonl.gz"
 
     for plain, gz in [(train_file, train_gz), (val_file, val_gz)]:
         if gz.exists() and (not plain.exists() or gz.stat().st_mtime > plain.stat().st_mtime):
-            print(f"[Dataset] Decompressing {gz} -> {plain}...")
+            print(f"[Dataset] Decompressing {gz.name} -> {plain.name}...")
             with gzip.open(gz, "rb") as f_in, open(plain, "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
 
     if not train_file.exists():
-        raise FileNotFoundError(f"Training dataset not found in {data_dir}. Expected train.jsonl or train.jsonl.gz")
+        raise FileNotFoundError(f"Training dataset not found in {data_dir}. Expected {train_file.name} or {train_gz.name}")
+
+    return train_file, val_file
 
     return train_file, val_file
 
 
 def main():
     args = parse_args()
+    if args.full:
+        args.dataset = "full"
+
+    if args.target_modules == "minimal":
+        target_modules = ["q_proj", "v_proj"]
+    elif args.target_modules == "attention":
+        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]
+    else:  # "all"
+        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
     print("=" * 70)
     print("  QWEN2.5-1.5B SIGNALS & SYSTEMS FINE-TUNING PIPELINE")
     print("=" * 70)
     print(f"Base Model:       {args.model_id}")
+    print(f"Dataset Mode:     {args.dataset.upper()} ({'1,200 golden samples (~8 mins)' if args.dataset == 'fast' else '10,467 full samples'})")
     print(f"Data Directory:   {args.data_dir}")
     print(f"Output Directory: {args.output_dir}")
     print(f"Epochs:           {args.epochs}")
@@ -116,6 +149,7 @@ def main():
     print(f"Learning Rate:    {args.lr}")
     print(f"Quantization:     {'4-bit QLoRA (NF4)' if args.qlora else '16-bit LoRA'}")
     print(f"LoRA Rank/Alpha:  r={args.lora_rank}, alpha={args.lora_alpha}")
+    print(f"LoRA Targets:     {args.target_modules} -> {target_modules}")
     print("=" * 70)
 
     # 1. Imports check
@@ -177,7 +211,7 @@ def main():
 
     # 2. Dataset preparation
     data_dir_path = Path(args.data_dir)
-    train_path, val_path = ensure_decompressed(data_dir_path)
+    train_path, val_path = ensure_decompressed(data_dir_path, dataset_type=args.dataset)
     print(f"[Dataset] Train file: {train_path} ({train_path.stat().st_size / (1024*1024):.2f} MB)")
     if val_path.exists():
         print(f"[Dataset] Val file:   {val_path} ({val_path.stat().st_size / (1024*1024):.2f} MB)")
@@ -244,7 +278,7 @@ def main():
         r=args.lora_rank,
         lora_alpha=args.lora_alpha,
         lora_dropout=0.05,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        target_modules=target_modules,
         bias="none",
     )
     model = get_peft_model(model, peft_config)
@@ -319,7 +353,7 @@ def main():
         "gradient_accumulation_steps": args.grad_accum,
         "learning_rate": args.lr,
         "num_train_epochs": args.epochs,
-        "logging_steps": 25,
+        "logging_steps": 10,
         eval_key: "epoch" if val_path.exists() else "no",
         "save_strategy": "epoch",
         "fp16": use_fp16,
@@ -371,6 +405,13 @@ def main():
         print(f"\n[Merge] Merging LoRA weights into base model for GGUF conversion...")
         try:
             from peft import PeftModel
+            del trainer
+            del model
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
             base_model_reload = AutoModelForCausalLM.from_pretrained(
                 args.model_id,
                 torch_dtype=torch.float16,
