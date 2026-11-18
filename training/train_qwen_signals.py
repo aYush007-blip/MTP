@@ -92,6 +92,14 @@ def main():
     # 1. Imports check
     try:
         import torch
+
+        # Guard against upstream PEFT bug when an older torchao (<0.16.0) is present
+        try:
+            import peft.import_utils
+            peft.import_utils.is_torchao_available = lambda: False
+        except Exception:
+            pass
+
         from datasets import load_dataset
         from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
         from transformers import (
@@ -186,6 +194,19 @@ def main():
 
     # 4. Configure LoRA
     print(f"[3/5] Configuring LoRA adapter (r={args.lora_rank}, alpha={args.lora_alpha})...")
+
+    # Explicitly ensure torchao LoRA dispatcher is disabled (avoids ImportError with torchao <0.16.0)
+    try:
+        import peft.import_utils
+        peft.import_utils.is_torchao_available = lambda: False
+    except Exception:
+        pass
+    try:
+        import peft.tuners.lora.torchao
+        peft.tuners.lora.torchao.is_torchao_available = lambda: False
+    except Exception:
+        pass
+
     peft_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         r=args.lora_rank,
