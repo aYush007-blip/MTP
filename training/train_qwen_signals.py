@@ -122,30 +122,22 @@ def main():
         print(f"[Device] Using GPU: {gpu_name} ({gpu_mem:.2f} GB VRAM, sm_{cc_major}{cc_minor})")
 
         # Auto-configure QLoRA vs native FP16 LoRA:
-        # A 1.5B model takes only ~3.1 GB in FP16. If GPU has >= 11 GB VRAM (e.g. Kaggle T4 with 15GB or P100 with 16GB),
-        # native FP16 Tensor Cores are 10x faster than 4-bit software dequantization on T4.
-        if args.qlora is None:
-            if gpu_mem >= 11.0 or cc_major < 7:
-                args.qlora = False
-                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM (>=11 GB). Running ultra-fast native FP16/BF16 LoRA "
-                      "(Tensor Cores enabled, ~10x faster than 4-bit QLoRA).")
-            else:
-                args.qlora = True
-                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM (<11 GB). Enabling 4-bit QLoRA to fit safely.")
-        elif args.qlora and cc_major < 7:
-            print(f"[Device] Compute capability {cc_major}.{cc_minor} (<7.0, e.g. P100) detected; "
-                  "switching from 4-bit QLoRA to 16-bit LoRA for full compatibility.")
+        # A 1.5B model takes only ~3.1 GB in FP16. If GPU has >= 10 GB VRAM (e.g. Kaggle T4 with 15GB or P100 with 16GB),
+        # running 4-bit QLoRA forces software dequantization on every layer, slowing down training by 35x (28s/step vs 0.7s/step).
+        if gpu_mem >= 10.0 or cc_major < 7:
+            if args.qlora:
+                print(f"[Auto-Optimizer] Overriding --qlora -> native FP16: GPU has {gpu_mem:.1f} GB VRAM, while Qwen2.5-1.5B takes only 3.1 GB.")
+                print("                 Running on native FP16 Tensor Cores for ~40x faster training (~15-20 mins total).")
             args.qlora = False
-
-        # Auto-configure gradient checkpointing:
-        # Without gradient checkpointing, training runs ~35% faster because forward pass isn't recomputed.
-        if args.grad_checkpointing is None:
-            if gpu_mem >= 11.0:
-                args.grad_checkpointing = False
-                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM. Disabling gradient checkpointing for 35% faster throughput.")
-            else:
+            args.grad_checkpointing = False
+            if args.batch_size <= 4 and args.grad_accum >= 4:
+                args.batch_size = 8
+                args.grad_accum = 2
+        else:
+            if args.qlora is None:
+                args.qlora = True
+            if args.grad_checkpointing is None:
                 args.grad_checkpointing = True
-                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM. Enabling gradient checkpointing to conserve memory.")
 
     # 2. Dataset preparation
     data_dir_path = Path(args.data_dir)
