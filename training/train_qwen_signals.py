@@ -110,7 +110,12 @@ def main():
     else:
         gpu_name = torch.cuda.get_device_name(0)
         gpu_mem = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-        print(f"[Device] Using GPU: {gpu_name} ({gpu_mem:.2f} GB VRAM)")
+        cc_major, cc_minor = torch.cuda.get_device_capability(0)
+        print(f"[Device] Using GPU: {gpu_name} ({gpu_mem:.2f} GB VRAM, sm_{cc_major}{cc_minor})")
+        if args.qlora and cc_major < 7:
+            print(f"[Device] Compute capability {cc_major}.{cc_minor} (<7.0, e.g. P100) detected; "
+                  "switching from 4-bit QLoRA to 16-bit LoRA for full compatibility.")
+            args.qlora = False
 
     # 2. Dataset preparation
     data_dir_path = Path(args.data_dir)
@@ -129,7 +134,7 @@ def main():
     print(f"[2/5] Loading base model weights...")
     model_kwargs = {
         "trust_remote_code": True,
-        "device_map": "auto" if device == "cuda" else None,
+        "device_map": {"": 0} if device == "cuda" else None,
     }
 
     if args.qlora and device == "cuda":
@@ -154,6 +159,8 @@ def main():
 
     if args.qlora and device == "cuda":
         model = prepare_model_for_kbit_training(model)
+    else:
+        model.enable_input_require_grads()
 
     # 4. Configure LoRA
     print(f"[3/5] Configuring LoRA adapter (r={args.lora_rank}, alpha={args.lora_alpha})...")

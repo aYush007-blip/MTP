@@ -9,13 +9,29 @@ This folder contains the complete, self-contained training suite to fine-tune **
 ```
 training/
 ├── data/
-│   ├── train.jsonl.gz           # 10,467 unique training samples (0.83 MB compressed, 12.44 MB raw)
-│   └── val.jsonl.gz             # 1,179 unique validation samples (96 KB compressed, 1.40 MB raw, 0% overlap)
-├── train_qwen_signals_colab.ipynb # 1-Click Google Colab Notebook
-├── train_qwen_signals.py        # Cross-platform training script (Windows / Linux)
-├── requirements.txt             # Python dependencies
-└── README.md                    # This guide
+│   ├── train.jsonl.gz             # 10,467 unique training samples (0.83 MB compressed, 12.44 MB raw)
+│   └── val.jsonl.gz               # 1,179 unique validation samples (96 KB compressed, 1.40 MB raw, 0% overlap)
+├── train_qwen_signals_kaggle.ipynb # 1-Click Kaggle Notebook (T4 x2 / P100)
+├── train_qwen_signals_colab.ipynb  # 1-Click Google Colab Notebook
+├── train_qwen_signals.py          # Cross-platform training script (Windows / Linux / Kaggle / Colab)
+├── requirements.txt               # Python dependencies
+└── README.md                      # This guide
 ```
+
+---
+
+## Method 0: Train on Kaggle (Recommended — Free T4 x2 / P100 GPU)
+
+1. Open [Kaggle Notebooks](https://www.kaggle.com/code) → **New Notebook**.
+2. Click **File → Import Notebook** and upload `training/train_qwen_signals_kaggle.ipynb` (or import directly from GitHub: `https://github.com/aYush007-blip/MTP`).
+3. In the right sidebar **Session options**:
+   - **Accelerator**: select **`GPU T4 x2`** (recommended) or **`GPU P100`**.
+   - **Internet**: toggle **ON**.
+4. Click **Run All**:
+   - Keeps intermediate files in `/tmp/` so `/kaggle/working/` stays clean.
+   - Pins `CUDA_VISIBLE_DEVICES=0` (prevents Kaggle T4 x2 `DataParallel` conflicts) and auto-switches to 16-bit LoRA if run on P100.
+   - Runs a 3-prompt Signals & Systems sanity check on the merged model before GGUF conversion.
+   - Exports `/kaggle/working/qwen2.5-1.5b-instruct-q4_k_m.gguf` (~1.0 GB) ready to download from the **Output** tab.
 
 ---
 
