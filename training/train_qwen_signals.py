@@ -234,6 +234,9 @@ def main():
     ta_params = inspect.signature(TrainingArguments.__init__).parameters
     eval_key = "eval_strategy" if "eval_strategy" in ta_params else "evaluation_strategy"
 
+    steps_per_epoch = max(1, len(tokenized_dataset["train"]) // (args.batch_size * args.grad_accum))
+    warmup_steps = max(1, int(steps_per_epoch * args.epochs * 0.05))
+
     ta_kwargs = {
         "output_dir": str(adapter_path),
         "per_device_train_batch_size": args.batch_size,
@@ -247,12 +250,16 @@ def main():
         "fp16": use_fp16,
         "bf16": use_bf16,
         "optim": "paged_adamw_8bit" if (args.qlora and device == "cuda") else "adamw_torch",
-        "warmup_ratio": 0.05,
+        "warmup_steps": warmup_steps,
         "lr_scheduler_type": "cosine",
         "report_to": "none",
         "save_total_limit": 1,
         "gradient_checkpointing": True,
     }
+    if "gradient_checkpointing_kwargs" in ta_params:
+        ta_kwargs["gradient_checkpointing_kwargs"] = {"use_reentrant": False}
+    # Guard against any removed kwargs in future transformers versions
+    ta_kwargs = {k: v for k, v in ta_kwargs.items() if k in ta_params}
     training_args = TrainingArguments(**ta_kwargs)
 
     trainer_params = inspect.signature(Trainer.__init__).parameters
