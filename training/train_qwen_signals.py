@@ -31,19 +31,23 @@ def parse_args():
                         help="Directory containing train.jsonl (or train.jsonl.gz)")
     parser.add_argument("--output-dir", type=str, default=str(Path(__file__).parent / "output_qwen_signals"),
                         help="Directory to save checkpoints and merged model")
-    parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
-    parser.add_argument("--batch-size", type=int, default=4, help="Per-device batch size")
-    parser.add_argument("--grad-accum", type=int, default=4,
-                        help="Gradient accumulation steps (effective batch = batch * accum)")
-    parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
+    parser.add_argument("--epochs", type=int, default=2, help="Number of training epochs (default: 2)")
+    parser.add_argument("--batch-size", type=int, default=8, help="Per-device batch size (default: 8)")
+    parser.add_argument("--grad-accum", type=int, default=2,
+                        help="Gradient accumulation steps (effective batch = batch * accum, default: 2)")
+    parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate (default: 2e-4)")
     parser.add_argument("--max-length", type=int, default=1024,
                         help="Max sequence token length (1024 covers multi-sentence derivations)")
     parser.add_argument("--lora-rank", type=int, default=16, help="LoRA rank dimension")
     parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha scaling parameter")
-    parser.add_argument("--qlora", action="store_true", default=True,
-                        help="Enable 4-bit NF4 QLoRA quantization (saves VRAM; recommended for <=12GB GPUs)")
+    parser.add_argument("--qlora", action="store_true", default=None,
+                        help="Force 4-bit NF4 QLoRA quantization (saves VRAM on <=8GB GPUs; slow on T4)")
     parser.add_argument("--no-qlora", dest="qlora", action="store_false",
-                        help="Disable 4-bit QLoRA and use 16-bit LoRA (requires >=16GB VRAM)")
+                        help="Force native 16-bit LoRA (runs 10x faster on Tensor Cores; recommended for >=12GB GPUs)")
+    parser.add_argument("--grad-checkpointing", action="store_true", default=None,
+                        help="Enable gradient checkpointing (saves activation VRAM at cost of 35% speed)")
+    parser.add_argument("--no-grad-checkpointing", dest="grad_checkpointing", action="store_false",
+                        help="Disable gradient checkpointing (runs 35% faster if VRAM allows)")
     parser.add_argument("--merge-and-export", action="store_true", default=True,
                         help="Automatically merge LoRA adapter into base model after training")
     return parser.parse_args()
@@ -107,15 +111,41 @@ def main():
     if device != "cuda":
         print("\n[WARNING] CUDA is not available! Training will run on CPU, which is extremely slow.")
         print("Ensure NVIDIA drivers, CUDA, and PyTorch with CUDA support are installed.")
+        if args.qlora is None:
+            args.qlora = False
+        if args.grad_checkpointing is None:
+            args.grad_checkpointing = False
     else:
         gpu_name = torch.cuda.get_device_name(0)
         gpu_mem = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         cc_major, cc_minor = torch.cuda.get_device_capability(0)
         print(f"[Device] Using GPU: {gpu_name} ({gpu_mem:.2f} GB VRAM, sm_{cc_major}{cc_minor})")
-        if args.qlora and cc_major < 7:
+
+        # Auto-configure QLoRA vs native FP16 LoRA:
+        # A 1.5B model takes only ~3.1 GB in FP16. If GPU has >= 11 GB VRAM (e.g. Kaggle T4 with 15GB or P100 with 16GB),
+        # native FP16 Tensor Cores are 10x faster than 4-bit software dequantization on T4.
+        if args.qlora is None:
+            if gpu_mem >= 11.0 or cc_major < 7:
+                args.qlora = False
+                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM (>=11 GB). Running ultra-fast native FP16/BF16 LoRA "
+                      "(Tensor Cores enabled, ~10x faster than 4-bit QLoRA).")
+            else:
+                args.qlora = True
+                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM (<11 GB). Enabling 4-bit QLoRA to fit safely.")
+        elif args.qlora and cc_major < 7:
             print(f"[Device] Compute capability {cc_major}.{cc_minor} (<7.0, e.g. P100) detected; "
                   "switching from 4-bit QLoRA to 16-bit LoRA for full compatibility.")
             args.qlora = False
+
+        # Auto-configure gradient checkpointing:
+        # Without gradient checkpointing, training runs ~35% faster because forward pass isn't recomputed.
+        if args.grad_checkpointing is None:
+            if gpu_mem >= 11.0:
+                args.grad_checkpointing = False
+                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM. Disabling gradient checkpointing for 35% faster throughput.")
+            else:
+                args.grad_checkpointing = True
+                print(f"[Auto-Config] Detected {gpu_mem:.1f} GB VRAM. Enabling gradient checkpointing to conserve memory.")
 
     # 2. Dataset preparation
     data_dir_path = Path(args.data_dir)
@@ -159,7 +189,7 @@ def main():
 
     if args.qlora and device == "cuda":
         model = prepare_model_for_kbit_training(model)
-    else:
+    elif args.grad_checkpointing:
         model.enable_input_require_grads()
 
     # 4. Configure LoRA
@@ -254,7 +284,10 @@ def main():
         "lr_scheduler_type": "cosine",
         "report_to": "none",
         "save_total_limit": 1,
-        "gradient_checkpointing": True,
+        "gradient_checkpointing": args.grad_checkpointing,
+        "group_by_length": True,
+        "dataloader_num_workers": 2,
+        "dataloader_pin_memory": True,
     }
     if "gradient_checkpointing_kwargs" in ta_params:
         ta_kwargs["gradient_checkpointing_kwargs"] = {"use_reentrant": False}
