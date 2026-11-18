@@ -34,7 +34,9 @@ def parse_args():
                         help="Directory containing train.jsonl (or train.jsonl.gz)")
     parser.add_argument("--output-dir", type=str, default=str(Path(__file__).parent / "output_qwen_signals"),
                         help="Directory to save checkpoints and merged model")
-    parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs (default: 3)")
+    parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs (default: 1 for ~15 mins)")
+    parser.add_argument("--max-steps", type=int, default=-1,
+                        help="Max training steps (if > 0 overrides epochs, e.g. 500 steps)")
     parser.add_argument("--batch-size", type=int, default=4,
                         help="Per-device batch size (default: 4 for rock-solid VRAM safety)")
     parser.add_argument("--grad-accum", type=int, default=4,
@@ -165,7 +167,7 @@ def main():
     print(f"[2/5] Loading base model weights...")
     model_kwargs = {
         "trust_remote_code": True,
-        "device_map": {"": 0} if device == "cuda" else None,
+        "attn_implementation": "sdpa",
     }
 
     if args.qlora and device == "cuda":
@@ -177,6 +179,7 @@ def main():
             bnb_4bit_use_double_quant=True,
         )
         model_kwargs["quantization_config"] = bnb_config
+        model_kwargs["device_map"] = {"": 0}
     else:
         dtype = (
             torch.bfloat16
@@ -187,6 +190,9 @@ def main():
 
     model = AutoModelForCausalLM.from_pretrained(args.model_id, **model_kwargs)
     model.config.use_cache = False
+
+    if not args.qlora and device == "cuda":
+        model = model.to("cuda:0")
 
     if args.qlora and device == "cuda":
         model = prepare_model_for_kbit_training(model)
@@ -303,6 +309,8 @@ def main():
         "dataloader_num_workers": 2,
         "dataloader_pin_memory": True,
     }
+    if args.max_steps > 0:
+        ta_kwargs["max_steps"] = args.max_steps
     if "gradient_checkpointing_kwargs" in ta_params:
         ta_kwargs["gradient_checkpointing_kwargs"] = {"use_reentrant": False}
     # Guard against any removed kwargs in future transformers versions
