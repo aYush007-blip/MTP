@@ -1313,10 +1313,13 @@ class LectureToBookBuilder:
         hindi_paragraphs = translator.translate_paragraphs(english_paragraphs)
 
         # 3. Translate subtitle chunks for .srt and .vtt
+        print(f"[HindiTranslator] Translating {len(chunks)} subtitle segments into Hindi...")
         hindi_chunks = []
-        for c in chunks:
+        for idx, c in enumerate(chunks, 1):
             raw_text = c.latex_text or c.spoken_text or ""
-            hi_text = translator.translate_text(raw_text) if raw_text.strip() else raw_text
+            hi_text = translator.translate_text(raw_text, max_tokens=128) if raw_text.strip() else raw_text
+            if idx % 5 == 0 or idx == len(chunks):
+                print(f"[HindiTranslator] Subtitles: {idx}/{len(chunks)} translated")
             hindi_chunks.append(TranscriptChunk(
                 timestamp_start=c.timestamp_start,
                 timestamp_end=c.timestamp_end,

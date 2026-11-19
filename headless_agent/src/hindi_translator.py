@@ -19,12 +19,13 @@ import urllib.request
 LLAMA_SERVER_URL = os.environ.get("LLAMA_SERVER_URL", "http://127.0.0.1:8080").rstrip("/")
 
 HINDI_SYSTEM_PROMPT = (
-    "You are a professional STEM Hindi translator. Translate English academic and presentation text into "
-    "natural, fluent Hindi (Devanagari script) to aid Indian college students. "
+    "You are a professional STEM Hindi translator. Translate English academic lectures and presentations into "
+    "natural, fluent Hindi (Devanagari script) to aid Indian college students.\n"
     "CRITICAL RULES:\n"
-    "1. Keep all mathematical placeholders like __MATH_0__, variables, equations, and code identifiers 100% UNCHANGED.\n"
-    "2. Translate the surrounding English prose into natural Hindi. Keep standard technical terms in English or parentheses where helpful.\n"
-    "3. Output ONLY the translated Hindi sentence. Do NOT add meta commentary, explanations, or notes."
+    "1. Keep all LaTeX equations ($...$, $$...$$), variables (e.g. $x(t)$, $X(s)$, $h(t)$, $A$, $\\omega$), "
+    "and numbers 100% verbatim and unchanged.\n"
+    "2. Translate the surrounding English prose into natural Hindi. Keep standard English technical terms in parentheses for pedagogical clarity.\n"
+    "3. Output ONLY the translated Hindi text. Do NOT add meta commentary, explanations, or quotes."
 )
 
 HINDI_FEW_SHOTS = [
@@ -34,61 +35,29 @@ HINDI_FEW_SHOTS = [
     },
     {
         "role": "user",
-        "content": "Translate into Hindi:\nTaking the integral from zero to infinity of __MATH_0__ gives __MATH_1__."
+        "content": "Taking the integral from zero to infinity of $x^2 e^{-\\lambda x} \\, dx$ gives $\\frac{2}{\\lambda^3}$."
     },
     {
         "role": "assistant",
-        "content": "शून्य से अनंत तक __MATH_0__ का समाकलन (integral) लेने पर __MATH_1__ प्राप्त होता है।"
+        "content": "शून्य से अनंत तक $x^2 e^{-\\lambda x} \\, dx$ का समाकलन (integral) लेने पर $\\frac{2}{\\lambda^3}$ प्राप्त होता है।"
     },
     {
         "role": "user",
-        "content": "Translate into Hindi:\nThe continuous-time signal __MATH_0__ is passed through a linear time-invariant system with impulse response __MATH_1__."
+        "content": "The continuous-time signal $x(t)$ is passed through a linear time-invariant system with impulse response $h(t)$."
     },
     {
         "role": "assistant",
-        "content": "सतत-समय संकेत (continuous-time signal) __MATH_0__ को एक रैखिक समय-अपरिवर्तनीय (linear time-invariant) प्रणाली से गुजारा जाता है जिसका आवेग प्रतिक्रिया (impulse response) __MATH_1__ है।"
+        "content": "सतत-समय संकेत (continuous-time signal) $x(t)$ को आवेग प्रतिक्रिया $h(t)$ वाली रैखिक समय-अपरिवर्तनीय (LTI) प्रणाली से गुजारा जाता है।"
     },
     {
         "role": "user",
-        "content": "Translate into Hindi:\nGood morning everyone. Welcome to today's presentation on algorithms."
+        "content": "Good morning everyone. Welcome to today's presentation on algorithms."
     },
     {
         "role": "assistant",
         "content": "शुभ प्रभात सभी को। एल्गोरिदम पर आज की प्रस्तुति में आपका स्वागत है।"
     }
 ]
-
-
-def extract_math_spans(text: str) -> Tuple[str, List[str]]:
-    """
-    Replaces all math expressions ($...$, $$...$$, \\(..\\), \\[..\\]) with unique placeholders
-    to guarantee that the LLM cannot mutate or corrupt the LaTeX AST during translation.
-    """
-    spans = []
-    def _save_span(m):
-        idx = len(spans)
-        spans.append(m.group(0))
-        return f"__MATH_{idx}__"
-
-    # Save display math first
-    s = re.sub(r"\$\$.*?\$\$", _save_span, text, flags=re.DOTALL)
-    s = re.sub(r"\\\[.*?\\\]", _save_span, s, flags=re.DOTALL)
-    # Save inline math
-    s = re.sub(r"(?<!\\)\$.*?(?<!\\)\$", _save_span, s, flags=re.DOTALL)
-    s = re.sub(r"\\\(.*?\\\)", _save_span, s, flags=re.DOTALL)
-    return s, spans
-
-
-def restore_math_spans(translated_text: str, spans: List[str]) -> str:
-    """Restores the exact original LaTeX math expressions into the translated text."""
-    result = translated_text
-    for idx, span in enumerate(spans):
-        # Use lambda in sub to prevent backslash interpretation (e.g. \l, \f, \t) in LaTeX math
-        pattern = re.compile(rf"__\s*MATH_{idx}\s*__")
-        result = pattern.sub(lambda _, s=span: s, result)
-        # Direct string replacement fallback
-        result = result.replace(f"__MATH_{idx}__", span)
-    return result
 
 
 class HindiLectureTranslator:
@@ -119,25 +88,22 @@ class HindiLectureTranslator:
     def translate_text(self, text: str, max_tokens: int = 512) -> str:
         """
         Translates an English technical paragraph into Hindi, preserving LaTeX math.
-        Employs AST placeholder protection for 100% formula preservation.
         """
         clean_in = text.strip()
         if not clean_in or len(clean_in) < 3:
             return clean_in
 
-        # Protect all math spans before LLM translation
-        masked_text, math_spans = extract_math_spans(clean_in)
-
         messages = list(HINDI_FEW_SHOTS)
         messages.append({
             "role": "user",
-            "content": f"Translate into Hindi:\n{masked_text}"
+            "content": clean_in
         })
 
-        token_budget = min(max_tokens, max(48, len(clean_in.split()) * 3 + 48))
+        token_budget = min(max_tokens, max(96, len(clean_in.split()) * 4 + 64))
         payload = {
             "messages": messages,
-            "temperature": 0.1,
+            "temperature": 0.0,
+            "repeat_penalty": 1.15,
             "max_tokens": token_budget,
             "stop": ["<|im_end|>", "<|endoftext|>", "\n\n"],
             "cache_prompt": True,
@@ -149,7 +115,7 @@ class HindiLectureTranslator:
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=60.0) as resp:
+            with urllib.request.urlopen(req, timeout=120.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 raw_translation = data["choices"][0]["message"]["content"].strip()
                 if raw_translation:
@@ -160,9 +126,7 @@ class HindiLectureTranslator:
                         raw_translation,
                         flags=re.IGNORECASE
                     ).strip()
-                    # Restore pristine mathematical AST
-                    restored = restore_math_spans(clean_res, math_spans)
-                    return restored
+                    return clean_res
         except Exception as e:
             print(f"[HindiTranslator] Translation request failed: {e}. Falling back to original text.")
 

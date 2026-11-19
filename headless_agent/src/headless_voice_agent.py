@@ -71,14 +71,10 @@ LLAMA_BIN = "/mnt/thesis/llama.cpp/build/bin/llama-server"
 LLAMA_MODEL = "/mnt/thesis/models/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
 WHISPER_MATH_PROMPT = (
-    "Electrical Engineering lecture: signals and systems, continuous-time x(t), x1(t), x2(t), y(t), impulse response h(t), "
-    "convolution x(t)*h(t), discrete-time x[n], y[n], h[n], unit step u(t), u[n], Dirac delta delta(t), Kronecker delta delta[n], "
-    "Laplace transform X(s), s = sigma + j*omega, ROC, e^(s*t), e^(-s*t), e^(j*omega_0*t), cos(omega_0*t), sin(omega_0*t), "
-    "transfer function H(s)=Y(s)/X(s), initial value theorem lim t->0 x(t) = lim s->inf s*X(s), final value theorem lim t->inf x(t) = lim s->0 s*X(s), "
-    "Fourier series a_k, CTFT X(j*omega), DTFT X(e^(j*omega)), Z-transform X(z), z = r*e^(j*Omega), Nyquist sampling rate omega_s = 2*omega_m, sinc, "
-    "damping ratio zeta, natural frequency omega_n, characteristic equation, Bode plot, state-space dot x = Ax + Bu, "
-    "KCL KVL, phasor impedance j omega L, 1/(j omega C), Thevenin Norton, complex power P + jQ, sqrt(3)*VL*IL*cos(phi), "
-    "synchronous speed Ns = 120f/P, slip s, back EMF Eb, Park d-q-0, Maxwell equations curl E = -dB/dt, Poynting vector, small-signal gm."
+    "Academic STEM lecture and professional presentation: mathematics, physics, computer science, algorithms, "
+    "engineering, calculus, linear algebra, limits, integrals, derivatives, differential equations, matrices, vectors, "
+    "proofs, theorems, definitions, functions f(x), variables x, y, z, t, n, parameters alpha, beta, theta, omega, "
+    "equations, formulas, and technical exposition."
 )
 
 START_TRIGGERS = [

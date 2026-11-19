@@ -319,7 +319,7 @@ class QwenMathTranslator:
             for attempt in range(3):
                 if self._is_server_alive():
                     try:
-                        with urllib.request.urlopen(req, timeout=25.0) as resp:
+                        with urllib.request.urlopen(req, timeout=45.0) as resp:
                             resp_data = json.loads(resp.read().decode("utf-8"))
                             content = resp_data["choices"][0]["message"]["content"]
                             return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
