@@ -1156,11 +1156,15 @@ class HeadlessVoiceAgent:
             hi_vtt_file.write_text(hindi_vtt, encoding="utf-8")
 
             hi_pdf_file = temp_dir / f"{session_name}_hindi.pdf"
-            self.post_processor.compile_hindi_pdf(
+            compiled_hi = self.post_processor.compile_hindi_pdf(
+                tex_path=hi_tex_file,
+                output_dir=temp_dir,
                 title=hindi_title,
                 paragraphs=hindi_paras,
                 output_pdf_path=hi_pdf_file
             )
+            if compiled_hi and compiled_hi.is_file():
+                hi_pdf_file = compiled_hi
         except Exception as e:
             print(f"[Agent] Warning: Hindi translation/compilation error: {e}", flush=True)
             hi_tex_file = hi_md_file = hi_srt_file = hi_vtt_file = hi_pdf_file = None

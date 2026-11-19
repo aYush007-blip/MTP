@@ -616,21 +616,32 @@ class PostLectureProcessor:
 
     def compile_hindi_pdf(
         self,
-        title: str,
-        paragraphs: List[str],
-        output_pdf_path: Path
+        tex_path: Path,
+        output_dir: Path,
+        title: str = "",
+        paragraphs: Optional[List[str]] = None,
+        output_pdf_path: Optional[Path] = None
     ) -> Optional[Path]:
         """
-        Compiles the Hindi bilingual monograph to PDF using ReportLab Devanagari engine.
+        Compiles the Hindi bilingual monograph to publication-grade PDF using Tectonic (XeTeX)
+        with native Lohit-Devanagari font and LaTeX math mode.
+        Falls back to ReportLab only if XeTeX compilation fails.
         """
-        success = self.pdf_renderer.render_hindi_reportlab_pdf(
-            title=title,
-            paragraphs=paragraphs,
-            output_pdf_path=output_pdf_path
-        )
-        if success and output_pdf_path.is_file():
-            print(f"[Hindi PDF Compiler] Successfully compiled: {output_pdf_path} ({output_pdf_path.stat().st_size} bytes)")
-            return output_pdf_path
+        if tex_path and tex_path.is_file():
+            pdf = self.pdf_renderer.compile_latex_to_pdf(tex_path, output_dir)
+            if pdf and pdf.is_file() and pdf.stat().st_size > 1000:
+                print(f"[Hindi PDF Compiler] Tectonic successfully compiled publication-grade Hindi PDF: {pdf} ({pdf.stat().st_size} bytes)")
+                return pdf
+
+        if paragraphs and output_pdf_path:
+            print("[Hindi PDF Compiler] Falling back to ReportLab Devanagari renderer...")
+            success = self.pdf_renderer.render_hindi_reportlab_pdf(
+                title=title,
+                paragraphs=paragraphs,
+                output_pdf_path=output_pdf_path
+            )
+            if success and output_pdf_path.is_file():
+                return output_pdf_path
         return None
 
 

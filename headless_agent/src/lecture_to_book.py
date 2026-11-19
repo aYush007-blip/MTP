@@ -1352,40 +1352,61 @@ class LectureToBookBuilder:
 
         hindi_md = "\n".join(md_parts)
 
-        # 5. Build XeTeX compatible LaTeX source
+        # 5. Build publication-grade XeTeX LaTeX source with display equations, formal sections, and TikZ
         clean_title_tex = hindi_title.replace("$", "").replace("&", r"\&").strip()
-        body_tex_lines = []
-        for idx, p in enumerate(hindi_paragraphs, 1):
-            body_tex_lines.append(f"{escape_latex_text(p)}\n")
-        body_tex = "\n\n".join(body_tex_lines)
+
+        # Detect diagram triggers from full text
+        full_text = " ".join(hindi_paragraphs)
+        triggers = self.tikz_gen.detect_diagram_triggers(full_text)
+        tikz_blocks = self.tikz_gen.get_tikz_for_triggers(triggers)
+
+        # Promote major formulas to display equations and structure into formal sections
+        processed_hindi = [self.eq_formatter.promote_to_display_equations(escape_latex_text(p)) for p in hindi_paragraphs]
+        body_tex_parts = self.sectionizer.structure_monograph(processed_hindi, tikz_blocks, full_text)
+        body_tex = "\n".join(body_tex_parts)
 
         hindi_tex = rf"""\documentclass[11pt,a4paper]{{article}}
-\usepackage{{amsmath,amssymb,amsfonts}}
+\usepackage{{amsmath,amssymb,amsfonts,amsthm,mathtools}}
 \usepackage{{geometry}}
 \geometry{{margin=0.9in, top=1.0in, bottom=1.0in}}
 \usepackage{{fontspec}}
 \setmainfont{{Lohit Devanagari}}
 \usepackage{{xcolor}}
 \usepackage{{fancyhdr}}
+\usepackage{{booktabs}}
+\usepackage{{enumitem}}
 \usepackage{{hyperref}}
+\usepackage{{tikz}}
+\usetikzlibrary{{shapes,arrows.meta,positioning,calc}}
 
 \definecolor{{primarydark}}{{RGB}}{{20, 35, 60}}
 \definecolor{{accentblue}}{{RGB}}{{30, 90, 160}}
 \definecolor{{mutedgray}}{{RGB}}{{90, 100, 115}}
 
+\hypersetup{{
+    colorlinks=true,
+    linkcolor=accentblue,
+    citecolor=accentblue,
+    urlcolor=accentblue
+}}
+
 \pagestyle{{fancy}}
 \fancyhf{{}}
-\fancyhead[L]{{\small\color{{mutedgray}} {clean_title_tex}}}
+\fancyhead[L]{{\small\color{{mutedgray}} \textbf{{द्विभाषी व्याख्यान:}} {clean_title_tex}}}
 \fancyhead[R]{{\small\color{{mutedgray}} पृष्ठ \thepage}}
+\renewcommand{{\headrulewidth}}{{0.4pt}}
 
 \setlength{{\parskip}}{{0.6em}}
 \setlength{{\parindent}}{{0pt}}
+
+\newtheorem{{theorem}}{{प्रमेय}}
+\newtheorem{{definition}}{{परिभाषा}}
 
 \begin{{document}}
 
 \begin{{center}}
   {{\LARGE\bfseries\color{{primarydark}} {clean_title_tex}}} \\[0.5em]
-  {{\small\color{{mutedgray}} {date_str} | द्विभाषी व्याख्यान प्रतिलेख}}
+  {{\small\color{{mutedgray}} {date_str} | द्विभाषी व्याख्यान प्रतिलेख एवं नोट्स}}
 \end{{center}}
 
 \vspace{{0.3em}}
