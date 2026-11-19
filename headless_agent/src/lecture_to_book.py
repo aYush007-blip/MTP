@@ -1312,14 +1312,20 @@ class LectureToBookBuilder:
         english_paragraphs = self.assemble_paragraphs(chunks)
         hindi_paragraphs = translator.translate_paragraphs(english_paragraphs)
 
-        # 3. Translate subtitle chunks for .srt and .vtt
-        print(f"[HindiTranslator] Translating {len(chunks)} subtitle segments into Hindi...")
+        # 3. Translate subtitle chunks for .srt and .vtt (in high-throughput batches)
+        print(f"[HindiTranslator] Translating {len(chunks)} subtitle segments into Hindi in parallel batches...")
+        raw_texts = [(c.latex_text or c.spoken_text or "").strip() for c in chunks]
+
+        batch_size = 4
+        translated_texts = []
+        for b_idx in range(0, len(raw_texts), batch_size):
+            batch = raw_texts[b_idx:b_idx + batch_size]
+            t_batch = translator.translate_subtitles_batch(batch)
+            translated_texts.extend(t_batch)
+            print(f"[HindiTranslator] Subtitles: {min(len(translated_texts), len(chunks))}/{len(chunks)} translated")
+
         hindi_chunks = []
-        for idx, c in enumerate(chunks, 1):
-            raw_text = c.latex_text or c.spoken_text or ""
-            hi_text = translator.translate_text(raw_text, max_tokens=128) if raw_text.strip() else raw_text
-            if idx % 5 == 0 or idx == len(chunks):
-                print(f"[HindiTranslator] Subtitles: {idx}/{len(chunks)} translated")
+        for c, hi_text in zip(chunks, translated_texts):
             hindi_chunks.append(TranscriptChunk(
                 timestamp_start=c.timestamp_start,
                 timestamp_end=c.timestamp_end,

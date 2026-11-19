@@ -146,6 +146,75 @@ class HindiLectureTranslator:
             translated.append(trans)
         return translated
 
+    def translate_subtitles_batch(self, lines: List[str]) -> List[str]:
+        """
+        Translates a batch of short subtitle segments into natural Hindi in a single LLM call.
+        Preserves all LaTeX mathematical expressions ($...$) verbatim.
+        """
+        if not lines:
+            return []
+
+        numbered = "\n".join(f"{i+1}. {line.strip()}" for i, line in enumerate(lines))
+        prompt = (
+            "Translate each numbered subtitle line into natural Hindi for college students.\n"
+            "Keep all LaTeX equations ($...$, $$...$$), variables, and numbers 100% verbatim.\n"
+            "Maintain exact line numbering (1., 2., etc.). Output ONLY the numbered translations:\n\n"
+            f"{numbered}"
+        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional Hindi translator for academic STEM lectures. "
+                    "Translate each numbered line into natural Hindi (Devanagari script) preserving line numbers "
+                    "and keeping all LaTeX math ($...$) verbatim. Output ONLY the numbered lines."
+                )
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+
+        token_budget = min(1024, max(128, sum(len(l.split()) for l in lines) * 4 + 64))
+        payload = {
+            "messages": messages,
+            "temperature": 0.0,
+            "repeat_penalty": 1.15,
+            "max_tokens": token_budget,
+            "stop": ["<|im_end|>", "<|endoftext|>"],
+            "cache_prompt": True
+        }
+
+        try:
+            req = urllib.request.Request(
+                f"{self.server_url}/v1/chat/completions",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=120.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                raw_out = data["choices"][0]["message"]["content"].strip()
+
+                result_map = {}
+                for line in raw_out.split("\n"):
+                    m = re.match(r"^\s*(\d+)[\.\)]\s*(.*)", line.strip())
+                    if m:
+                        idx = int(m.group(1)) - 1
+                        result_map[idx] = m.group(2).strip()
+
+                translated_lines = []
+                for i, orig in enumerate(lines):
+                    if i in result_map and result_map[i]:
+                        translated_lines.append(result_map[i])
+                    else:
+                        translated_lines.append(orig)
+                return translated_lines
+        except Exception as e:
+            print(f"[HindiTranslator] Subtitle batch translation fallback: {e}")
+            return lines
+
     def translate_title(self, title: str) -> str:
         """Translates the inferred monograph title to Hindi."""
         try:
