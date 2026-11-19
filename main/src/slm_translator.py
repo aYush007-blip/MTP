@@ -21,55 +21,52 @@ from typing import Optional
 import urllib.request
 
 SYSTEM_PROMPT = (
-    "You are an expert STEM lecture transcriber and mathematical typesetter across all engineering disciplines.\n"
-    "Your task is to take a spoken lecture transcript and convert mathematical formulas, symbols, physical laws, "
+    "You are an expert STEM and academic lecture transcriber and mathematical typesetter across all scientific and engineering disciplines.\n"
+    "Your task is to take a spoken lecture or presentation transcript and convert mathematical formulas, symbols, physical laws, "
     "and equations into standard inline LaTeX ($...$).\n\n"
     "RULES:\n"
-    "1. Function notation: Continuous functions use parentheses (e.g., $f(x)$, $u(x, t)$, $T(r)$, $H(s)$, $G(j\\omega)$, $i(t)$, $V(t)$, $I_0$). "
-    "Discrete sequences use brackets (e.g., $x[n]$, $y[n]$, $x[2n]$, $x[n/N]$, $h[k]$).\n"
-    "2. Calculus & relations: Derivatives use \\frac{d...}{d...} (e.g., $\\frac{di}{dt}$, $\\frac{\\partial u}{\\partial x}$). "
-    "Use standard engineering notation for integrals ($\\int$), sums ($\\sum$), and vectors ($\\nabla$).\n"
-    "3. VERBATIM FIDELITY: You MUST preserve EVERY surrounding word, sentence, and technical explanation VERBATIM. "
-    "NEVER summarize, condense, delete, or omit non-mathematical speech. The output must match the input word-for-word, "
-    "only formatting spoken math expressions into inline LaTeX ($...$). NEVER wrap normal conversational words in LaTeX.\n"
-    "4. Clean disfluencies: Turn spoken stutters into the intended mathematical formula.\n"
-    "5. CRITICAL: NEVER repeat, echo, or quote preceding context. NEVER output \"Spoken transcript:\", meta labels, or markdown blocks. "
-    "Output ONLY the inline LaTeX-typeset transcript of the current user message."
+    "1. MATHEMATICAL & SCIENTIFIC NOTATION: Convert spoken variables, matrices, integrals, derivatives, limits, "
+    "transforms, algorithms, physical constants, and equations from ANY discipline (mathematics, physics, computer science, "
+    "engineering, chemistry, economics) into clean inline LaTeX ($...$).\n"
+    "2. VERBATIM FIDELITY: Preserve EVERY surrounding spoken English word, explanation, presentation dialogue, "
+    "and question VERBATIM. NEVER summarize, condense, delete, or rephrase non-mathematical speech. "
+    "NEVER wrap normal conversational English words in LaTeX.\n"
+    "3. CLEAN OUTPUT: Output ONLY the inline LaTeX-typeset transcript of the user message. NEVER output preamble, labels, answers, or commentary."
 )
 
 
 FEW_SHOT_MESSAGES = [
     {
         "role": "user",
-        "content": "Spoken transcript:\nLet's apply Kirchhoff's voltage law: r i plus l d i by d t equals zero with initial condition i of zero is i zero."
+        "content": "Spoken transcript:\nTaking the integral from zero to infinity of x squared times e to the power minus lambda x dx gives two divided by lambda cubed."
     },
     {
         "role": "assistant",
-        "content": "Let's apply Kirchhoff's voltage law: $Ri + L\\frac{di}{dt} = 0$ with initial condition $i(0) = I_0$."
+        "content": "Taking the integral $\\int_0^\\infty x^2 e^{-\\lambda x} \\, dx$ gives $\\frac{2}{\\lambda^3}$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nIn the momentum equation, rho times partial v with respect to t equals minus grad p plus mu del squared v."
+        "content": "Spoken transcript:\nIn algorithms, if matrix a times vector x equals b, the Gaussian elimination runtime is big O of n cubed."
     },
     {
         "role": "assistant",
-        "content": "In the momentum equation, $\\rho \\frac{\\partial \\mathbf{v}}{\\partial t} = -\\nabla p + \\mu \\nabla^2 \\mathbf{v}$."
+        "content": "In algorithms, if matrix $A\\mathbf{x} = \\mathbf{b}$, the Gaussian elimination runtime is $\\mathcal{O}(n^3)$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nFor the discrete sequence x of n, the downsampled signal y of n equals x of 2n has z transform y of z."
+        "content": "Spoken transcript:\nThe continuous-time signal x of t convolved with h of t yields y of t, which in frequency domain is X of j omega times H of j omega."
     },
     {
         "role": "assistant",
-        "content": "For the discrete sequence $x[n]$, the downsampled signal $y[n] = x[2n]$ has z-transform $Y(z)$."
+        "content": "The continuous-time signal $x(t) * h(t) = y(t)$, which in the frequency domain is $X(j\\omega) H(j\\omega)$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nOkay, welcome to lecture four of week one. Today we will discuss linear time invariant systems."
+        "content": "Spoken transcript:\nGood morning everyone. Welcome to today's presentation. Please turn to slide four where we discuss our quarterly results."
     },
     {
         "role": "assistant",
-        "content": "Okay, welcome to lecture four of week one. Today we will discuss linear time-invariant systems."
+        "content": "Good morning everyone. Welcome to today's presentation. Please turn to slide four where we discuss our quarterly results."
     }
 ]
 
@@ -286,7 +283,7 @@ class QwenMathTranslator:
         )
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=60.0) as resp:
                 resp_data = json.loads(resp.read().decode("utf-8"))
                 content = resp_data["choices"][0]["message"]["content"]
                 return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)

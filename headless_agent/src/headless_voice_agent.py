@@ -324,15 +324,17 @@ def ensure_edge_daemons():
         cmd = [
             LLAMA_BIN,
             "-m", LLAMA_MODEL,
-            "-c", "2048",
-            "-ngl", "16",
-            "-t", "4",
+            "-c", "4096",
+            "-ngl", "0",
+            "-t", "6",
             "-np", "1",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
+        env = os.environ.copy()
+        env["CUDA_VISIBLE_DEVICES"] = ""
         log_llama = open("/tmp/llama-server.log", "w")
-        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama)
+        subprocess.Popen(cmd, env=env, stdout=log_llama, stderr=log_llama)
         for _ in range(60):
             time.sleep(1.0)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
@@ -1137,7 +1139,37 @@ class HeadlessVoiceAgent:
         vtt_file = temp_dir / f"{session_name}.vtt"
         vtt_file.write_text(vtt_content, encoding="utf-8")
 
-        # 4. PDF Compilation Pass (Standalone XeTeX via Tectonic)
+        # 4. Build Bilingual Hindi Monograph & Subtitles
+        print(f"[Agent] Generating bilingual Hindi monograph and subtitles for Indian students...")
+        try:
+            hindi_tex, hindi_md, hindi_title, hindi_chunks, hindi_paras = self.book_builder.build_hindi_book(
+                clean_title, active_chunks
+            )
+            hindi_srt, hindi_vtt = generate_subtitles(hindi_chunks)
+
+            hi_tex_file = temp_dir / f"{session_name}_hindi.tex"
+            hi_tex_file.write_text(hindi_tex, encoding="utf-8")
+
+            hi_md_file = temp_dir / f"{session_name}_hindi.md"
+            hi_md_file.write_text(hindi_md, encoding="utf-8")
+
+            hi_srt_file = temp_dir / f"{session_name}_hindi.srt"
+            hi_srt_file.write_text(hindi_srt, encoding="utf-8")
+
+            hi_vtt_file = temp_dir / f"{session_name}_hindi.vtt"
+            hi_vtt_file.write_text(hindi_vtt, encoding="utf-8")
+
+            hi_pdf_file = temp_dir / f"{session_name}_hindi.pdf"
+            self.post_processor.compile_hindi_pdf(
+                title=hindi_title,
+                paragraphs=hindi_paras,
+                output_pdf_path=hi_pdf_file
+            )
+        except Exception as e:
+            print(f"[Agent] Warning: Hindi translation/compilation error: {e}", flush=True)
+            hi_tex_file = hi_md_file = hi_srt_file = hi_vtt_file = hi_pdf_file = None
+
+        # 5. English PDF Compilation Pass (Standalone XeTeX via Tectonic)
         self.status_tracker.set_stage(ProcessingStage.COMPILING_PDF)
         print(f"[Agent] Compiling typeset lecture transcript: '{clean_title}'...")
         post_res = self.post_processor.process_and_compile(
@@ -1149,7 +1181,7 @@ class HeadlessVoiceAgent:
 
         pdf_file = post_res.get("pdf")
 
-        # 5. Export to USB Drive AYUSH & Local SSD
+        # 6. Export to USB Drive AYUSH & Local SSD
         self.status_tracker.set_stage(ProcessingStage.EXPORTING_USB)
         print("[Agent] Exporting deliverables to USB drive AYUSH...")
         export_map = {
@@ -1157,8 +1189,13 @@ class HeadlessVoiceAgent:
             "md": md_file,
             "srt": srt_file,
             "vtt": vtt_file,
+            "pdf": pdf_file if (pdf_file and pdf_file.is_file()) else None,
+            "hindi_tex": hi_tex_file if (hi_tex_file and hi_tex_file.is_file()) else None,
+            "hindi_md": hi_md_file if (hi_md_file and hi_md_file.is_file()) else None,
+            "hindi_srt": hi_srt_file if (hi_srt_file and hi_srt_file.is_file()) else None,
+            "hindi_vtt": hi_vtt_file if (hi_vtt_file and hi_vtt_file.is_file()) else None,
+            "hindi_pdf": hi_pdf_file if (hi_pdf_file and hi_pdf_file.is_file()) else None,
             "wav": final_wav if final_wav.is_file() else None,
-            "pdf": pdf_file if (pdf_file and pdf_file.is_file()) else None
         }
 
         export_res = self.exporter.export(session_name, export_map, timestamp=ts)

@@ -198,8 +198,7 @@ class LectureExporter:
         local_files = {}
         for ext, src_path in files_dict.items():
             if src_path and Path(src_path).is_file():
-                dest_name = f"{sanitized_title}.{ext}" if ext != "wav" else f"{sanitized_title}_raw.wav"
-                dest_path = local_dir / dest_name
+                dest_path = local_dir / Path(src_path).name
                 shutil.copy2(src_path, dest_path)
                 local_files[ext] = dest_path
 

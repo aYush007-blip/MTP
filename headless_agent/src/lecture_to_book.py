@@ -1287,6 +1287,108 @@ class LectureToBookBuilder:
 
         return latex_doc, md_doc, clean_title
 
+    def build_hindi_book(
+        self,
+        clean_title: str,
+        chunks: List[TranscriptChunk],
+        author: str = "",
+        date_str: Optional[str] = None
+    ) -> Tuple[str, str, str, List[TranscriptChunk], List[str]]:
+        """
+        Builds the bilingual Hindi typeset monograph (.md and .tex) and translated subtitle chunks.
+        Preserves 100% of mathematical equations while translating pedagogical explanations into Hindi.
+        Returns: (hindi_tex, hindi_md, hindi_title, hindi_chunks, hindi_paragraphs)
+        """
+        from hindi_translator import HindiLectureTranslator
+        translator = HindiLectureTranslator.get_instance()
+
+        if not date_str:
+            date_str = time.strftime("%B %d, %Y")
+
+        # 1. Translate title
+        hindi_title = translator.translate_title(clean_title)
+
+        # 2. Assemble cohesive paragraphs and translate them
+        english_paragraphs = self.assemble_paragraphs(chunks)
+        hindi_paragraphs = translator.translate_paragraphs(english_paragraphs)
+
+        # 3. Translate subtitle chunks for .srt and .vtt
+        hindi_chunks = []
+        for c in chunks:
+            raw_text = c.latex_text or c.spoken_text or ""
+            hi_text = translator.translate_text(raw_text) if raw_text.strip() else raw_text
+            hindi_chunks.append(TranscriptChunk(
+                timestamp_start=c.timestamp_start,
+                timestamp_end=c.timestamp_end,
+                spoken_text=hi_text,
+                latex_text=hi_text
+            ))
+
+        # 4. Build Hindi Markdown
+        md_parts = [
+            f"# {hindi_title}",
+            f"*{date_str}* — द्विभाषी व्याख्यान प्रतिलेख (Bilingual Lecture Notes)\n",
+            "---",
+            ""
+        ]
+        for p in hindi_paragraphs:
+            p_md = re.sub(
+                r'\\begin\{equation\}\s*(?:\\label\{[^}]+\})?\s*(.*?)\s*\\end\{equation\}',
+                r'\n$$\n\1\n$$\n',
+                p,
+                flags=re.DOTALL
+            )
+            md_parts.append(p_md)
+            md_parts.append("")
+
+        hindi_md = "\n".join(md_parts)
+
+        # 5. Build XeTeX compatible LaTeX source
+        clean_title_tex = hindi_title.replace("$", "").replace("&", r"\&").strip()
+        body_tex_lines = []
+        for idx, p in enumerate(hindi_paragraphs, 1):
+            body_tex_lines.append(f"{escape_latex_text(p)}\n")
+        body_tex = "\n\n".join(body_tex_lines)
+
+        hindi_tex = rf"""\documentclass[11pt,a4paper]{{article}}
+\usepackage{{amsmath,amssymb,amsfonts}}
+\usepackage{{geometry}}
+\geometry{{margin=0.9in, top=1.0in, bottom=1.0in}}
+\usepackage{{fontspec}}
+\setmainfont{{Lohit Devanagari}}
+\usepackage{{xcolor}}
+\usepackage{{fancyhdr}}
+\usepackage{{hyperref}}
+
+\definecolor{{primarydark}}{{RGB}}{{20, 35, 60}}
+\definecolor{{accentblue}}{{RGB}}{{30, 90, 160}}
+\definecolor{{mutedgray}}{{RGB}}{{90, 100, 115}}
+
+\pagestyle{{fancy}}
+\fancyhf{{}}
+\fancyhead[L]{{\small\color{{mutedgray}} {clean_title_tex}}}
+\fancyhead[R]{{\small\color{{mutedgray}} पृष्ठ \thepage}}
+
+\setlength{{\parskip}}{{0.6em}}
+\setlength{{\parindent}}{{0pt}}
+
+\begin{{document}}
+
+\begin{{center}}
+  {{\LARGE\bfseries\color{{primarydark}} {clean_title_tex}}} \\[0.5em]
+  {{\small\color{{mutedgray}} {date_str} | द्विभाषी व्याख्यान प्रतिलेख}}
+\end{{center}}
+
+\vspace{{0.3em}}
+\hrule height 1pt
+\vspace{{1.0em}}
+
+{body_tex}
+
+\end{{document}}
+"""
+        return hindi_tex, hindi_md, hindi_title, hindi_chunks, hindi_paragraphs
+
 
 def generate_subtitles(chunks: List[TranscriptChunk]) -> Tuple[str, str]:
     """

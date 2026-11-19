@@ -21,92 +21,52 @@ from typing import Optional
 import urllib.request
 
 SYSTEM_PROMPT = (
-    "You are an expert STEM lecture transcriber and mathematical typesetter across all engineering disciplines.\n"
-    "Your task is to take a spoken lecture transcript and convert mathematical formulas, symbols, physical laws, "
+    "You are an expert STEM and academic lecture transcriber and mathematical typesetter across all scientific and engineering disciplines.\n"
+    "Your task is to take a spoken lecture or presentation transcript and convert mathematical formulas, symbols, physical laws, "
     "and equations into standard inline LaTeX ($...$).\n\n"
     "RULES:\n"
-    "1. Signal & function notation: Continuous-time signals ALWAYS convert 'x of t' -> $x(t)$, 'y of t' -> $y(t)$, 'h of t' -> $h(t)$, 'u of t' -> $u(t)$. "
-    "Transform domains convert 'x of s' -> $X(s)$, 'y of s' -> $Y(s)$, 'h of s' -> $H(s)$, 'x of z' -> $X(z)$, 'y of z' -> $Y(z)$. "
-    "Discrete sequences use brackets: 'x of n' -> $x[n]$, 'y of n' -> $y[n]$, 'h of n' -> $h[n]$.\n"
-    "2. Limits and Theorems: Spoken limits convert to standard LaTeX arrows: 'limit s going to infinity s times x of s' -> $\\lim_{s \\to \\infty} s X(s)$, "
-    "'limit as t goes to infinity' -> $\\lim_{t \\to \\infty}$, 'limit as s goes to 0' -> $\\lim_{s \\to 0}$, 'x0 plus' -> $x(0^+)$, 'x0 minus' -> $x(0^-)$.\n"
-    "3. Exponentials, Powers & Fractions: 'e to the power minus t u of t' -> $e^{-t} u(t)$, 'e to the power minus 3t' -> $e^{-3t}$, '1 by s plus 3' -> $\\frac{1}{s+3}$, "
-    "'1 by s plus 1 minus 1 by s plus 2' -> $\\frac{1}{s+1} - \\frac{1}{s+2}$, 'cos omega 0' -> $\\cos(\\omega_0 t)$, 'cos omega 0 t' -> $\\cos(\\omega_0 t)$, "
-    "'e power j omega 0' -> $e^{j\\omega_0 t}$, 't to the power n minus 1' / 'e to the power n minus 1' -> $t^{n-1}$, '1 by s plus a to the power' -> $\\frac{1}{(s+a)^n}$.\n"
-    "4. Complex Plane & ROC: 'real part of s greater than minus 1' -> $\\text{Re}(s) > -1$, 'real part of s' -> $\\text{Re}(s)$, 'imaginary part of s' -> $\\text{Im}(s)$, 'j omega' -> $j\\omega$, 't less than 0' -> $t < 0$.\n"
-    "5. VERBATIM FIDELITY: You MUST preserve EVERY surrounding word, sentence, and technical explanation VERBATIM. "
-    "NEVER summarize, condense, delete, or omit non-mathematical speech. The output must match the input word-for-word, "
-    "only formatting spoken math expressions into inline LaTeX ($...$). NEVER wrap normal conversational words in LaTeX.\n"
-    "6. Clean disfluencies: Turn spoken stutters into the intended mathematical formula.\n"
-    "7. CRITICAL: NEVER repeat, echo, or quote preceding context. NEVER output \"Spoken transcript:\", meta labels, or markdown blocks. "
-    "Output ONLY the inline LaTeX-typeset transcript of the current user message."
+    "1. MATHEMATICAL & SCIENTIFIC NOTATION: Convert spoken variables, matrices, integrals, derivatives, limits, "
+    "transforms, algorithms, physical constants, and equations from ANY discipline (mathematics, physics, computer science, "
+    "engineering, chemistry, economics) into clean inline LaTeX ($...$).\n"
+    "2. VERBATIM FIDELITY: Preserve EVERY surrounding spoken English word, explanation, presentation dialogue, "
+    "and question VERBATIM. NEVER summarize, condense, delete, or rephrase non-mathematical speech. "
+    "NEVER wrap normal conversational English words in LaTeX.\n"
+    "3. CLEAN OUTPUT: Output ONLY the inline LaTeX-typeset transcript of the user message. NEVER output preamble, labels, answers, or commentary."
 )
 
 
 FEW_SHOT_MESSAGES = [
     {
         "role": "user",
-        "content": "Spoken transcript:\nThen we can determine the value of the signal just after origin that is x0 plus and this will be equal to limit s going to infinity s times x of s where x of s is the Laplace transform of x of t."
+        "content": "Spoken transcript:\nTaking the integral from zero to infinity of x squared times e to the power minus lambda x dx gives two divided by lambda cubed."
     },
     {
         "role": "assistant",
-        "content": "Then we can determine the value of the signal just after the origin that is $x(0^+)$ and this will be equal to $\\lim_{s \\to \\infty} s X(s)$, where $X(s)$ is the Laplace transform of $x(t)$."
+        "content": "Taking the integral $\\int_0^\\infty x^2 e^{-\\lambda x} \\, dx$ gives $\\frac{2}{\\lambda^3}$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nSignals like e to the power minus t u of t converge to zero as limit t goes to infinity, but a signal like x of t equals cos omega t continues to oscillate."
+        "content": "Spoken transcript:\nIn algorithms, if matrix a times vector x equals b, the Gaussian elimination runtime is big O of n cubed."
     },
     {
         "role": "assistant",
-        "content": "Signals like $e^{-t} u(t)$ converge to $0$ as $\\lim_{t \\to \\infty}$, but a signal like $x(t) = \\cos(\\omega t)$ continues to oscillate."
+        "content": "In algorithms, if matrix $A\\mathbf{x} = \\mathbf{b}$, the Gaussian elimination runtime is $\\mathcal{O}(n^3)$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nSo let us find the Laplace transform of x of t, this is equal to 1 by s plus 3, with ROC real part of s greater than minus 3 because it is causal for t less than 0."
+        "content": "Spoken transcript:\nThe continuous-time signal x of t convolved with h of t yields y of t, which in frequency domain is X of j omega times H of j omega."
     },
     {
         "role": "assistant",
-        "content": "So let us find the Laplace transform of $x(t)$, this is equal to $\\frac{1}{s + 3}$, with ROC $\\text{Re}(s) > -3$ because it is causal for $t < 0$."
+        "content": "The continuous-time signal $x(t) * h(t) = y(t)$, which in the frequency domain is $X(j\\omega) H(j\\omega)$."
     },
     {
         "role": "user",
-        "content": "Spoken transcript:\nNow let us look at the second signal which is x2 of t equal to cos omega 0, and we want to find Laplace transform of e power j omega 0."
+        "content": "Spoken transcript:\nGood morning everyone. Welcome to today's presentation. Please turn to slide four where we discuss our quarterly results."
     },
     {
         "role": "assistant",
-        "content": "Now let us look at the second signal which is $x_2(t) = \\cos(\\omega_0 t)$, and we want to find Laplace transform of $e^{j\\omega_0 t}$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nLet's apply Kirchhoff's voltage law: r i plus l d i by d t equals zero with initial condition i of zero is i zero."
-    },
-    {
-        "role": "assistant",
-        "content": "Let's apply Kirchhoff's voltage law: $Ri + L\\frac{di}{dt} = 0$ with initial condition $i(0) = I_0$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nTaking the Laplace transform of the second derivative of y of t gives s squared Y of s minus s y of zero minus y prime of zero."
-    },
-    {
-        "role": "assistant",
-        "content": "Taking the Laplace transform of the second derivative of $y(t)$ gives $s^2 Y(s) - s y(0) - y'(0)$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nFor the discrete sequence x of n, the downsampled signal y of n equals x of 2n has z transform y of z."
-    },
-    {
-        "role": "assistant",
-        "content": "For the discrete sequence $x[n]$, the downsampled signal $y[n] = x[2n]$ has z-transform $Y(z)$."
-    },
-    {
-        "role": "user",
-        "content": "Spoken transcript:\nOkay, welcome to lecture four of week one. Today we will discuss linear time invariant systems."
-    },
-    {
-        "role": "assistant",
-        "content": "Okay, welcome to lecture four of week one. Today we will discuss linear time-invariant systems."
+        "content": "Good morning everyone. Welcome to today's presentation. Please turn to slide four where we discuss our quarterly results."
     }
 ]
 
@@ -331,7 +291,7 @@ class QwenMathTranslator:
         )
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
         try:
-            with urllib.request.urlopen(req, timeout=25.0) as resp:
+            with urllib.request.urlopen(req, timeout=60.0) as resp:
                 resp_data = json.loads(resp.read().decode("utf-8"))
                 content = resp_data["choices"][0]["message"]["content"]
                 return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)

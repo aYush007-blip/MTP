@@ -396,6 +396,123 @@ class AcademicPDFRenderer:
             print(f"[PDF Compiler] ReportLab error: {e}")
             return False
 
+    @staticmethod
+    def render_hindi_reportlab_pdf(
+        title: str,
+        paragraphs: List[str],
+        output_pdf_path: Path
+    ) -> bool:
+        """
+        Compiles bilingual Hindi lecture monograph into a publication-grade PDF using ReportLab
+        and Lohit-Devanagari TTF font. Guarantees 100% offline generation with zero LaTeX dependencies.
+        """
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib import colors
+            from reportlab.platypus import (
+                SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+            )
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.ttfonts import TTFont
+            import time
+
+            # Register Devanagari font
+            font_candidates = [
+                "/usr/share/fonts/truetype/lohit-devanagari/Lohit-Devanagari.ttf",
+                "/usr/share/fonts/truetype/gargi/gargi.ttf",
+                "/usr/share/fonts/opentype/noto/NotoSansDevanagari-Regular.ttf"
+            ]
+            font_name = "Helvetica"
+            for fc in font_candidates:
+                if Path(fc).is_file():
+                    pdfmetrics.registerFont(TTFont("HindiFont", fc))
+                    font_name = "HindiFont"
+                    break
+
+            doc = SimpleDocTemplate(
+                str(output_pdf_path),
+                pagesize=A4,
+                rightMargin=54, leftMargin=54,
+                topMargin=54, bottomMargin=54
+            )
+
+            styles = getSampleStyleSheet()
+
+            title_style = ParagraphStyle(
+                'HindiTitle',
+                fontName=font_name,
+                fontSize=18,
+                leading=22,
+                textColor=colors.HexColor('#0f2942'),
+                alignment=1,
+                spaceAfter=4
+            )
+            sub_style = ParagraphStyle(
+                'HindiSub',
+                fontName=font_name,
+                fontSize=10.5,
+                leading=14,
+                textColor=colors.HexColor('#2b6cb0'),
+                alignment=1,
+                spaceAfter=12
+            )
+            body_style = ParagraphStyle(
+                'HindiBody',
+                fontName=font_name,
+                fontSize=10,
+                leading=15,
+                textColor=colors.HexColor('#2d3748'),
+                spaceAfter=8,
+                alignment=4
+            )
+            eq_style = ParagraphStyle(
+                'HindiEq',
+                fontName='Courier-Bold',
+                fontSize=9.5,
+                leading=13,
+                textColor=colors.HexColor('#1a365d'),
+                alignment=1
+            )
+
+            story = []
+            story.append(Paragraph(title, title_style))
+            story.append(Paragraph(f"द्विभाषी व्याख्यान प्रतिलेख एवं नोट्स (Bilingual Lecture Monograph) — {time.strftime('%B %d, %Y')}", sub_style))
+            story.append(HRFlowable(width="100%", thickness=1.0, color=colors.HexColor('#0f2942'), spaceAfter=14))
+
+            for idx, p in enumerate(paragraphs, 1):
+                clean_p = p.strip()
+                if not clean_p:
+                    continue
+
+                eq_match = re.search(r'\$\$(.*?)\$\$', clean_p, re.DOTALL)
+                if eq_match:
+                    prose_before = clean_p[:eq_match.start()].strip()
+                    eq_content = eq_match.group(1).strip()
+                    prose_after = clean_p[eq_match.end():].strip()
+
+                    if prose_before:
+                        story.append(Paragraph(prose_before, body_style))
+                    t_eq = Table([[Paragraph(eq_content, eq_style)]], colWidths=[480])
+                    t_eq.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f7fafc')),
+                        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e0')),
+                        ('TOPPADDING', (0,0), (-1,-1), 5),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+                    ]))
+                    story.append(t_eq)
+                    story.append(Spacer(1, 6))
+                    if prose_after:
+                        story.append(Paragraph(prose_after, body_style))
+                else:
+                    story.append(Paragraph(clean_p, body_style))
+
+            doc.build(story)
+            return output_pdf_path.is_file() and output_pdf_path.stat().st_size > 1000
+        except Exception as e:
+            print(f"[Hindi PDF Compiler] Error: {e}")
+            return False
+
 
 class PostLectureProcessor:
     """
@@ -496,6 +613,25 @@ class PostLectureProcessor:
             "tex": tex_path,
             "pdf": pdf_path if (pdf_path and pdf_path.is_file()) else None
         }
+
+    def compile_hindi_pdf(
+        self,
+        title: str,
+        paragraphs: List[str],
+        output_pdf_path: Path
+    ) -> Optional[Path]:
+        """
+        Compiles the Hindi bilingual monograph to PDF using ReportLab Devanagari engine.
+        """
+        success = self.pdf_renderer.render_hindi_reportlab_pdf(
+            title=title,
+            paragraphs=paragraphs,
+            output_pdf_path=output_pdf_path
+        )
+        if success and output_pdf_path.is_file():
+            print(f"[Hindi PDF Compiler] Successfully compiled: {output_pdf_path} ({output_pdf_path.stat().st_size} bytes)")
+            return output_pdf_path
+        return None
 
 
 if __name__ == "__main__":
