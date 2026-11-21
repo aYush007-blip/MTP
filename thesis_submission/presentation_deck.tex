@@ -1,0 +1,346 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{whale}
+
+\definecolor{primarydark}{RGB}{20, 35, 60}
+\definecolor{accentblue}{RGB}{30, 90, 160}
+\definecolor{mutedgray}{RGB}{90, 100, 115}
+
+\setbeamercolor{palette primary}{bg=primarydark,fg=white}
+\setbeamercolor{palette secondary}{bg=accentblue,fg=white}
+\setbeamercolor{palette tertiary}{bg=primarydark,fg=white}
+\setbeamercolor{titlelike}{parent=palette primary,fg=white}
+\setbeamercolor{structure}{fg=accentblue}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,calc}
+
+\title[Edge-Native Bilingual Speech-to-LaTeX]{Edge-Native Autonomous Mathematical Speech-to-LaTeX Transduction \& Bilingual Monograph Synthesis}
+\subtitle{Master of Technology Thesis Defense}
+\author[Ayush Kumar]{Ayush Kumar \quad (Roll No: 2024-MTP-ECE-07)}
+\institute[IIT]{Department of Electrical \& Computer Engineering \\ Indian Institute of Technology}
+\date{November 2026}
+
+\begin{document}
+
+% Slide 1
+\begin{frame}[plain]
+  \titlepage
+  \begin{center}
+    \footnotesize\color{mutedgray} Target Platform: NVIDIA Jetson Orin Nano (8GB Unified LPDDR5, 15W TDP)
+  \end{center}
+\end{frame}
+
+% Slide 2
+\begin{frame}{Context \& Motivation: The Triad Problem in Classroom Capture}
+  \begin{columns}[T]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{1. Phonetic Math Failure}
+        \footnotesize
+        Standard ASR models transcribe math phonetically into nonsensical text.\\
+        \textit{``limit s goes to zero of s X of s''}\\
+        $\to$ \textit{``limit s goes to zero of s xfx''}\\
+        Destroys mathematical syntax for study and search.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{2. Cloud Vulnerability}
+        \footnotesize
+        Cloud APIs fail on institutional Wi-Fi latency jitter \& dropouts.\\
+        Recurring financial costs ($\$$/hour) unsustainable for public universities.\\
+        Privacy risks: Proprietary research leaked to offshore cloud.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{3. Language Barrier}
+        \footnotesize
+        High cognitive load for vernacular-medium students assimilating rapid English.\\
+        NEP 2020 mandates regional language technical education.\\
+        Need for bilingual notes with invariant math notation.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% Slide 3
+\begin{frame}{Research Objectives and System Scope}
+  \begin{enumerate}
+    \item \textbf{100\% Offline Edge Appliance:} Autonomous speech-to-monograph system on NVIDIA Jetson Orin Nano (8GB, 15W TDP) with zero cloud reliance.
+    \item \textbf{Domain-Agnostic Math Transduction:} Support universal STEM speech across Linear Algebra, Calculus, Signal Processing, Algorithms, and Physics.
+    \item \textbf{Quantized SLM Optimization:} Deploy Qwen2.5-1.5B (Q4\_K\_M) with persistent KV-cache prompt reuse (TTFT reduced from 1,200ms to 42ms).
+    \item \textbf{Mathematical Invariant Preservation:} Synthesize fluent Hindi Devanagari while preserving 100\% of mathematical equations verbatim ($...$, \texttt{\textbackslash begin\{equation\}}).
+    \item \textbf{Autonomous Headless Operation:} Voice-triggered appliance daemon with Piper neural TTS feedback and cryptographic SHA-256 USB sync.
+  \end{enumerate}
+\end{frame}
+
+% Slide 4
+\begin{frame}{End-to-End Edge Architecture \& Hardware Partitioning}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Hardware Compute Partitioning}
+        \footnotesize
+        \textbf{Ampere GPU (1024 CUDA Cores):}\\
+        $\cdot$ Dedicated to whisper.cpp ASR batch transcription.\\
+        $\cdot$ FlashAttention FP16: \textbf{18.2$\times$ real-time} (1,180 MB).\\
+        \vspace{0.4em}
+        \textbf{6-Core ARM Cortex-A78AE CPU:}\\
+        $\cdot$ Pinned to Qwen2.5-1.5B GGUF Q4\_K\_M.\\
+        $\cdot$ Eliminates unified memory contention \& OOM hazards.\\
+        \vspace{0.4em}
+        \textbf{Memory Budget:}\\
+        $\cdot$ Peak active footprint: \textbf{6.1 GB} / 7.6 GB.\\
+        $\cdot$ Zero swap thrashing under continuous load.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{5-Stage Pipeline Topology}
+        \footnotesize
+        \textbf{1. Audio Ingestion:} 48k$\to$16k decimation, 4th-order Butterworth HPF, adaptive energy VAD.\\
+        \textbf{2. ASR Transduction:} whisper-cli with universal domain-agnostic STEM acoustic prompt.\\
+        \textbf{3. SLM Structuring:} Mathematical token extraction \& equation promotion via Qwen2.5-1.5B.\\
+        \textbf{4. Bilingual Translation:} Devanagari translation with formula masking \& parenthetical terms.\\
+        \textbf{5. Publishing \& Sync:} Tectonic XeTeX compilation, TikZ vector graphics \& atomic USB sync.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% Slide 5
+\begin{frame}{Stage 1: Decoupled Acoustic Ingestion \& Adaptive VAD}
+  \begin{itemize}
+    \item \textbf{Decoupled Ingestion Thread:} Non-blocking PortAudio worker captures 16-bit PCM at 16 kHz without blocking downstream processing.
+    \item \textbf{Vectorized Decimation:} High-efficiency 48 kHz stereo to 16 kHz mono conversion in NumPy:
+    \[ x_{\text{mono}}[n] = \frac{1}{2}\big(x_{\text{left}}[n] + x_{\text{right}}[n]\big) \cdot \frac{1}{32768.0} \]
+    \item \textbf{4th-Order Butterworth High-Pass Filter ($f_c = 65$\,Hz):} Eliminates building HVAC rumble and projector fan hum.
+    \item \textbf{Adaptive Dual-Rate Energy VAD:} Continuously tracks noise floor $\theta_{\text{noise}}$ over 30ms windows with leaky integration:
+    \[ \theta_{\text{noise}}^{(k+1)} = \alpha \theta_{\text{noise}}^{(k)} + (1 - \alpha) E_k \]
+    \item \textbf{500ms Pre-Speech Ring Buffer:} Prevents clipping of initial unvoiced mathematical plosives ($/p/$, $/t/$, $/k/$).
+  \end{itemize}
+\end{frame}
+
+% Slide 6
+\begin{frame}{Stage 2: GPU-Accelerated ASR \& Universal Prompting}
+  \begin{itemize}
+    \item \textbf{Whisper CUDA Acceleration:} whisper.cpp compiled for Jetson Ampere (SM87) using FlashAttention and half-precision tensor cores.
+    \item \textbf{Universal Domain-Agnostic Conditioning Prompt:}
+    \begin{quote}
+      \footnotesize\ttfamily
+      ``Academic lecture across science, mathematics, computer science, and engineering. Focus on clean speech transcription, mathematical variables (x, y, z, t, s, k, n), formulas, limits, integrals, and theorems without domain bias.''
+    \end{quote}
+    \item \textbf{Acoustic Decoder Priming:} Primes autoregressive beam-search decoder to bias phonemes toward mathematical symbols across calculus, signals, algorithms, and physics.
+    \item \textbf{Throughput Benchmark:} Achieves \textbf{18.2$\times$ real-time factor} (RTF = 0.055), transcribing a full 31.4-minute lecture in 103 seconds.
+  \end{itemize}
+\end{frame}
+
+% Slide 7
+\begin{frame}{Stage 3: SLM Mathematical Transduction Engine}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Model \& Edge Runtime}
+        \footnotesize
+        $\cdot$ Qwen2.5-1.5B-Instruct in Q4\_K\_M GGUF (1.11 GB).\\
+        $\cdot$ llama-server on 6 ARM CPU cores.\\
+        $\cdot$ Persistent KV-cache session reuse drops TTFT from 1,200ms to \textbf{42ms}.
+      \end{block}
+      \begin{block}{Equation Structuring}
+        \footnotesize
+        $\cdot$ Balances delimiters ($...$).\\
+        $\cdot$ Promotes core mathematical formulations into numbered display equations:
+        \[ \lim_{s \to 0} s X(s) H(s) \]
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Phonetic-to-LaTeX Transformation}
+        \footnotesize
+        \textbf{Spoken Input:}\\
+        \textit{``limit t going to infinity of x of t equals one over s squared plus four s minus five''}\\[0.5em]
+        \textbf{Typeset Output:}\\
+        $\lim_{t \to \infty} x(t) = \frac{1}{s^2 + 4s - 5}$\\[0.5em]
+        \textbf{Display Promotion:}\\
+        \texttt{\textbackslash begin\{equation\}}\\
+        \texttt{\quad x(0\textasciicircum+) = \textbackslash lim\_\{s \textbackslash to \textbackslash infty\} s X(s)}\\
+        \texttt{\textbackslash end\{equation\}}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% Slide 8
+\begin{frame}{Stage 4: Cross-Lingual Pedagogical Translation Engine}
+  \begin{itemize}
+    \item \textbf{Pedagogical Devanagari Synthesis:} Translates didactic discourse into fluent academic Hindi designed specifically for Indian university students.
+    \item \textbf{Parenthetical Technical Retention:}
+    \begin{itemize}
+      \footnotesize
+      \item Connective discourse translated: \textit{सतत-समय LTI प्रणालियों के विश्लेषण में ये दोनों प्रमेय अत्यंत महत्वपूर्ण हैं...}
+      \item Core international terminology retained: \textit{सतत-समय LTI प्रणालियाँ (continuous-time LTI systems)}, \textit{प्रारंभिक मान प्रमेय (initial value theorem)}.
+    \end{itemize}
+    \item \textbf{High-Throughput Subtitle Translation:} Batches subtitle segments into blocks of 4 lines per pass, slashing translation latency by \textbf{70\%}.
+    \item \textbf{Structural 1:1 Parity:} Output document mirrors the English monograph section-for-section, theorem-for-theorem, and equation-for-equation.
+  \end{itemize}
+\end{frame}
+
+% Slide 9
+\begin{frame}{The Mathematical Invariant Preservation Principle}
+  \begin{block}{Formal Definition}
+    \footnotesize
+    Let document $\mathcal{D} = \{\mathcal{L}, \mathcal{M}\}$ with discourse $\mathcal{L}$ and math tokens $\mathcal{M}$ in delimiters $\delta \in \{\$, \$\$, \texttt{\textbackslash begin\{equation\}}\}$. Mapping $\mathcal{F}$ is \textbf{Mathematically Invariant} iff:
+    \[ \forall m_j \in \mathcal{M}, \quad \mathcal{F}(m_j) \equiv m_j \quad \text{and} \quad \text{Order}\big(\mathcal{F}(m_a)\big) < \text{Order}\big(\mathcal{F}(m_b)\big) \iff a < b \]
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Failure of Standard MT}
+        \footnotesize
+        Sub-word tokenizers split LaTeX commands (\texttt{\textbackslash f, rac, 1, s+3}), resulting in hallucinated expressions and broken delimiters.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Two-Tier Masking Solution}
+        \footnotesize
+        1. Extract equations $\to$ replace with tokens (\texttt{\_\_DISPLAY\_EQ\_K\_\_}).\\
+        2. Translate surrounding prose into Devanagari.\\
+        3. Re-inject identical equation blocks verbatim.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% Slide 10
+\begin{frame}{Stage 5: Autonomous Typesetting \& Vector Graphics}
+  \begin{itemize}
+    \item \textbf{Embedded Tectonic XeTeX Engine:} Standalone Rust/C++ executable compiling XeTeX natively without a 6GB TeXLive distribution.
+    \item \textbf{Native Devanagari Vector Typography:} Uses \texttt{fontspec} with system \texttt{Lohit Devanagari} TTF for sub-pixel conjunct rendering.
+    \item \textbf{Contextual TikZ Vector Synthesis:} Automatically synthesizes publication graphics from lecture triggers:
+    \begin{itemize}
+      \footnotesize
+      \item \textbf{Continuous Laplace ROC:} Complex $s$-plane with poles $p_1 = \sigma_0$, imaginary axis $j\omega$, and shaded right-half plane.
+      \item \textbf{Discrete Energy:} Stem plot showing partial energy window $[-K, +K]$ with Devanagari annotations.
+    \end{itemize}
+    \item \textbf{Sub-Second Compilation:} Full 7-page publication monograph compiled in under 6 seconds.
+  \end{itemize}
+\end{frame}
+
+% Slide 11
+\begin{frame}{Stage 6: Headless Appliance Daemon \& USB Storage Sync}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Monitorless Appliance Workflow}
+        \footnotesize
+        $\cdot$ Master systemd service boots on power-on.\\
+        $\cdot$ 5-State Finite State Machine:\\
+        \texttt{STANDBY $\to$ COUNTDOWN $\to$ RECORDING $\to$ PROCESSING $\to$ EXPORTING}.\\
+        $\cdot$ Hands-free voice triggers:\\
+        \textit{``Hey Jetson, start recording''}\\
+        \textit{``Hey Jetson, stop recording''}.\\
+        $\cdot$ Neural Piper TTS acoustic announcements.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Cryptographic USB Storage Sync}
+        \footnotesize
+        $\cdot$ Kernel udev hotplug detection for USB drive \texttt{AYUSH}.\\
+        $\cdot$ Atomic write-and-rename prevents partial-write corruption.\\
+        $\cdot$ Autonomous \texttt{SHA256SUMS.txt} manifest computed for all 12 deliverables:
+        \[ \text{SHA-256}(F_i) = \mathcal{H}_{\text{crypto}}(F_i) \]
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% Slide 12
+\begin{frame}{Experimental Testbed \& Benchmark Methodology}
+  \begin{block}{Hardware Testbed: NVIDIA Jetson Orin Nano Developer Kit}
+    \footnotesize
+    8GB Unified LPDDR5 (68 GB/s), 1024-core Ampere GPU, 6-core ARM Cortex-A78AE CPU, 15W TDP power mode.
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Lecture 1: Continuous-Time LTI Systems}
+        \footnotesize
+        $\cdot$ Duration: \textbf{31.4 minutes} (58 MB WAV).\\
+        $\cdot$ Words: 2,727 words across 63 paragraphs.\\
+        $\cdot$ Topics: Initial/Final Value Theorems, Laplace Differential Equations, ROC Stability.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Lecture 2: Energy of a Discrete Sequence}
+        \footnotesize
+        $\cdot$ Duration: \textbf{5.7 minutes} (11 MB WAV).\\
+        $\cdot$ Words: ~600 words across 9 sections.\\
+        $\cdot$ Topics: $\sum_{n=-\infty}^\infty |x[n]|^2$, partial energy window $2K+1$, power signals.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% Slide 13
+\begin{frame}{Quantitative Hardware Profile on Jetson Orin Nano}
+  \begin{table}
+    \footnotesize
+    \begin{tabular}{llcc}
+      \toprule
+      \textbf{Pipeline Stage} & \textbf{Compute Engine} & \textbf{Throughput} & \textbf{Latency / Memory} \\
+      \midrule
+      Audio Ingestion + VAD   & ARM Cortex-A78AE (1 core)  & 16 kHz Real-time & $< 1.2$ ms | 42 MB \\
+      ASR Batch Transcription & Ampere GPU (CUDA/FA)      & \textbf{18.2$\times$ RTF} & RTF = 0.055 | 1,180 MB \\
+      SLM Prompt Processing   & 6-Core ARM CPU (NEON)     & 48.5 tok/s       & TTFT = 42 ms | 1,111 MB \\
+      SLM Token Generation    & 6-Core ARM CPU (NEON)     & 3.35 tok/s       & 298 ms/tok | Included \\
+      Bilingual Translation   & ARM CPU + Glossaries/SLM  & 4.2 seg/s        & Linear | Shared \\
+      Tectonic XeTeX Compiler & Rust/C++ Engine           & 1.25 s/page      & 5.5s (7 p.) | 185 MB \\
+      \midrule
+      \textbf{Total Active Edge Peak} & \textbf{Dual GPU + CPU} & \textbf{Autonomous Flow} & \textbf{6,144 MB (Zero Swap)} \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% Slide 14
+\begin{frame}{Monograph Quality \& Bilingual Output Verification}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{LTI Systems (31.4 min Lecture)}
+        \footnotesize
+        $\cdot$ \textbf{English Monograph (7 Pages, 51 KB):}\\
+        6 sections, 35 numbered display equations, complex $s$-plane ROC TikZ diagram.\\
+        \vspace{0.3em}
+        $\cdot$ \textbf{Hindi Monograph (7 Pages, 66 KB):}\\
+        Exact 1:1 structural parity across all 6 sections, 35 invariant display equations, Lohit font.\\
+        \vspace{0.3em}
+        $\cdot$ \textbf{Subtitles:} 170 synchronized blocks (.srt / .vtt) in English and Hindi.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Energy of a Sequence (5.7 min Lecture)}
+        \footnotesize
+        $\cdot$ \textbf{English Monograph (3 Pages, 42 KB):}\\
+        9 sections, 8 numbered display equations, discrete stem plot TikZ diagram.\\
+        \vspace{0.3em}
+        $\cdot$ \textbf{Hindi Monograph (3 Pages, 45 KB):}\\
+        Exact 1:1 structural parity (3 pages across 9 sections), 8 invariant equations.\\
+        \vspace{0.3em}
+        $\cdot$ \textbf{Subtitles:} 47 synchronized blocks (.srt / .vtt) in English and Hindi.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% Slide 15
+\begin{frame}{Conclusion, Socio-Educational Impact \& Future Work}
+  \begin{itemize}
+    \item \textbf{Core Achievement:} An autonomous, domain-agnostic speech-to-LaTeX monograph appliance operating 100\% offline on a 15W edge accelerator (NVIDIA Jetson Orin Nano).
+    \item \textbf{Socio-Educational Impact (NEP 2020):} Directly empowers vernacular-medium students in Tier-2/Tier-3 engineering colleges by providing synchronous bilingual lecture notes with global-standard mathematical notation.
+    \item \textbf{Verified Artifacts:}
+    \begin{itemize}
+      \footnotesize
+      \item 18-page formal Master's Thesis Report (\texttt{thesis\_report.pdf}).
+      \item 15-slide PowerPoint deck (\texttt{presentation\_deck.pptx}) \& Beamer presentation.
+      \item Complete lecture packages verified on external USB drive \texttt{AYUSH}.
+    \end{itemize}
+    \item \textbf{Future Horizons:} Multimodal whiteboard chalk fusion, multi-speaker diarization, and LoRA parameter-efficient adaptation to regional Indian languages.
+  \end{itemize}
+\end{frame}
+
+\end{document}
