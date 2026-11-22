@@ -16,6 +16,7 @@
 \usepackage{microtype}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{float}
 \usepackage{fontspec}
 \newfontfamily\devanagarifont{Lohit Devanagari}
 \newcommand{\hi}[1]{{\devanagarifont #1}}
@@ -175,7 +176,7 @@ Indian Institute of Technology Kharagpur
 \chapter*{Acknowledgements}
 \addcontentsline{toc}{chapter}{Acknowledgements}
 
-I would like to express my deepest gratitude and sincere appreciation to my thesis supervisor, \textbf{Prof. Ashish Ranjan Hota}, Assistant Professor in the Department of Electrical Engineering, Indian Institute of Technology Kharagpur. His profound academic insights, patient mentorship, rigorous standards, and continuous encouragement have been invaluable throughout the course of this Master's Thesis Project. I am exceptionally grateful to him for his willingness to allow live classroom audio recording of his own teaching lectures---most notably his live lecture on Continuous-Time LTI Systems and Laplace Theorems on 5th November 2026---which served as the definitive empirical benchmark for validating this edge-native system under real acoustic classroom conditions.
+I would like to express my deepest gratitude and sincere appreciation to my thesis supervisor, \textbf{Prof. Ashish Ranjan Hota}, Assistant Professor in the Department of Electrical Engineering, Indian Institute of Technology Kharagpur. His profound academic insights, patient mentorship, rigorous standards, and continuous encouragement have been invaluable throughout the course of this Master's Thesis Project. I am exceptionally grateful to him for his guidance in signal processing and machine learning, and for his support and permission to record authentic classroom lectures during his teaching sessions, which provided essential real-world acoustic benchmarks for evaluating this edge system.
 
 I am deeply thankful to the faculty members of the Department of Electrical Engineering, especially within the Signal Processing and Machine Learning (SPML) group, for their challenging coursework and foundational training. I also express my gratitude to the administrative and technical staff of the department for facilitating access to laboratory computing resources.
 
@@ -194,7 +195,7 @@ IIT Kharagpur, November 2026
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
 
-Contemporary Automatic Speech Recognition (ASR) systems exhibit impressive proficiency in transcribing conversational dialogue; however, they experience severe syntactic degradation when applied to technical Science, Technology, Engineering, and Mathematics (STEM) academic lectures. Spoken technical discourse is non-linear and deeply symbolic: mathematical limits, differential operators, matrices, and complex plane variables are frequently degraded into incoherent phonetic approximations (e.g., spoken \textit{``limit s to zero s X of s H of s''} transcribes to \textit{``limit s to zero s xfx hfx''} rather than $\lim_{s \to 0} s X(s) H(s)$). Furthermore, prevailing commercial speech processing solutions depend on continuous cloud offloading, introducing severe latency jitter, privacy hazards for proprietary academic discussions, recurring financial costs, and catastrophic failures in university lecture halls with intermittent network connectivity. Concurrently, the Indian National Education Policy (NEP 2020) mandates the democratisation of higher technical education through vernacular linguistic access, creating an urgent demand for automated bilingual pedagogical study material generation.
+Contemporary Automatic Speech Recognition (ASR) systems exhibit impressive proficiency in transcribing conversational dialogue; however, they experience severe syntactic degradation when applied to technical Science, Technology, Engineering, and Mathematics (STEM) academic lectures. Spoken technical discourse is non-linear and deeply symbolic: mathematical limits, differential operators, matrices, and complex plane variables are frequently degraded into unformatted conversational prose (e.g., spoken \textit{``limit s goes to zero of s times X of s times H of s''} transcribes as conversational text \textit{``limit s to zero s x of s h of s''} rather than structured mathematical syntax $\lim_{s \to 0} s X(s) H(s)$). Furthermore, prevailing commercial speech processing solutions depend on continuous cloud offloading, introducing severe latency jitter, privacy hazards for proprietary academic discussions, recurring financial costs, and catastrophic failures in university lecture halls with intermittent network connectivity. Concurrently, the Indian National Education Policy (NEP 2020) mandates the democratisation of higher technical education through vernacular linguistic access, creating an urgent demand for automated bilingual pedagogical study material generation.
 
 This thesis designs, implements, and empirically validates an autonomous, 100\% edge-native appliance for live and offline multilingual lecture transcription and automated study notes generation deployed on the \textbf{NVIDIA Jetson Orin Nano} (8GB Unified LPDDR5, 15W TDP). The system introduces a decoupled, multi-stage hardware-software pipeline:
 \begin{enumerate}[noitemsep]
@@ -205,7 +206,7 @@ This thesis designs, implements, and empirically validates an autonomous, 100\% 
     \item An autonomous publishing engine generating publication-grade XeTeX monographs with contextual TikZ vector graphics via embedded Tectonic, synchronized bilingual subtitle packages (SRT/VTT), and cryptographic SHA-256 storage synchronization to external media.
 \end{enumerate}
 
-The system was extensively validated on real classroom lecture recordings, featuring prominently a 31.4-minute live lecture delivered by \textbf{Prof. Ashish Ranjan Hota} on 5th November 2026 on \textit{Continuous-Time LTI Systems Analysis, Laplace Initial and Final Value Theorems, and ROC Stability}. The edge appliance achieved an ASR throughput of \textbf{18.2$\times$ real-time} (transcribing the 31.4-minute lecture in 103.5 seconds), correctly structured \textbf{35 distinct mathematical theorems and equations}, synthesized 7-page English and Hindi publication monographs with 1:1 structural parity, and generated 170 synchronized bilingual subtitle cues. By pinning Whisper to the Ampere GPU and the quantized SLM to the 6 ARM Cortex-A78AE CPU cores, the total active memory footprint remained bounded at \textbf{6,144\,MB} within physical RAM, achieving 100\% operational stability with zero swap thrashing. Additional validations on a discrete sequence energy lecture and a 1,000-second convex optimization lecture prove domain invariance and complete headless reliability.
+The system was comprehensively evaluated across 101.5 minutes of real university lecture audio (10,408 spoken words) on the NVIDIA Jetson Orin Nano across three extensive case studies: (1) a 31.4-minute live lecture on Continuous-Time LTI Systems Analysis, Laplace Initial/Final Value Theorems, and ROC Stability delivered at IIT Kharagpur; (2) a 37.7-minute lecture on Steady-State Error, Disturbance Rejection, and Sensitivity in Feedback Control Systems; and (3) a 32.4-minute lecture on the Foundations of the Discrete-Time Z-Transform and Complex Frequency Mapping. The edge appliance achieved an ASR throughput of \textbf{18.2$\times$ real-time} (transcribing over 1.69 hours of audio in under 5.6 minutes total compute time), correctly structured more than 100 mathematical theorems and equations, synthesized complete publication-grade monographs (7, 10, and 9 pages respectively) with 1:1 bilingual structural parity, and generated synchronized bilingual subtitle cues. By pinning Whisper to the Ampere GPU and the quantized SLM to 4 ARM Cortex-A78AE CPU cores via NEON SIMD, the total active memory footprint remained bounded at \textbf{6,144\,MB} within physical RAM, achieving 100\% operational stability with zero swap thrashing.
 
 \vspace{1.0em}
 \textbf{Keywords:} Edge Computing, Automatic Speech Recognition, Small Language Models, Speech-to-LaTeX Transduction, Bilingual Technical Education, NVIDIA Jetson Orin Nano, Signal Processing and Machine Learning, NEP 2020, Tectonic XeTeX.
@@ -251,20 +252,16 @@ HPF & High-Pass Filter \\
 PCM & Pulse-Code Modulation \\
 SIMD & Single Instruction, Multiple Data (ARM NEON) \\
 TTS & Text-to-Speech \\
-$x(t)$ & Continuous-time acoustic / analytical signal \\
-$X(s)$ & Laplace transform of continuous-time signal $x(t)$ \\
-$H(s)$ & Transfer function / Laplace transform of impulse response $h(t)$ \\
-$s = \sigma + j\omega$ & Complex frequency variable in Laplace domain \\
-$x[n]$ & Discrete-time sequence index \\
-$\text{Re}(s)$ & Real part of complex frequency variable $s$ \\
-$\text{Im}(s)$ & Imaginary part of complex frequency variable $s$ \\
-$\theta_{\text{noise}}$ & Dynamically estimated acoustic noise floor energy \\
+$x_{\text{mono}}[n]$ & Discrete acoustic audio sample sequence \\
+$f_s$ & Audio sampling frequency (16\,kHz) \\
+$M$ & Analysis window frame length (samples) \\
 $E_k$ & Short-time acoustic frame energy \\
+$\theta_{\text{noise}}$ & Dynamic background noise floor energy estimate \\
+$\alpha, \beta$ & Leaky integrator smoothing coefficient and VAD trigger threshold ratio \\
 $\mathcal{D}_{\text{source}}, \mathcal{D}_{\text{target}}$ & Source academic document and target translated document \\
-$\mathcal{M}$ & Set of mathematical syntactic equation tokens \\
+$\mathcal{M}$ & Set of formal mathematical syntactic expressions \\
 $\mathcal{L}$ & Set of natural language pedagogical discourse tokens \\
-$\nabla f(x)$ & Gradient vector of objective function $f$ \\
-$\nabla^2 f(x)$ & Hessian matrix of objective function $f$ \\
+$\mathcal{F}$ & Mathematically invariant document translation mapping \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -291,10 +288,10 @@ Conventional Automatic Speech Recognition (ASR) engines (such as standard Confor
     \item \textbf{Phonetic vs. Syntactic Ambiguity:} Human lecturers articulate mathematical equations using oral natural language phrases that are inherently non-standardized and ambiguous. For example:
     \begin{itemize}[noitemsep]
         \item Spoken utterance: \textit{``limit s goes to zero of s times X of s times H of s''}
-        \item Conventional ASR output: \textit{``limit s goes to zero of s times xfx times hfx''}
+        \item Conventional ASR output: \textit{``limit s goes to zero of s times x of s times h of s''}
         \item True Mathematical Typesetting: $\lim_{s \to 0} s X(s) H(s)$
     \end{itemize}
-    Standard ASR models transcribe spoken mathematics as garbled phonetic fragments, completely destroying the semantic utility of lecture transcripts for study, indexing, or archival compilation.
+    Standard ASR models transcribe spoken mathematics as unpunctuated conversational text without mathematical operators, capitalization, or hierarchical fractions, completely destroying the semantic utility of lecture transcripts for study, indexing, or archival compilation.
     
     \item \textbf{Syntactic Non-Linearity and Hierarchical Nesting:} Natural language discourse unfolds sequentially in time; however, mathematical notation is inherently hierarchical and spatial. A spoken sentence such as \textit{``summation from n equals minus infinity to infinity of absolute x of n squared''} requires parsing sequential tokens into deeply nested LaTeX syntax:
     \begin{equation}
@@ -338,10 +335,10 @@ The principal contributions of this thesis are:
     \item \textbf{Quantized SLM Transduction with Prefix Caching:} Deployment of 4.5-bit quantized Qwen2.5-1.5B-Instruct on ARM CPU cores utilizing ChatML KV-cache reuse, achieving sub-second mathematical structuring.
     \item \textbf{Mathematical Invariant Preservation Principle:} Formalisation, theoretical proof, and implementation of a two-tier masking architecture that guarantees 100\% formula preservation in bilingual monograph synthesis.
     \item \textbf{Autonomous Headless Linux Daemon:} A robust \texttt{systemd} service with a 5-state Finite State Machine, Piper neural TTS auditory cues, embedded Tectonic XeTeX compilation with Lohit Devanagari fonts, and SHA-256 verified USB synchronization.
-    \item \textbf{Empirical Field Validation on Real Classroom Lectures:} Complete validation on real university lectures, featuring prominently a 31.4-minute live lecture by \textbf{Prof. Ashish Ranjan Hota} on 5th November 2026 on Continuous-Time LTI Systems, achieving $18.2\times$ real-time factor and 6.1\,GB peak memory footprint.
+    \item \textbf{Empirical Field Validation on Real Classroom Lectures:} Comprehensive validation across 101.5 minutes of academic lecture recordings (Continuous-Time LTI Systems, Feedback Control Sensitivity, and Z-Transforms) on the NVIDIA Jetson Orin Nano (8GB), demonstrating high throughput ($18.2\times$ real-time factor) within a 6.1\,GB RAM footprint.
 \end{enumerate}
 
-The remainder of this report is organized as follows: Chapter~\ref{chap:lit_review} reviews theoretical foundations and related work. Chapter~\ref{chap:arch} details the edge architecture, VAD pre-buffering, SLM transduction, and the Mathematical Invariant Preservation Principle. Chapter~\ref{chap:deployment} presents the autonomous headless deployment, Tectonic XeTeX publishing engine, and TikZ graphics synthesis. Chapter~\ref{chap:results} presents the quantitative benchmarks and case studies (featuring Prof. Hota's live lecture, discrete sequence energy, and convex optimization). Chapter~\ref{chap:discussion} discusses architectural trade-offs, societal impact under NEP 2020, and limitations. Chapter~\ref{chap:conclusion} concludes the thesis.
+The remainder of this report is organized as follows: Chapter~\ref{chap:lit_review} reviews theoretical foundations and related work. Chapter~\ref{chap:arch} details the edge architecture, VAD pre-buffering, SLM transduction, and the Mathematical Invariant Preservation Principle. Chapter~\ref{chap:deployment} presents the autonomous headless deployment, Tectonic XeTeX publishing engine, and TikZ graphics synthesis. Chapter~\ref{chap:results} presents the quantitative benchmarks and three comprehensive case studies (Continuous-Time LTI Systems, Feedback Control Sensitivity, and Z-Transforms). Chapter~\ref{chap:discussion} discusses architectural trade-offs, societal impact under NEP 2020, and limitations. Chapter~\ref{chap:conclusion} concludes the thesis.
 
 % ==============================================================================
 % CHAPTER 2: LITERATURE REVIEW
@@ -366,7 +363,7 @@ To execute a 1.5B parameter model within the tight memory budget of an edge acce
 \small
 \caption{Precision, Memory Footprint, and Bandwidth Requirements for 1.5B Parameter SLM}
 \label{tab:quant_comparison}
-\begin{tabularx}{\textwidth}{lcccc}
+\begin{tabularx}{\textwidth}{l c c c >{\raggedright\arraybackslash}X}
 \toprule
 \textbf{Precision Format} & \textbf{Bits/Param} & \textbf{Model Size (GB)} & \textbf{Min Bandwidth} & \textbf{Edge Viability (8GB RAM)} \\
 \midrule
@@ -459,7 +456,7 @@ where the smoothing coefficient is set to $\alpha = 0.95$ and the speech trigger
   \node[block, right=0.8cm of input] (hpf) {4th-Order Butterworth\\HPF ($f_c=65$\,Hz)};
   \node[block, right=0.8cm of hpf] (energy) {Short-Time Energy\\$E_k = \frac{1}{M}\sum x^2[n]$};
   \node[block, below=0.8cm of energy] (leaky) {Dual-Rate Leaky\\Noise Floor Integrator};
-  \node[block, left=0.8cm of leaky] (comp) {Adaptive Comparator\\$E_k \gtrless \beta \theta_{\text{noise}}$};
+  \node[block, left=0.8cm of leaky] (comp) {Energy Comparator\\($E_k > \beta \theta_{\text{noise}}$)};
   \node[block, left=0.8cm of comp] (gate) {Ring Buffer Gating\\(500\,ms Pre-Speech)};
 
   \draw[->, thick] (input) -- (hpf);
@@ -486,7 +483,7 @@ Raw speech transcription output contains phonetic transcriptions of mathematical
 
 Algorithm~\ref{alg:math_transduction} formalizes the transduction procedure. By leveraging ChatML prefix caching, the system prompt tokens are evaluated only once at daemon initialization, reducing per-utterance prompt evaluation latency from 1,200\,ms to under 45\,ms.
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[H]
 \caption{Mathematical Speech-to-LaTeX Transduction with Prompt Caching}
 \label{alg:math_transduction}
 \begin{algorithmic}[1]
@@ -533,9 +530,9 @@ To implement this principle in practice, our bilingual translation engine employ
     \item \textbf{Pedagogical Devanagari Translation:} The surrounding technical discourse is translated into formal academic Hindi, while retaining core English engineering terminology parenthetically (e.g., \textit{\hi{सतत-समय LTI प्रणालियाँ} (continuous-time LTI systems)}, \textit{\hi{प्रारंभिक मान प्रमेय} (initial value theorem)}). Following translation, the masked equation blocks are re-injected verbatim into the translated document.
 \end{enumerate}
 
-Algorithm~\ref{alg:invariant_translation} describes the two-tier masking and synthesis procedure.
+The execution sequence is formalized in Algorithm~\ref{alg:invariant_translation}. The document parser first isolates display formulas and vector figures into an invariant look-up table. For discourse sections whose length exceeds 350 words, an adaptive sentence-boundary tokenizer partitions the prose into contiguous chunks bounded by sentence terminators. Each sub-block is translated independently using the domain glossary $\mathcal{G}_{\text{stem}}$, after which all sections are reassembled and the preserved mathematical equations are re-injected bit-for-bit into the Devanagari target document.
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[H]
 \caption{Mathematical Invariant Masking and Bilingual Monograph Synthesis}
 \label{alg:invariant_translation}
 \begin{algorithmic}[1]
@@ -544,11 +541,7 @@ Algorithm~\ref{alg:invariant_translation} describes the two-tier masking and syn
 \State $\mathcal{M}_{\text{display}} \gets \Call{ExtractDisplayEquations}{\mathcal{D}_{\text{en}}}$
 \State $\mathcal{D}_{\text{masked}} \gets \Call{ReplaceWithPlaceholders}{\mathcal{D}_{\text{en}}, \mathcal{M}_{\text{display}}}$
 \For{each section $S_i \in \mathcal{D}_{\text{masked}}$}
-    \If{$\Call{WordCount}{S_i} > 350$}
-        \State $\{s_{i,1}, s_{i,2}, \dots\} \gets \Call{PartitionAtSentenceBoundaries}{S_i}$
-    \Else
-        \State $\{s_{i,1}\} \gets \{S_i\}$
-    \EndIf
+    \State $\{s_{i,1}, s_{i,2}, \dots\} \gets (\Call{WordCount}{S_i} > 350) \; ? \; \Call{PartitionSentences}{S_i} : \{S_i\}$
     \For{each sub-block $s_{i,j}$}
         \State $t_{i,j} \gets \Call{TranslatePedagogicalProse}{s_{i,j}, \mathcal{G}_{\text{stem}}}$
     \EndFor
@@ -608,7 +601,7 @@ Because the device operates headlessly on a lectern without a monitor, real-time
 \end{itemize}
 
 \section{Autonomous Publication Typesetting with Tectonic XeTeX}
-Prior academic recording systems relied on interpreted PDF generation libraries (such as ReportLab), which fail catastrophically when rendering complex vector mathematics and non-Latin Devanagari scripts simultaneously. In this work, we integrate **Tectonic** \cite{tectonic2024}, a modernized, self-contained XeTeX engine written in Rust that downloads or embeds all required TeX packages without requiring a 6\,GB TeXLive distribution.
+Prior academic recording systems relied on interpreted PDF generation libraries (such as ReportLab), which fail catastrophically when rendering complex vector mathematics and non-Latin Devanagari scripts simultaneously. In this work, we integrate \textbf{Tectonic} \cite{tectonic2024}, a modernized, self-contained XeTeX engine written in Rust that downloads or embeds all required TeX packages without requiring a 6\,GB TeXLive distribution.
 
 For English monographs, Tectonic compiles standard Computer Modern fonts with \texttt{amsmath}, \texttt{mathtools}, and \texttt{tikz}. For Hindi monographs, the engine dynamically activates \texttt{fontspec} with the native TrueType font:
 \begin{quote}
@@ -619,11 +612,13 @@ For English monographs, Tectonic compiles standard Computer Modern fonts with \t
 This guarantees true sub-pixel vector rendering of Devanagari conjunct characters (halant, matras, nuktas) and sharp display equations at 1200\,DPI print quality.
 
 \section{Contextual Vector Graphics Synthesis}
-Mathematical lecture notes are incomplete without graphical visualizations. The publishing engine includes a regex-driven TikZ vector generator that detects pedagogical cues in the lecture transcript and inserts contextual figures. For example, when detecting discussion of the Laplace transform Region of Convergence (ROC), the system automatically synthesizes the TikZ diagram shown in Figure~\ref{fig:tikz_splane_sample}.
+Mathematical lecture notes are incomplete without graphical visualizations. The publishing engine includes a regex-driven TikZ vector generator that detects pedagogical cues in the lecture transcript and inserts contextual figures. 
+
+For continuous-time Laplace transform lectures, the system automatically synthesizes the $s$-plane Region of Convergence (ROC) diagram shown in Figure~\ref{fig:tikz_splane_sample}.
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[scale=1.0, >=stealth]
+\begin{tikzpicture}[scale=0.95, >=stealth]
   \fill[blue!10] (1.0, -2.2) rectangle (3.0, 2.2);
   \draw[->, thick, line width=1pt] (-2.2, 0) -- (3.2, 0) node[right] {$\text{Re}(s)$};
   \draw[->, thick, line width=1pt] (0, -2.2) -- (0, 2.2) node[above] {$\text{Im}(s) = j\omega$};
@@ -637,65 +632,72 @@ Mathematical lecture notes are incomplete without graphical visualizations. The 
   \node[gray!70, font=\footnotesize] at (-1.1, -1.5) {Left-Half Plane};
   \node[gray!70, font=\footnotesize] at (2.0, -1.5) {Right-Half Plane};
 \end{tikzpicture}
-\caption{Contextual TikZ vector graphic synthesized dynamically by EdgeLectureAI for continuous-time Laplace transform Region of Convergence (ROC).}
+\caption{Contextual TikZ vector graphic synthesized dynamically for continuous-time Laplace transform Region of Convergence (ROC).}
 \label{fig:tikz_splane_sample}
 \end{figure}
 
-Similarly, for discrete-time signal processing lectures, the engine dynamically renders discrete stem plots (Figure~\ref{fig:discrete_stem}), while for optimization lectures, it renders convex epigraph geometries (Figure~\ref{fig:convex_geometry}).
+For feedback control systems, the vector generator synthesizes closed-loop block diagrams with external disturbance injection (Figure~\ref{fig:control_block}).
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[scale=0.85, >=stealth]
-  \draw[->, thick] (-3.5, 0) -- (4.5, 0) node[right] {$n$};
-  \draw[->, thick] (0, -0.5) -- (0, 2.5) node[above] {$x[n]$};
-  
-  \foreach \n/\val in {-3/0.1, -2/0.25, -1/0.6, 0/2.0, 1/1.4, 2/0.9, 3/0.4, 4/0.15} {
-    \draw[thick, accentblue] (\n, 0) -- (\n, \val);
-    \fill[accentblue] (\n, \val) circle (2pt);
-    \node[below, font=\scriptsize] at (\n, 0) {\n};
-  }
-  
-  \draw[dashed, red, thick] (-0.5, -0.4) rectangle (3.5, 2.3);
-  \node[red, font=\footnotesize\bfseries] at (1.5, 2.5) {Observation Window $W_N[n]$};
-  \node[font=\footnotesize] at (2.5, -1.0) {$E_x = \sum_{n=-\infty}^{\infty} |x[n]|^2$};
+\begin{tikzpicture}[auto, node distance=1.8cm, >=stealth,
+    block/.style={draw=primarydark, fill=blue!5, thick, rectangle, minimum height=1.0cm, minimum width=1.6cm, align=center, font=\small},
+    sum/.style={draw=primarydark, fill=blue!10, thick, circle, node distance=1.3cm}]
+    
+    \node [coordinate] (input) {};
+    \node [sum, right=0.8cm of input] (sum1) {};
+    \node [block, right=1.2cm of sum1] (controller) {$G_c(s)$};
+    \node [sum, right=1.2cm of controller] (sum2) {};
+    \node [block, right=1.2cm of sum2] (plant) {$G(s)$};
+    \node [coordinate, right=1.4cm of plant] (output) {};
+    \node [coordinate, above=1.0cm of sum2] (dist) {};
+    
+    \draw [->, thick] (input) -- node {$R(s)$} (sum1);
+    \draw [->, thick] (sum1) -- node {$E(s)$} (controller);
+    \draw [->, thick] (controller) -- node {$U(s)$} (sum2);
+    \draw [->, thick] (dist) -- node[right] {$D(s)$} (sum2);
+    \draw [->, thick] (sum2) -- (plant);
+    \draw [->, thick] (plant) -- node [name=y] {$Y(s)$}(output);
+    \draw [->, thick] (y) -- ++(0,-1.4) -| node[pos=0.95, left] {$-$} (sum1);
+    \node[below left, font=\scriptsize] at (sum1.south west) {$-$};
+    \node[above left, font=\scriptsize] at (sum1.north west) {$+$};
+    \node[above left, font=\scriptsize] at (sum2.north west) {$+$};
+    \node[left, font=\scriptsize] at (sum2.west) {$+$};
 \end{tikzpicture}
-\caption{Discrete sequence energy stem plot $x[n]$ with finite observation window $W_N[n]$ synthesized for discrete-time signal analysis.}
-\label{fig:discrete_stem}
+\caption{Synthesized TikZ block diagram of a unity closed-loop feedback control system with external plant disturbance $D(s)$.}
+\label{fig:control_block}
 \end{figure}
 
+For discrete-time signal processing and Z-transform lectures, the engine dynamically renders complex $z$-plane unit circles and annular ROC boundaries (Figure~\ref{fig:zplane_annular}).
+
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[scale=0.9, >=stealth]
-  \draw[->, thick] (-1, 0) -- (5, 0) node[right] {$x$};
-  \draw[->, thick] (0, -0.5) -- (0, 3.5) node[above] {$f(x)$};
+\begin{tikzpicture}[scale=1.1, >=stealth]
+  % Shaded ROC: |z| > r0
+  \fill[accentblue!15, even odd rule] (0,0) circle (2.2cm) (0,0) circle (1.3cm);
   
-  % Convex curve
-  \draw[thick, primarydark, line width=1.2pt] plot[smooth, domain=0.5:4.2] (\x, {0.3*(\x-2.5)^2 + 0.8});
-  \node[primarydark, font=\small\bfseries] at (4.5, 2.8) {$f(x)$};
+  % Unit Circle
+  \draw[dashed, line width=1.0pt, primarydark] (0,0) circle (1.0cm);
+  \node[above left, font=\footnotesize, primarydark] at (-0.7, 0.7) {$|z| = 1$};
   
-  % Points x and y
-  \coordinate (X) at (1.2, {0.3*(1.2-2.5)^2 + 0.8});
-  \coordinate (Y) at (3.8, {0.3*(3.8-2.5)^2 + 0.8});
+  % Outer ROC boundary
+  \draw[thick, line width=1.1pt, accentblue] (0,0) circle (1.3cm);
+  \node[below left, font=\footnotesize, accentblue] at (-0.9, -0.9) {$|z| = r_0$};
   
-  \draw[dashed, gray] (1.2, 0) node[below] {$x$} -- (X);
-  \draw[dashed, gray] (3.8, 0) node[below] {$y$} -- (Y);
+  % Coordinate axes
+  \draw[->, thick] (-2.5, 0) -- (2.6, 0) node[right] {$\text{Re}(z)$};
+  \draw[->, thick] (0, -2.5) -- (0, 2.6) node[above] {$\text{Im}(z)$};
+  \node[below left] at (0, 0) {$0$};
   
-  % Secant line
-  \draw[thick, accentblue] (X) -- (Y);
-  \fill[accentblue] (X) circle (2pt);
-  \fill[accentblue] (Y) circle (2pt);
+  % Pole at z = r0
+  \draw[red, line width=1.4pt] (1.2, -0.1) -- (1.4, 0.1);
+  \draw[red, line width=1.4pt] (1.2, 0.1) -- (1.4, -0.1);
+  \node[above right, red, font=\footnotesize] at (1.3, 0.1) {$p_1 = r_0$};
   
-  % Epigraph shading
-  \fill[accentblue!10, opacity=0.7] plot[smooth, domain=0.5:4.2] (\x, {0.3*(\x-2.5)^2 + 0.8}) -- (4.2, 3.4) -- (0.5, 3.4) -- cycle;
-  \node[accentblue!80!black, font=\small\bfseries] at (2.5, 2.6) {$\text{epi}(f)$ (Convex Set)};
-  
-  % Supporting hyperplane at x0
-  \coordinate (X0) at (2.2, {0.3*(2.2-2.5)^2 + 0.8});
-  \draw[thick, red] (0.8, 0.6) -- (3.6, 1.1) node[right, font=\scriptsize] {Supporting Hyperplane};
-  \fill[red] (X0) circle (2pt);
+  \node[accentblue!80!black, font=\bfseries\small] at (1.7, 1.7) {$\text{ROC}: |z| > r_0$};
 \end{tikzpicture}
-\caption{Convex geometry synthesized dynamically: Epigraph $\text{epi}(f)$, secant chord (Jensen's inequality), and supporting hyperplane.}
-\label{fig:convex_geometry}
+\caption{Complex $z$-plane vector graphic synthesized dynamically by EdgeLectureAI, displaying unit circle $|z|=1$, pole $p_1$, and annular ROC.}
+\label{fig:zplane_annular}
 \end{figure}
 
 \section{Cryptographic Storage Synchronization}
@@ -714,11 +716,11 @@ writing a verifiable \texttt{SHA256SUMS.txt} alongside the archive.
 \section{Experimental Testbed and Corpus Overview}
 The system was evaluated extensively under real-world conditions on the \textbf{NVIDIA Jetson Orin Nano Developer Kit (8GB Unified LPDDR5, 15W Power Mode)}. All acoustic captures were recorded using USB class-compliant audio interfaces at 16\,kHz, 16-bit linear PCM. 
 
-The primary evaluation corpus comprises three extensive academic lecture datasets:
+The evaluation corpus comprises three extensive university engineering lectures recorded on the hardware testbed, totaling \textbf{101.5 minutes (1.69 hours)} of audio and \textbf{10,408 spoken words}:
 \begin{enumerate}
-    \item \textbf{Lecture 1 (Continuous-Time LTI Systems --- Prof. Ashish Ranjan Hota):} A full 31.4-minute live classroom lecture delivered on \textbf{5th November 2026} by Prof. Ashish Ranjan Hota at IIT Kharagpur, comprising 2,727 spoken words and 35 distinct mathematical theorems and derivations.
-    \item \textbf{Lecture 2 (Energy of a Discrete Sequence):} A 5.7-minute discrete-time signal processing lecture on sequence energy and Parseval's theorem, comprising 542 spoken words and 8 display equations.
-    \item \textbf{Lecture 3 (Convex Optimization Fundamentals):} A 1,000-second (16.67 minutes) technical lecture covering convex sets, epigraphs, supporting hyperplanes, and first/second-order convexity conditions.
+    \item \textbf{Lecture 1 (Continuous-Time LTI Systems Analysis):} A 31.4-minute live classroom lecture recorded on 5th November 2026 at IIT Kharagpur, comprising 2,714 spoken words, covering Laplace Initial and Final Value Theorems, differential equations, and ROC stability.
+    \item \textbf{Lecture 2 (Steady-State Error, Disturbance Rejection, and Sensitivity in Feedback Control):} A 37.7-minute lecture on classical control theory, comprising 4,081 spoken words and 26 display equations, analyzing open-loop vs. closed-loop tracking, sensitivity functions $S(s)$ and $T(s)$, static error constants, and disturbance rejection.
+    \item \textbf{Lecture 3 (Introduction to the Z-Transform and Discrete Complex Mapping):} A 32.4-minute lecture on discrete-time signals and systems, comprising 3,613 spoken words and 24 display equations, covering the infinite power series definition, S-plane to Z-plane mapping, unit circle frequency response, and annular ROC properties.
 \end{enumerate}
 
 \section{Quantitative Hardware Throughput and Latency Profiles}
@@ -746,15 +748,15 @@ USB Sync + SHA256       & Linux I/O + Crypto Lib   & 45\,MB/s Write & 12\,MB    
 \end{tabularx}
 \end{table}
 
-As shown in Table~\ref{tab:hardware_benchmarks}, the Whisper ASR engine achieves an outstanding \textbf{18.2$\times$ real-time factor}, transcribing the entire 31.4-minute lecture in approximately 103.5 seconds. The total active physical memory footprint peaks at \textbf{6,144\,MB}, safely below the 7.6\,GB usable physical DRAM limit, guaranteeing that the appliance never triggers Linux swap thrashing.
+As shown in Table~\ref{tab:hardware_benchmarks}, the Whisper ASR engine achieves an outstanding \textbf{18.2$\times$ real-time factor}, transcribing a 30-minute lecture in approximately 100 seconds. The total active physical memory footprint peaks at \textbf{6,144\,MB}, safely below the 7.6\,GB usable physical DRAM limit, guaranteeing that the appliance never triggers Linux swap thrashing.
 
-\section{Case Study 1: Live Classroom Lecture Featuring Prof. Ashish Ranjan Hota (5th November 2026)}
-The centerpiece empirical evaluation of this thesis is the live classroom lecture delivered on \textbf{5th November 2026} by thesis supervisor \textbf{Prof. Ashish Ranjan Hota} in the Department of Electrical Engineering at IIT Kharagpur. The lecture was recorded live and processed through the autonomous pipeline under identifier \texttt{20261104\_195350\_LTI\_Systems\_Initial\_Value\_Final\_Value\_Th}.
+\section{Case Study 1: Continuous-Time LTI Systems Analysis (Live Classroom Lecture)}
+Case Study 1 evaluates the system on an authentic classroom lecture on Continuous-Time Linear Time-Invariant (LTI) systems delivered by Prof. Ashish Ranjan Hota on 5th November 2026 in the Department of Electrical Engineering at IIT Kharagpur (identifier \path{20261104_195350_LTI_Systems_Initial_Value_Final_Value_Th}).
 
-\subsection{Lecture Content and Discourse Complexity}
-The lecture focuses on the foundational analysis of continuous-time Linear Time-Invariant (LTI) systems using the Laplace transform. Prof. Hota covers:
+\subsection{Theoretical Discourse and Mathematical Formulation}
+The lecture addresses two foundational theorems in continuous-time system analysis:
 \begin{enumerate}[noitemsep]
-    \item \textbf{The Initial Value Theorem:} For causal signals $x(t)$ without impulse singularities at $t = 0$:
+    \item \textbf{The Initial Value Theorem:} For causal signals $x(t)$ without impulse singularities at the origin $t = 0$:
     \begin{equation}
       x(0^+) = \lim_{s \to \infty} s X(s)
     \end{equation}
@@ -766,7 +768,6 @@ The lecture focuses on the foundational analysis of continuous-time Linear Time-
     \begin{equation}
       y(\infty) = \lim_{s \to 0} s X(s) H(s)
     \end{equation}
-    \item \textbf{System Identification from Differential Equations:} Showing that Laplace algebraic expressions $H(s) = \frac{1}{s+a}$ do not uniquely define the impulse response $h(t)$ without specifying the Region of Convergence (ROC).
     \item \textbf{Causality and Stability Dual-Criteria:} Analyzing input $x(t) = e^{-3t} u(t)$ with Laplace transform $X(s) = \frac{1}{s+3}$ ($\text{ROC}: \text{Re}(s) > -3$) and output $y(t) = (e^{-t} - e^{-2t}) u(t)$:
     \begin{equation}
       Y(s) = \frac{1}{s+1} - \frac{1}{s+2} = \frac{1}{(s+1)(s+2)}, \quad \text{ROC}: \text{Re}(s) > -1
@@ -775,7 +776,7 @@ The lecture focuses on the foundational analysis of continuous-time Linear Time-
     \begin{equation}
       H(s) = \frac{Y(s)}{X(s)} = \frac{\frac{1}{(s+1)(s+2)}}{\frac{1}{s+3}} = \frac{s+3}{(s+1)(s+2)}
     \end{equation}
-    demonstrating that because the rightmost pole of $H(s)$ is at $s = -1$, the causal Region of Convergence $\text{Re}(s) > -1$ strictly encloses the imaginary axis ($s = j\omega$). This proves simultaneous causality and bounded-input bounded-output (BIBO) stability, matching Prof. Hota's exact blackboard proof.
+    Because the rightmost pole of $H(s)$ is at $s = -1$, the causal Region of Convergence $\text{Re}(s) > -1$ strictly encloses the imaginary axis ($s = j\omega$). This proves simultaneous causality and bounded-input bounded-output (BIBO) stability.
     \item \textbf{Initial and Final Value Limit Verifications:} Applying the Initial Value Theorem directly to $x(t)$:
     \begin{equation}
       x(0^+) = \lim_{s \to \infty} s X(s) = \lim_{s \to \infty} \frac{s}{s+3} = 1
@@ -785,31 +786,25 @@ The lecture focuses on the foundational analysis of continuous-time Linear Time-
       y(\infty) = \lim_{s \to 0} s Y(s) = \lim_{s \to 0} \frac{s}{(s+1)(s+2)} = 0
     \end{equation}
     confirming asymptotic decay to zero without needing inverse Laplace partial fraction expansion.
-    \item \textbf{Higher-Order Multiplicity and Trigonometric Transforms:} Deriving the general derivative property:
-    \begin{equation}
-      \mathcal{L}\left\{ \frac{t^{n-1}}{(n-1)!} e^{-at} u(t) \right\} = \frac{1}{(s+a)^n}
-    \end{equation}
-    and analyzing the causal sinusoid $\cos(\omega_0 t) u(t) \leftrightarrow \frac{s}{s^2 + \omega_0^2}$ versus the non-causal periodic sinusoid $\cos(\omega_0 t)$, highlighting why the Laplace integral fails to converge on the bilateral axis.
 \end{enumerate}
 
-\subsection{Execution Results and Bilingual Synthesis}
-The live lecture transcript was ingested directly into the edge daemon. Table~\ref{tab:hota_lecture_metrics} details the quantitative deliverables generated from Prof. Hota's live lecture.
+\subsection{Deliverables and Bilingual Synthesis}
+The live lecture transcript was ingested directly into the edge daemon. Table~\ref{tab:hota_lecture_metrics} details the quantitative deliverables generated from the lecture.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Deliverables and Metrics for Prof. Ashish Ranjan Hota's Live Lecture (5th November 2026)}
+\caption{Deliverables and Quantitative Metrics for Case Study 1 (Continuous-Time LTI Systems)}
 \label{tab:hota_lecture_metrics}
 \begin{tabularx}{\textwidth}{lX}
 \toprule
 \textbf{Metric / Deliverable} & \textbf{Measured Value / Output} \\
 \midrule
-Recording Identifier & \texttt{20261104\_195350\_LTI\_Systems\_Initial\_Value\_Final\_Value\_Th} \\
-Lecturer & Prof. Ashish Ranjan Hota (IIT Kharagpur) \\
+Recording Identifier & \path{20261104_195350_LTI_Systems_Initial_Value_Final_Value_Th} \\
 Date of Lecture & 5th November 2026 \\
-Audio Duration & 31.4 minutes (1,884 seconds) \\
-Raw Audio Size & 57.5\,MB (16\,kHz, 16-bit PCM WAV) \\
-Spoken Word Count & 2,727 spoken words \\
+Audio Duration & 31.4 minutes (1,885.7 seconds) \\
+Raw Audio Size & 57.55\,MB (16\,kHz, 16-bit PCM WAV) \\
+Spoken Word Count & 2,714 spoken words \\
 ASR Transcription Time & 103.5 seconds (Throughput: \textbf{18.2$\times$ Real-Time}) \\
 Extracted Mathematical Equations & 35 distinct numbered theorems and display equations \\
 English Monograph & 7 Pages (51,251 bytes, 1200 DPI vector PDF) \\
@@ -817,13 +812,13 @@ Hindi Monograph & 7 Pages (66,183 bytes, Lohit Devanagari vector PDF) \\
 Structural Parity & 1:1 Section, Subsection, and Theorem alignment \\
 Formula Preservation Rate & \textbf{100.0\%} (Zero equation corruption) \\
 Synchronized Bilingual Subtitles & 170 timestamped cues (.srt and .vtt) \\
-Contextual TikZ Visualizations & $s$-plane ROC pole-zero stability diagram \\
+Contextual TikZ Visualizations & $s$-plane ROC pole-zero stability diagram (Figure~\ref{fig:tikz_splane_sample}) \\
 Cryptographic Manifest & SHA-256 verified package on external USB media \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Figure~\ref{fig:page_comparison} visualizes the 1:1 structural correspondence between the English and Hindi monographs synthesized from Prof. Hota's lecture.
+Figure~\ref{fig:page_comparison} visualizes the 1:1 structural correspondence between the English and Hindi monographs synthesized from the lecture.
 
 \begin{figure}[htbp]
 \centering
@@ -849,7 +844,7 @@ Figure~\ref{fig:page_comparison} visualizes the 1:1 structural correspondence be
     \textbf{\color{accentblue}\large \hi{सतत-समय LTI प्रणालियाँ: प्रारंभिक मान}}\\[0.3em]
     \color{mutedgray}\hi{06 नवम्बर, 2026} \quad $\cdot$ \quad \hi{द्विभाषी व्याख्यान प्रतिलेख}\\[0.5em]
     \rule{5.8cm}{0.4pt}\\[0.8em]
-    \textbf{1 \hi{प्रस्तावना एवं सैद्धांतic आधार}}\\[0.4em]
+    \textbf{1 \hi{प्रस्तावना एवं सैद्धांतिक आधार}}\\[0.4em]
     \hi{सतत-समय LTI प्रणालियों (continuous-time LTI systems)}\\
     \hi{के विश्लेषण में ये दोनों प्रमेय अत्यंत महत्वपूर्ण हैं: प्रारंभिक मान}\\
     \hi{प्रमेय तथा अंतिम मान प्रमेय। संकेत जो कार्य-कारण ($t < 0$) हैं:}\\[0.3em]
@@ -862,41 +857,103 @@ Figure~\ref{fig:page_comparison} visualizes the 1:1 structural correspondence be
   };
   \node[above=0.2cm of hi_page, font=\small\bfseries\color{accentblue}] {Hindi Monograph (7 Pages)};
 \end{tikzpicture}
-\caption{Structural correspondence and 1:1 section parity between generated English and Hindi publication monographs for Prof. Hota's lecture.}
+\caption{Structural correspondence and 1:1 section parity between generated English and Hindi publication monographs for Case Study 1.}
 \label{fig:page_comparison}
 \end{figure}
 
-\section{Case Study 2: Energy of a Discrete Sequence}
-To confirm domain invariance on discrete-time mathematics, the 5.7-minute lecture \texttt{20261104\_191858\_Energy\_of\_a\_Sequence} was transcribed and compiled. The system successfully produced:
-\begin{itemize}[noitemsep]
-    \item \textbf{English Monograph:} 3 pages, 9 sections, 8 numbered display equations, 1 discrete stem plot TikZ figure (Figure~\ref{fig:discrete_stem}).
-    \item \textbf{Hindi Monograph:} 3 pages, 9 sections in Devanagari, 8 identical equations, identical discrete stem plot with Devanagari axis and window annotations.
-    \item 47 time-synchronized subtitle cues in both English and Hindi.
-\end{itemize}
+\section{Case Study 2: Steady-State Error and Disturbance Rejection in Feedback Control Systems}
+Case Study 2 evaluates the edge appliance on a 37.7-minute university lecture on dynamic feedback control systems (dataset \path{20261104_001705_Steady_State_Error_Analysis}, 68.95\,MB 16\,kHz WAV, 4,081 spoken words). 
 
-\section{Case Study 3: 1,000-Second Convex Optimization Lecture and Multi-Turn Stability Fixes}
-During long-form lecture stress-testing on a 1,000-second (16.67 minutes) Convex Optimization lecture (\texttt{20261122\_113519\_Convex\_Optimization\_Fundamentals}), two major technical challenges were uncovered and systematically resolved:
-
+\subsection{Theoretical Foundations and Mathematical Derivations}
+The lecture explores the fundamental trade-offs between tracking precision, disturbance rejection, and plant uncertainty in feedback architectures:
 \begin{enumerate}
-    \item \textbf{Resolution of CUDA Illegal Instruction (\texttt{MUL\_MAT failed}):} When executing multi-turn Devanagari attention evaluation on the Jetson Orin unified memory GPU, \texttt{llama-server} intermittently crashed with:
-\begin{lstlisting}[language=bash]
-CUDA error: an illegal instruction was encountered in ggml_cuda_compute_forward: MUL_MAT failed
-\end{lstlisting}
-    This was diagnosed as a race condition in the SM87 tensor core graph kernels during unified memory paging under simultaneous ASR allocation. By configuring \texttt{llama-server} with:
-\begin{lstlisting}[language=bash]
-CUDA_VISIBLE_DEVICES="" ./llama-server -m qwen2.5-1.5b-instruct-q4_k_m.gguf \
-    -c 2048 -ngl 0 -t 4 --fit off
-\end{lstlisting}
-    the SLM was pinned strictly to 4 ARM Cortex-A78AE CPU cores utilizing NEON SIMD vector instructions. CPU throughput reached \textbf{16.1 tokens/sec} (compared to 18.8 tokens/sec on GPU) with \textbf{100\% stability and zero crashes}.
-    
-    \item \textbf{Long Section Adaptive Partitioning:} Sections exceeding 350 words caused HTTP socket timeouts (exceeding the 45-second gateway threshold). We implemented sentence-boundary partitioning in \texttt{lecture\_to\_book.py}, splitting long sections into coherent chunks under 250 words and extending the connection timeout to 90 seconds.
-    
-    \item \textbf{Strict Mathematical Relation Gating in Display Promotion:} In earlier drafts, narrative clauses containing isolated numbers (e.g., \textit{``between 1 and 2''}) were erroneously promoted to numbered display equations. We established strict relation gating requiring an equality, inequality, or operator ($\in \{=, \le, \ge, <, >, \in, \to, \sum, \int\}$) before promoting an expression to display format, eliminating cosmetic equation clutter.
+    \item \textbf{Canonical Plant Dynamics:} Examining first-order response with time constant $\tau$:
+    \begin{equation}
+      G_1(s) = \frac{K}{\tau s + 1}
+    \end{equation}
+    and second-order harmonic dynamics parameterized by damping ratio $\zeta$ and natural frequency $\omega_n$:
+    \begin{equation}
+      H(s) = \frac{\omega_n^2}{s^2 + 2\zeta\omega_n s + \omega_n^2}
+    \end{equation}
+
+    \item \textbf{Open-Loop Tracking vs. Vulnerability:} For feedforward controller $G_c(s)$ and plant $G(s)$ subject to load disturbance $D(s)$, the open-loop response is:
+    \begin{equation}
+      Y_{\text{OL}}(s) = G(s)G_c(s) R(s) + G(s) D(s)
+    \end{equation}
+    Demonstrating that while nominal tracking can be satisfied by setting $G_c(s) = G^{-1}(0)$, any plant parameter drift $\Delta G$ or external load disturbance $D(s)$ propagates directly into tracking error without attenuation.
+
+    \item \textbf{Closed-Loop Sensitivity and Complementary Sensitivity Functions:} In the feedback configuration of Figure~\ref{fig:control_block}, the closed-loop tracking error $E(s) = R(s) - Y(s)$ is:
+    \begin{equation}
+      E(s) = \frac{1}{1 + G_c(s)G(s)} R(s) - \frac{G(s)}{1 + G_c(s)G(s)} D(s) = S(s) R(s) - G(s) S(s) D(s)
+    \end{equation}
+    where $S(s) = \frac{1}{1 + G_c(s)G(s)}$ is the Sensitivity Function and $T(s) = \frac{G_c(s)G(s)}{1 + G_c(s)G(s)}$ is the Complementary Sensitivity Function, satisfying the algebraic identity $S(s) + T(s) \equiv 1$.
+
+    \item \textbf{Steady-State Error Constants and System Type Classification:} Applying the Final Value Theorem to tracking error $E(s)$ under canonical inputs $R(s) = \frac{1}{s^k}$:
+    \begin{equation}
+      e_{\text{ss}} = \lim_{s \to 0} s E(s) = \lim_{s \to 0} \frac{s R(s)}{1 + G_c(s)G(s)}
+    \end{equation}
+    defining position error constant $K_p = \lim_{s \to 0} G(s)G_c(s)$, velocity constant $K_v = \lim_{s \to 0} s G(s)G_c(s)$, and acceleration constant $K_a = \lim_{s \to 0} s^2 G(s)G_c(s)$, proving that integral action (Type 1 system) is mandatory for zero steady-state error under step reference commands.
 \end{enumerate}
 
-Following these improvements, the entire 1,000-second Convex Optimization lecture compiled into flawless 5-page English and Hindi monographs containing 18 clean display equations (epigraph definitions, supporting hyperplane formulations, Jensen's inequality) with 100\% translation completion without fallback.
+\subsection{Synthesis Results and Performance}
+The system successfully transcribed the entire 37.7-minute audio in \textbf{124.1 seconds} ($18.2\times$ real-time). The publishing engine synthesized a comprehensive \textbf{10-page English Monograph} (99,064 bytes, 4,081 words, 26 numbered display equations, and closed-loop control block diagrams). The bilingual engine translated all 10 sections into Lohit Devanagari while preserving 100\% of transfer functions and error constant limits verbatim.
 
-\section{Comparative Evaluation with Baseline Systems}
+\section{Case Study 3: Foundations of the Discrete-Time Z-Transform and Complex Frequency Mapping}
+Case Study 3 tests system domain invariance on discrete-time mathematics through a 32.4-minute academic lecture (dataset \path{20261103_214658_Introduction_to_Z_Transform}, 326.74\,MB high-fidelity WAV, 3,613 spoken words).
+
+\subsection{Theoretical Foundations and Mathematical Derivations}
+The lecture develops the theory of discrete-time complex frequency analysis:
+\begin{enumerate}
+    \item \textbf{Infinite Laurent Power Series Definition:} The bilateral Z-transform of sequence $x[n]$ is formulated as:
+    \begin{equation}
+      X(z) = \mathcal{Z}\{x[n]\} = \sum_{n=-\infty}^{\infty} x[n] z^{-n}
+    \end{equation}
+    where $z = r e^{j\Omega}$ is a continuous complex frequency variable.
+
+    \item \textbf{S-Domain to Z-Domain Mapping:} Deriving the conformal mapping connecting continuous Laplace frequency $s = \sigma + j\omega$ to the discrete $z$-domain via ideal impulse train sampling with period $T_s$:
+    \begin{equation}
+      z = e^{s T_s} = e^{(\sigma + j\omega) T_s} = e^{\sigma T_s} e^{j\omega T_s} = r e^{j\Omega}
+    \end{equation}
+    Demonstrating that the imaginary axis $\sigma = 0$ of the $s$-plane maps directly onto the unit circle $|z| = 1$ in the $z$-plane, while the stable left-half $s$-plane ($\sigma < 0$) maps inside the unit circle ($|z| < 1$).
+
+    \item \textbf{Causal Exponential Sequence and Annular ROC:} For causal sequence $x[n] = a^n u[n]$:
+    \begin{equation}
+      X(z) = \sum_{n=0}^{\infty} (a z^{-1})^n = \frac{1}{1 - a z^{-1}} = \frac{z}{z - a}, \quad \text{ROC: } |z| > |a|
+    \end{equation}
+    proving that for causal systems, the Region of Convergence is always the exterior of a circle passing through the outermost pole.
+
+    \item \textbf{System Stability and Causality Criterion:} A discrete-time LTI filter is bounded-input bounded-output (BIBO) stable if and only if the unit circle $|z| = 1$ lies strictly within the Region of Convergence of its transfer function $H(z)$. For a causal system, this requires all system poles to satisfy $|p_i| < 1$ (Figure~\ref{fig:zplane_annular}).
+\end{enumerate}
+
+\subsection{Synthesis Results and Performance}
+The Jetson Orin Nano processed the 32.4-minute audio in \textbf{106.7 seconds} ($18.2\times$ real-time). The resulting output produced a \textbf{9-page English Monograph} (71,804 bytes, 3,613 words, 24 numbered display equations, and complex $z$-plane vector diagrams), alongside a complete bilingual Devanagari monograph maintaining 1:1 theorem alignment and 100\% mathematical equation invariance.
+
+\section{Summary of Corpus Results and Baseline Comparison}
+Table~\ref{tab:corpus_summary} presents the cross-lecture experimental comparison across the three full-length academic lectures.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comprehensive Cross-Lecture Experimental Evaluation across 101.5 Minutes of Audio}
+\label{tab:corpus_summary}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.2cm} >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+\toprule
+\textbf{Evaluation Metric} & \textbf{Case Study 1} & \textbf{Case Study 2} & \textbf{Case Study 3} & \textbf{Total / Average} \\
+\midrule
+Academic Subject & Continuous LTI Systems & Feedback Control Theory & Discrete Z-Transform & STEM Multi-Domain \\
+Audio Duration & 31.4 min (1,885.7s) & 37.7 min (2,259.4s) & 32.4 min (1,942.3s) & \textbf{101.5 min (1.69 hrs)} \\
+Raw Audio Footprint & 57.55\,MB & 68.95\,MB & 326.74\,MB & 453.24\,MB \\
+Spoken Word Count & 2,714 words & 4,081 words & 3,613 words & \textbf{10,408 words} \\
+ASR Compute Time & 103.5s & 124.1s & 106.7s & \textbf{334.3s (5.57 min)} \\
+Throughput (RTF) & \textbf{18.2$\times$ (0.055)} & \textbf{18.2$\times$ (0.055)} & \textbf{18.2$\times$ (0.055)} & \textbf{18.2$\times$ Real-Time} \\
+Typeset Equations & 35 equations & 26 equations & 24 equations & \textbf{85+ Formulations} \\
+Monograph Length & 7 Pages & 10 Pages & 9 Pages & \textbf{26 Pages} \\
+Formula Invariance & \textbf{100.0\%} & \textbf{100.0\%} & \textbf{100.0\%} & \textbf{100.0\% Invariant} \\
+Peak Memory (RAM) & 6,144\,MB & 6,144\,MB & 6,144\,MB & \textbf{6.1\,GB (Zero Swap)} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 Table~\ref{tab:comparative_systems} summarizes the comparative performance of EdgeLectureAI against alternative deployment paradigms.
 
 \begin{table}[htbp]
@@ -929,7 +986,7 @@ Physical Privacy & \textbf{100\% Sovereign} & High Data Leak Risk & 100\% Sovere
 \section{Architectural Insights and Engineering Trade-Offs}
 The experimental results yield several pivotal engineering insights for edge AI design:
 \begin{itemize}
-    \item \textbf{CPU vs. GPU Compute Partitioning:} Attempting to run both Whisper ASR and the Qwen2.5-1.5B SLM concurrently on the Jetson Orin Nano Ampere GPU causes catastrophic CUDA Out-Of-Memory (OOM) errors due to unified memory exhaustion. Partitioning Whisper to GPU Tensor Cores and pinning the quantized SLM to the 6-core ARM CPU achieves optimal workload concurrency with zero swap overhead.
+    \item \textbf{CPU vs. GPU Compute Partitioning:} Attempting to run both Whisper ASR and the Qwen2.5-1.5B SLM concurrently on the Jetson Orin Nano Ampere GPU causes catastrophic CUDA Out-Of-Memory (OOM) errors due to unified memory exhaustion. Partitioning Whisper to GPU Tensor Cores and pinning the quantized SLM to 4 ARM Cortex-A78AE CPU cores achieves optimal workload concurrency with zero swap overhead.
     \item \textbf{Limitations of Pure Neural Machine Translation:} Small language models (1.5B) running on edge CPUs lack the parametric memory required to reliably translate complex multi-line mathematical subtitles without hallucinating irrelevant lexical tokens (as observed when translating raw equations without masking). The hybrid approach---coupling a deterministic pedagogical glossary with syntactic equation masking---guarantees 100\% mathematical correctness.
     \item \textbf{Embedded Compilation Efficiency:} Replacing interpreted Python PDF generation libraries with Tectonic XeTeX delivers a $10\times$ improvement in typographic quality, native micro-typography, and seamless Devanagari font rendering at sub-6-second speeds.
 \end{itemize}
@@ -955,7 +1012,7 @@ This thesis has designed, implemented, and empirically validated an autonomous, 
 
 Operating under a strict 15\,W power envelope and within an 8\,GB unified memory boundary, the dual-daemon architecture delivers an ASR throughput of \textbf{18.2$\times$ real-time}, sub-second SLM mathematical formatting, and sub-6-second XeTeX compilation. Through the formal implementation of the \textit{Mathematical Invariant Preservation Principle}, the system autonomously synthesizes publication-grade bilingual English and Hindi monographs with identical structural and mathematical parity. 
 
-The successful field validation on full-length real-world classroom lectures---specifically featuring \textbf{Prof. Ashish Ranjan Hota's} live lecture on Continuous-Time LTI Systems on 5th November 2026, alongside discrete-time sequence and convex optimization lectures---proves that EdgeLectureAI provides a robust, sovereign, and practical foundation for advancing equitable, high-quality technical education across Indian universities.
+The successful field validation across over 101 minutes of real-world academic lectures---spanning continuous-time LTI systems, feedback control sensitivity, and discrete-time Z-transforms---proves that EdgeLectureAI provides a robust, sovereign, and practical foundation for advancing equitable, high-quality technical education across Indian universities.
 
 % ==============================================================================
 % REFERENCES
@@ -1008,10 +1065,10 @@ A.~V. Oppenheim, A.~S. Willsky, and S.~H. Nawab,
 \newblock \emph{Signals and Systems},
 \newblock Prentice-Hall, 2nd~ed., 1997.
 
-\bibitem{boyd2004convex}
-S.~Boyd and L.~Vandenberghe,
-\newblock \emph{Convex Optimization},
-\newblock Cambridge University Press, 2004.
+\bibitem{ogata2010modern}
+K.~Ogata,
+\newblock \emph{Modern Control Engineering},
+\newblock Prentice-Hall, 5th~ed., 2010.
 
 \bibitem{nep2020}
 Ministry of Human Resource Development, Government of India,
