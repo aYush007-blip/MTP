@@ -203,7 +203,7 @@ This thesis designs, implements, and empirically validates an autonomous, 100\% 
     \item Accelerated sequence-to-sequence ASR using GPU-optimized Whisper with a Universal Domain-Agnostic STEM acoustic conditioning prompt that eliminates narrow discipline biases;
     \item A Small Language Model (SLM) mathematical transduction engine powered by a 4.5-bit quantized Qwen2.5-1.5B-Instruct model with persistent ChatML KV-cache prefix reuse;
     \item A cross-lingual pedagogical translation subsystem formalising and enforcing the \textbf{Mathematical Invariant Preservation Principle}, ensuring fluent academic Hindi (Devanagari) prose while guaranteeing 100\% verbatim syntactic invariance of inline and display formulas; and
-    \item An autonomous publishing engine generating publication-grade XeTeX monographs with contextual TikZ vector graphics via embedded Tectonic, synchronized bilingual subtitle packages (SRT/VTT), and cryptographic SHA-256 storage synchronization to external media.
+    \item An autonomous publishing engine generating publication-grade XeTeX monographs via embedded Tectonic, synchronized bilingual subtitle packages (SRT/VTT), and cryptographic SHA-256 storage synchronization to external media.
 \end{enumerate}
 
 The system was comprehensively evaluated across 101.5 minutes of real university lecture audio (10,408 spoken words) on the NVIDIA Jetson Orin Nano across three extensive case studies: (1) a 31.4-minute live lecture on Continuous-Time LTI Systems Analysis, Laplace Initial/Final Value Theorems, and ROC Stability delivered at IIT Kharagpur; (2) a 37.7-minute lecture on Steady-State Error, Disturbance Rejection, and Sensitivity in Feedback Control Systems; and (3) a 32.4-minute lecture on the Foundations of the Discrete-Time Z-Transform and Complex Frequency Mapping. The edge appliance achieved an ASR throughput of \textbf{18.2$\times$ real-time} (transcribing over 1.69 hours of audio in under 5.6 minutes total compute time), correctly structured more than 100 mathematical theorems and equations, synthesized complete publication-grade monographs (7, 10, and 9 pages respectively) with 1:1 bilingual structural parity, and generated synchronized bilingual subtitle cues. By pinning Whisper to the Ampere GPU and the quantized SLM to 4 ARM Cortex-A78AE CPU cores via NEON SIMD, the total active memory footprint remained bounded at \textbf{6,144\,MB} within physical RAM, achieving 100\% operational stability with zero swap thrashing.
@@ -338,7 +338,7 @@ The principal contributions of this thesis are:
     \item \textbf{Empirical Field Validation on Real Classroom Lectures:} Comprehensive validation across 101.5 minutes of academic lecture recordings (Continuous-Time LTI Systems, Feedback Control Sensitivity, and Z-Transforms) on the NVIDIA Jetson Orin Nano (8GB), demonstrating high throughput ($18.2\times$ real-time factor) within a 6.1\,GB RAM footprint.
 \end{enumerate}
 
-The remainder of this report is organized as follows: Chapter~\ref{chap:lit_review} reviews theoretical foundations and related work. Chapter~\ref{chap:arch} details the edge architecture, VAD pre-buffering, SLM transduction, and the Mathematical Invariant Preservation Principle. Chapter~\ref{chap:deployment} presents the autonomous headless deployment, Tectonic XeTeX publishing engine, and TikZ graphics synthesis. Chapter~\ref{chap:results} presents the quantitative benchmarks and three comprehensive case studies (Continuous-Time LTI Systems, Feedback Control Sensitivity, and Z-Transforms). Chapter~\ref{chap:discussion} discusses architectural trade-offs, societal impact under NEP 2020, and limitations. Chapter~\ref{chap:conclusion} concludes the thesis.
+The remainder of this report is organized as follows: Chapter~\ref{chap:lit_review} reviews theoretical foundations and related work. Chapter~\ref{chap:arch} details the edge architecture, VAD pre-buffering, SLM transduction, and the Mathematical Invariant Preservation Principle. Chapter~\ref{chap:deployment} presents the autonomous headless deployment, Tectonic XeTeX publishing engine, and storage synchronization. Chapter~\ref{chap:results} presents the quantitative benchmarks and three comprehensive case studies (Continuous-Time LTI Systems, Feedback Control Sensitivity, and Z-Transforms). Chapter~\ref{chap:discussion} discusses architectural trade-offs, societal impact under NEP 2020, and limitations. Chapter~\ref{chap:conclusion} concludes the thesis.
 
 % ==============================================================================
 % CHAPTER 2: LITERATURE REVIEW
@@ -526,11 +526,11 @@ Mathematical deductions in formal STEM monographs depend strictly on the syntact
 
 To implement this principle in practice, our bilingual translation engine employs a two-tier architecture:
 \begin{enumerate}[noitemsep]
-    \item \textbf{Syntactic Math Masking:} Major numbered display equations (\texttt{\textbackslash begin\{equation\}} to \texttt{\textbackslash end\{equation\}}) and TikZ vector graphic blocks are extracted and replaced with invariant tokens (\texttt{\_\_DISPLAY\_EQ\_K\_\_}).
+    \item \textbf{Syntactic Math Masking:} Major numbered display equations (\texttt{\textbackslash begin\{equation\}} to \texttt{\textbackslash end\{equation\}}) are extracted and replaced with invariant tokens (\texttt{\_\_DISPLAY\_EQ\_K\_\_}).
     \item \textbf{Pedagogical Devanagari Translation:} The surrounding technical discourse is translated into formal academic Hindi, while retaining core English engineering terminology parenthetically (e.g., \textit{\hi{सतत-समय LTI प्रणालियाँ} (continuous-time LTI systems)}, \textit{\hi{प्रारंभिक मान प्रमेय} (initial value theorem)}). Following translation, the masked equation blocks are re-injected verbatim into the translated document.
 \end{enumerate}
 
-The execution sequence is formalized in Algorithm~\ref{alg:invariant_translation}. The document parser first isolates display formulas and vector figures into an invariant look-up table. For discourse sections whose length exceeds 350 words, an adaptive sentence-boundary tokenizer partitions the prose into contiguous chunks bounded by sentence terminators. Each sub-block is translated independently using the domain glossary $\mathcal{G}_{\text{stem}}$, after which all sections are reassembled and the preserved mathematical equations are re-injected bit-for-bit into the Devanagari target document.
+The execution sequence is formalized in Algorithm~\ref{alg:invariant_translation}. The document parser first isolates display formulas into an invariant look-up table. For discourse sections whose length exceeds 350 words, an adaptive sentence-boundary tokenizer partitions the prose into contiguous chunks bounded by sentence terminators. Each sub-block is translated independently using the domain glossary $\mathcal{G}_{\text{stem}}$, after which all sections are reassembled and the preserved mathematical equations are re-injected bit-for-bit into the Devanagari target document.
 
 \begin{algorithm}[H]
 \caption{Mathematical Invariant Masking and Bilingual Monograph Synthesis}
@@ -603,102 +603,13 @@ Because the device operates headlessly on a lectern without a monitor, real-time
 \section{Autonomous Publication Typesetting with Tectonic XeTeX}
 Prior academic recording systems relied on interpreted PDF generation libraries (such as ReportLab), which fail catastrophically when rendering complex vector mathematics and non-Latin Devanagari scripts simultaneously. In this work, we integrate \textbf{Tectonic} \cite{tectonic2024}, a modernized, self-contained XeTeX engine written in Rust that downloads or embeds all required TeX packages without requiring a 6\,GB TeXLive distribution.
 
-For English monographs, Tectonic compiles standard Computer Modern fonts with \texttt{amsmath}, \texttt{mathtools}, and \texttt{tikz}. For Hindi monographs, the engine dynamically activates \texttt{fontspec} with the native TrueType font:
+For English monographs, Tectonic compiles standard Computer Modern fonts with \texttt{amsmath} and \texttt{mathtools}. For Hindi monographs, the engine dynamically activates \texttt{fontspec} with the native TrueType font:
 \begin{quote}
 \small\ttfamily
 \textbackslash usepackage\{fontspec\}\\
 \textbackslash setmainfont\{Lohit Devanagari\}
 \end{quote}
 This guarantees true sub-pixel vector rendering of Devanagari conjunct characters (halant, matras, nuktas) and sharp display equations at 1200\,DPI print quality.
-
-\section{Contextual Vector Graphics Synthesis}
-Mathematical lecture notes are incomplete without graphical visualizations. The publishing engine includes a regex-driven TikZ vector generator that detects pedagogical cues in the lecture transcript and inserts contextual figures. 
-
-For continuous-time Laplace transform lectures, the system automatically synthesizes the $s$-plane Region of Convergence (ROC) diagram shown in Figure~\ref{fig:tikz_splane_sample}.
-
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}[scale=0.95, >=stealth]
-  \fill[blue!10] (1.0, -2.2) rectangle (3.0, 2.2);
-  \draw[->, thick, line width=1pt] (-2.2, 0) -- (3.2, 0) node[right] {$\text{Re}(s)$};
-  \draw[->, thick, line width=1pt] (0, -2.2) -- (0, 2.2) node[above] {$\text{Im}(s) = j\omega$};
-  \node[below left] at (0, 0) {$0$};
-  \draw[dashed, blue!80!black, line width=1.1pt] (1.0, -2.2) -- (1.0, 2.2);
-  \node[below, blue!80!black] at (1.0, -2.2) {$\sigma_0$};
-  \draw[red, line width=1.4pt] (0.9, -0.1) -- (1.1, 0.1);
-  \draw[red, line width=1.4pt] (0.9, 0.1) -- (1.1, -0.1);
-  \node[above left, red] at (1.0, 0.1) {$p_1$};
-  \node[blue, font=\bfseries\small] at (2.0, 1.3) {$\text{ROC}: \text{Re}(s) > \sigma_0$};
-  \node[gray!70, font=\footnotesize] at (-1.1, -1.5) {Left-Half Plane};
-  \node[gray!70, font=\footnotesize] at (2.0, -1.5) {Right-Half Plane};
-\end{tikzpicture}
-\caption{Contextual TikZ vector graphic synthesized dynamically for continuous-time Laplace transform Region of Convergence (ROC).}
-\label{fig:tikz_splane_sample}
-\end{figure}
-
-For feedback control systems, the vector generator synthesizes closed-loop block diagrams with external disturbance injection (Figure~\ref{fig:control_block}).
-
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}[auto, node distance=1.8cm, >=stealth,
-    block/.style={draw=primarydark, fill=blue!5, thick, rectangle, minimum height=1.0cm, minimum width=1.6cm, align=center, font=\small},
-    sum/.style={draw=primarydark, fill=blue!10, thick, circle, node distance=1.3cm}]
-    
-    \node [coordinate] (input) {};
-    \node [sum, right=0.8cm of input] (sum1) {};
-    \node [block, right=1.2cm of sum1] (controller) {$G_c(s)$};
-    \node [sum, right=1.2cm of controller] (sum2) {};
-    \node [block, right=1.2cm of sum2] (plant) {$G(s)$};
-    \node [coordinate, right=1.4cm of plant] (output) {};
-    \node [coordinate, above=1.0cm of sum2] (dist) {};
-    
-    \draw [->, thick] (input) -- node {$R(s)$} (sum1);
-    \draw [->, thick] (sum1) -- node {$E(s)$} (controller);
-    \draw [->, thick] (controller) -- node {$U(s)$} (sum2);
-    \draw [->, thick] (dist) -- node[right] {$D(s)$} (sum2);
-    \draw [->, thick] (sum2) -- (plant);
-    \draw [->, thick] (plant) -- node [name=y] {$Y(s)$}(output);
-    \draw [->, thick] (y) -- ++(0,-1.4) -| node[pos=0.95, left] {$-$} (sum1);
-    \node[below left, font=\scriptsize] at (sum1.south west) {$-$};
-    \node[above left, font=\scriptsize] at (sum1.north west) {$+$};
-    \node[above left, font=\scriptsize] at (sum2.north west) {$+$};
-    \node[left, font=\scriptsize] at (sum2.west) {$+$};
-\end{tikzpicture}
-\caption{Synthesized TikZ block diagram of a unity closed-loop feedback control system with external plant disturbance $D(s)$.}
-\label{fig:control_block}
-\end{figure}
-
-For discrete-time signal processing and Z-transform lectures, the engine dynamically renders complex $z$-plane unit circles and annular ROC boundaries (Figure~\ref{fig:zplane_annular}).
-
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}[scale=1.1, >=stealth]
-  % Shaded ROC: |z| > r0
-  \fill[accentblue!15, even odd rule] (0,0) circle (2.2cm) (0,0) circle (1.3cm);
-  
-  % Unit Circle
-  \draw[dashed, line width=1.0pt, primarydark] (0,0) circle (1.0cm);
-  \node[above left, font=\footnotesize, primarydark] at (-0.7, 0.7) {$|z| = 1$};
-  
-  % Outer ROC boundary
-  \draw[thick, line width=1.1pt, accentblue] (0,0) circle (1.3cm);
-  \node[below left, font=\footnotesize, accentblue] at (-0.9, -0.9) {$|z| = r_0$};
-  
-  % Coordinate axes
-  \draw[->, thick] (-2.5, 0) -- (2.6, 0) node[right] {$\text{Re}(z)$};
-  \draw[->, thick] (0, -2.5) -- (0, 2.6) node[above] {$\text{Im}(z)$};
-  \node[below left] at (0, 0) {$0$};
-  
-  % Pole at z = r0
-  \draw[red, line width=1.4pt] (1.2, -0.1) -- (1.4, 0.1);
-  \draw[red, line width=1.4pt] (1.2, 0.1) -- (1.4, -0.1);
-  \node[above right, red, font=\footnotesize] at (1.3, 0.1) {$p_1 = r_0$};
-  
-  \node[accentblue!80!black, font=\bfseries\small] at (1.7, 1.7) {$\text{ROC}: |z| > r_0$};
-\end{tikzpicture}
-\caption{Complex $z$-plane vector graphic synthesized dynamically by EdgeLectureAI, displaying unit circle $|z|=1$, pole $p_1$, and annular ROC.}
-\label{fig:zplane_annular}
-\end{figure}
 
 \section{Cryptographic Storage Synchronization}
 Upon completion of compilation, all deliverables are packaged. The system monitors the Linux kernel udev subsystem for external USB mass storage devices (e.g., labeled \texttt{AYUSH}). Deliverables are synchronized using an atomic temporary write-and-rename operation to prevent partial-write corruption upon premature USB drive removal. An autonomous manifest generation script computes cryptographic hashes:
@@ -812,7 +723,7 @@ Hindi Monograph & 7 Pages (66,183 bytes, Lohit Devanagari vector PDF) \\
 Structural Parity & 1:1 Section, Subsection, and Theorem alignment \\
 Formula Preservation Rate & \textbf{100.0\%} (Zero equation corruption) \\
 Synchronized Bilingual Subtitles & 170 timestamped cues (.srt and .vtt) \\
-Contextual TikZ Visualizations & $s$-plane ROC pole-zero stability diagram (Figure~\ref{fig:tikz_splane_sample}) \\
+Multi-Format Packaging & Standalone PDF, bilingual LaTeX source, synchronized subtitles, cryptographic manifest \\
 Cryptographic Manifest & SHA-256 verified package on external USB media \\
 \bottomrule
 \end{tabularx}
@@ -836,7 +747,7 @@ Figure~\ref{fig:page_comparison} visualizes the 1:1 structural correspondence be
     \textbf{2 Illustrative Analysis and Applied Studies}\\[0.4em]
     If the signal $x(t)$ converges to a finite quantity:\\[0.3em]
     \quad $\lim_{s \to 0} s X(s) \quad (3)$\\[0.4em]
-    *(Pages 1 through 7, 35 Equations, TikZ ROC Diagram)*
+    *(Pages 1 through 7, 35 Numbered Display Equations)*
   };
   \node[above=0.2cm of en_page, font=\small\bfseries\color{primarydark}] {English Monograph (7 Pages)};
 
@@ -853,7 +764,7 @@ Figure~\ref{fig:page_comparison} visualizes the 1:1 structural correspondence be
     \textbf{2 \hi{चित्रात्मक विश्लेषण एवं व्यावहारिक अध्ययन}}\\[0.4em]
     \hi{यदि संकेत $x(t)$ एक परिमित मान की ओर अभिसरित होता है:}\\[0.3em]
     \quad $\lim_{s \to 0} s X(s) \quad (3)$\\[0.4em]
-    *(\hi{पृष्ठ 1 से 7, 35 समीकरण, TikZ सम्मिश्र तल ROC})*
+    *(\hi{पृष्ठ 1 से 7, 35 क्रमांकित प्रदर्शन समीकरण})*
   };
   \node[above=0.2cm of hi_page, font=\small\bfseries\color{accentblue}] {Hindi Monograph (7 Pages)};
 \end{tikzpicture}
@@ -882,7 +793,7 @@ The lecture explores the fundamental trade-offs between tracking precision, dist
     \end{equation}
     Demonstrating that while nominal tracking can be satisfied by setting $G_c(s) = G^{-1}(0)$, any plant parameter drift $\Delta G$ or external load disturbance $D(s)$ propagates directly into tracking error without attenuation.
 
-    \item \textbf{Closed-Loop Sensitivity and Complementary Sensitivity Functions:} In the feedback configuration of Figure~\ref{fig:control_block}, the closed-loop tracking error $E(s) = R(s) - Y(s)$ is:
+    \item \textbf{Closed-Loop Sensitivity and Complementary Sensitivity Functions:} In a canonical unity negative feedback control configuration, the closed-loop tracking error $E(s) = R(s) - Y(s)$ is:
     \begin{equation}
       E(s) = \frac{1}{1 + G_c(s)G(s)} R(s) - \frac{G(s)}{1 + G_c(s)G(s)} D(s) = S(s) R(s) - G(s) S(s) D(s)
     \end{equation}
@@ -896,7 +807,7 @@ The lecture explores the fundamental trade-offs between tracking precision, dist
 \end{enumerate}
 
 \subsection{Synthesis Results and Performance}
-The system successfully transcribed the entire 37.7-minute audio in \textbf{124.1 seconds} ($18.2\times$ real-time). The publishing engine synthesized a comprehensive \textbf{10-page English Monograph} (99,064 bytes, 4,081 words, 26 numbered display equations, and closed-loop control block diagrams). The bilingual engine translated all 10 sections into Lohit Devanagari while preserving 100\% of transfer functions and error constant limits verbatim.
+The system successfully transcribed the entire 37.7-minute audio in \textbf{124.1 seconds} ($18.2\times$ real-time). The publishing engine synthesized a comprehensive \textbf{10-page English Monograph} (99,064 bytes, 4,081 words, 26 numbered display equations, and rigorous tracking sensitivity derivations). The bilingual engine translated all 10 sections into Lohit Devanagari while preserving 100\% of transfer functions and error constant limits verbatim.
 
 \section{Case Study 3: Foundations of the Discrete-Time Z-Transform and Complex Frequency Mapping}
 Case Study 3 tests system domain invariance on discrete-time mathematics through a 32.4-minute academic lecture (dataset \path{20261103_214658_Introduction_to_Z_Transform}, 326.74\,MB high-fidelity WAV, 3,613 spoken words).
@@ -922,11 +833,11 @@ The lecture develops the theory of discrete-time complex frequency analysis:
     \end{equation}
     proving that for causal systems, the Region of Convergence is always the exterior of a circle passing through the outermost pole.
 
-    \item \textbf{System Stability and Causality Criterion:} A discrete-time LTI filter is bounded-input bounded-output (BIBO) stable if and only if the unit circle $|z| = 1$ lies strictly within the Region of Convergence of its transfer function $H(z)$. For a causal system, this requires all system poles to satisfy $|p_i| < 1$ (Figure~\ref{fig:zplane_annular}).
+    \item \textbf{System Stability and Causality Criterion:} A discrete-time LTI filter is bounded-input bounded-output (BIBO) stable if and only if the unit circle $|z| = 1$ lies strictly within the Region of Convergence of its transfer function $H(z)$. For a causal system, this requires all system poles to satisfy $|p_i| < 1$.
 \end{enumerate}
 
 \subsection{Synthesis Results and Performance}
-The Jetson Orin Nano processed the 32.4-minute audio in \textbf{106.7 seconds} ($18.2\times$ real-time). The resulting output produced a \textbf{9-page English Monograph} (71,804 bytes, 3,613 words, 24 numbered display equations, and complex $z$-plane vector diagrams), alongside a complete bilingual Devanagari monograph maintaining 1:1 theorem alignment and 100\% mathematical equation invariance.
+The Jetson Orin Nano processed the 32.4-minute audio in \textbf{106.7 seconds} ($18.2\times$ real-time). The resulting output produced a \textbf{9-page English Monograph} (71,804 bytes, 3,613 words, 24 numbered display equations, and complete Laurent series expansions), alongside a complete bilingual Devanagari monograph maintaining 1:1 theorem alignment and 100\% mathematical equation invariance.
 
 \section{Summary of Corpus Results and Baseline Comparison}
 Table~\ref{tab:corpus_summary} presents the cross-lecture experimental comparison across the three full-length academic lectures.
