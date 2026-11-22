@@ -139,6 +139,7 @@ class ProcessingStage(str, Enum):
     SAVING_AUDIO = "SAVING_AUDIO"
     TRANSCRIBING = "TRANSCRIBING"
     STRUCTURING_NOTES = "STRUCTURING_NOTES"
+    TRANSLATING_HINDI = "TRANSLATING_HINDI"
     COMPILING_PDF = "COMPILING_PDF"
     EXPORTING_USB = "EXPORTING_USB"
     COMPLETE = "COMPLETE"
@@ -148,26 +149,90 @@ class ProcessingStage(str, Enum):
 class ProcessingTracker:
     """
     Thread-safe progress and remaining-time tracker for the post-lecture pipeline.
-    Calculates dynamic time remaining and selects optimal instant neural voice prompts.
+    Calculates dynamic percentage completion and remaining time for instant neural voice synthesis.
     """
+    STAGE_PERCENTAGES = {
+        ProcessingStage.IDLE: 0,
+        ProcessingStage.STARTING: 5,
+        ProcessingStage.SAVING_AUDIO: 15,
+        ProcessingStage.TRANSCRIBING: 35,
+        ProcessingStage.STRUCTURING_NOTES: 55,
+        ProcessingStage.TRANSLATING_HINDI: 75,
+        ProcessingStage.COMPILING_PDF: 88,
+        ProcessingStage.EXPORTING_USB: 95,
+        ProcessingStage.COMPLETE: 100,
+        ProcessingStage.FAILED: 0,
+    }
+
+    STAGE_DESCRIPTIONS = {
+        ProcessingStage.IDLE: "Agent is in standby and ready to record.",
+        ProcessingStage.STARTING: "Initializing post-lecture synthesis.",
+        ProcessingStage.SAVING_AUDIO: "Saving and validating raw master audio.",
+        ProcessingStage.TRANSCRIBING: "Transcribing speech and extracting technical terminology.",
+        ProcessingStage.STRUCTURING_NOTES: "Structuring monograph and numbering mathematical equations.",
+        ProcessingStage.TRANSLATING_HINDI: "Generating bilingual Hindi monograph with LaTeX math preservation.",
+        ProcessingStage.COMPILING_PDF: "Compiling publication-grade XeTeX PDF documents.",
+        ProcessingStage.EXPORTING_USB: "Mirroring deliverables and checksums to USB drive AYUSH.",
+        ProcessingStage.COMPLETE: "Lecture processing is 100% complete. Deliverables verified on USB drive.",
+        ProcessingStage.FAILED: "Lecture processing encountered an error.",
+    }
+
     def __init__(self):
         self.stage = ProcessingStage.IDLE
         self.start_time = 0.0
+        self.stage_start_time = 0.0
         self.estimated_total_sec = 25.0
-        self.lock = threading.Lock()
+        self.current_stage_est = 10.0
+        self.lock = threading.RLock()
 
     def start_pipeline(self, estimated_total: float = 25.0):
         with self.lock:
+            now = time.monotonic()
             self.stage = ProcessingStage.STARTING
-            self.start_time = time.monotonic()
+            self.start_time = now
+            self.stage_start_time = now
             self.estimated_total_sec = max(estimated_total, 15.0)
+            self.current_stage_est = 5.0
 
     def set_stage(self, stage: ProcessingStage, additional_est: Optional[float] = None):
         with self.lock:
+            now = time.monotonic()
             self.stage = stage
+            self.stage_start_time = now
             if additional_est is not None:
-                elapsed = time.monotonic() - self.start_time
+                elapsed = now - self.start_time
                 self.estimated_total_sec = elapsed + additional_est
+                self.current_stage_est = additional_est
+
+    def get_progress_percentage(self) -> int:
+        with self.lock:
+            if self.stage == ProcessingStage.COMPLETE:
+                return 100
+            if self.stage in (ProcessingStage.IDLE, ProcessingStage.FAILED):
+                return 0
+            base_pct = self.STAGE_PERCENTAGES.get(self.stage, 10)
+            elapsed = time.monotonic() - self.stage_start_time if self.stage_start_time > 0 else 0.0
+            
+            stages_order = [
+                ProcessingStage.STARTING,
+                ProcessingStage.SAVING_AUDIO,
+                ProcessingStage.TRANSCRIBING,
+                ProcessingStage.STRUCTURING_NOTES,
+                ProcessingStage.TRANSLATING_HINDI,
+                ProcessingStage.COMPILING_PDF,
+                ProcessingStage.EXPORTING_USB,
+                ProcessingStage.COMPLETE
+            ]
+            try:
+                idx = stages_order.index(self.stage)
+                next_pct = self.STAGE_PERCENTAGES[stages_order[idx + 1]]
+            except Exception:
+                next_pct = base_pct + 10
+
+            est_stage_dur = max(3.0, self.current_stage_est)
+            frac = min(0.90, elapsed / est_stage_dur)
+            current_pct = int(base_pct + frac * (next_pct - base_pct))
+            return max(1, min(99, current_pct))
 
     def get_remaining_seconds(self) -> int:
         with self.lock:
@@ -180,37 +245,22 @@ class ProcessingTracker:
     def get_status_prompt_and_text(self) -> Tuple[str, str]:
         with self.lock:
             stage = self.stage
-            elapsed = time.monotonic() - self.start_time if self.start_time > 0 else 0.0
-            rem = max(5, int(self.estimated_total_sec - elapsed))
+            pct = self.get_progress_percentage()
+            rem = self.get_remaining_seconds()
 
         if stage == ProcessingStage.IDLE:
             return "status_standby", "Jetson speech agent is in standby and ready to record. Say hey Jetson start recording to begin."
         elif stage == ProcessingStage.COMPLETE:
-            return "status_complete", "Lecture processing is complete. Notes have been saved to your USB drive. Device is shutting down."
-        elif stage in (ProcessingStage.STARTING, ProcessingStage.SAVING_AUDIO):
-            return "status_saving_audio_20s", f"Processing lecture. Saving audio recording. Approximately {rem} seconds remaining."
-        elif stage == ProcessingStage.TRANSCRIBING:
-            if rem > 40:
-                return "status_transcribing_60s", f"Processing lecture. Transcribing speech. Approximately {rem} seconds remaining."
-            else:
-                return "status_transcribing_30s", f"Processing lecture. Transcribing speech. Approximately {rem} seconds remaining."
-        elif stage == ProcessingStage.STRUCTURING_NOTES:
-            if rem > 18:
-                return "status_formatting_20s", f"Processing lecture. Formatting mathematical equations. Approximately {rem} seconds remaining."
-            else:
-                return "status_formatting_15s", f"Processing lecture. Formatting mathematical equations. Approximately {rem} seconds remaining."
-        elif stage == ProcessingStage.COMPILING_PDF:
-            if rem > 12:
-                return "status_compiling_15s", f"Processing lecture. Compiling PDF document. Approximately {rem} seconds remaining."
-            else:
-                return "status_compiling_10s", f"Processing lecture. Compiling PDF document. Approximately {rem} seconds remaining."
-        elif stage == ProcessingStage.EXPORTING_USB:
-            if rem > 7:
-                return "status_exporting_10s", f"Processing lecture. Transferring files to USB drive. Almost done, about ten seconds remaining."
-            else:
-                return "status_exporting_5s", f"Processing lecture. Finalizing USB write. About five seconds remaining."
-        else:
-            return "status_formatting_15s", f"Processing lecture. Approximately {rem} seconds remaining."
+            return "status_complete", "Lecture processing is 100% complete. Deliverables have been verified and saved to your USB drive. Device is shutting down."
+        elif stage == ProcessingStage.FAILED:
+            return "status_failed", "Lecture processing encountered an error. Please inspect system logs."
+
+        stage_desc = self.STAGE_DESCRIPTIONS.get(stage, "Processing lecture.")
+        status_text = (
+            f"Lecture processing is {pct}% complete. {stage_desc} "
+            f"Approximately {rem} seconds remaining."
+        )
+        return f"status_{stage.value.lower()}", status_text
 
 
 def trigger_system_shutdown(delay_sec: float = 2.0):
@@ -307,8 +357,8 @@ def ensure_edge_daemons():
         ]
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
-        log_whisper = open("/tmp/whisper-server.log", "w")
-        subprocess.Popen(cmd, env=env, stdout=log_whisper, stderr=log_whisper)
+        log_whisper = open("/tmp/whisper-server.log", "a")
+        subprocess.Popen(cmd, env=env, stdin=subprocess.DEVNULL, stdout=log_whisper, stderr=log_whisper, start_new_session=True)
         for _ in range(60):
             time.sleep(1.0)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
@@ -320,17 +370,18 @@ def ensure_edge_daemons():
         cmd = [
             LLAMA_BIN,
             "-m", LLAMA_MODEL,
-            "-c", "4096",
+            "-c", "2048",
             "-ngl", "0",
-            "-t", "6",
-            "-np", "1",
+            "-t", "4",
+            "--fit", "off",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = ""
-        log_llama = open("/tmp/llama-server.log", "w")
-        subprocess.Popen(cmd, env=env, stdout=log_llama, stderr=log_llama)
+        env["LD_LIBRARY_PATH"] = "/mnt/thesis/llama.cpp/build/bin:" + env.get("LD_LIBRARY_PATH", "")
+        log_llama = open("/tmp/llama-server.log", "a")
+        subprocess.Popen(cmd, env=env, stdin=subprocess.DEVNULL, stdout=log_llama, stderr=log_llama, start_new_session=True)
         for _ in range(60):
             time.sleep(1.0)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
@@ -433,11 +484,10 @@ class HeadlessVoiceAgent:
         self._proc_res_box = {}
 
     def report_status(self):
-        """Announce current post-processing status and remaining time via neural TTS."""
-        prompt_name, fallback_text = self.status_tracker.get_status_prompt_and_text()
-        print(f"\n[Agent Status Response]: Prompt '{prompt_name}' -> \"{fallback_text}\"", flush=True)
-        if not play_prompt(prompt_name, non_blocking=False):
-            speak(fallback_text, non_blocking=False)
+        """Announce current post-processing status, completion percentage, and remaining time aloud via Piper neural TTS."""
+        _, status_text = self.status_tracker.get_status_prompt_and_text()
+        print(f"\n[Agent Dynamic Status]: \"{status_text}\"", flush=True)
+        speak(status_text, non_blocking=False)
 
     def _initiate_stop_and_process(self, lecture_start_time: float):
         """
@@ -627,6 +677,18 @@ class HeadlessVoiceAgent:
             res = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
             json_file = Path(f"{temp_json_prefix}.json")
             if not json_file.is_file():
+                # Fallback to multi-threaded CPU NEON inference
+                cmd_cpu = [
+                    str(whisper_cli),
+                    "-m", WHISPER_MODEL,
+                    "-f", str(wav_file),
+                    "--prompt", WHISPER_MATH_PROMPT,
+                    "-sns", "-nth", "0.60", "-ng", "-t", "4",
+                    "-oj", "-of", str(temp_json_prefix)
+                ]
+                res = subprocess.run(cmd_cpu, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
+
+            if not json_file.is_file():
                 return []
 
             with open(json_file, "r", encoding="utf-8") as jf:
@@ -642,7 +704,7 @@ class HeadlessVoiceAgent:
                     return float(parts[0]) * 60 + float(parts[1])
                 return float(ts_str)
 
-            chunks = []
+            raw_segs = []
             num_segs = len(segments)
             for idx, seg in enumerate(segments):
                 txt = seg.get("text", "").strip()
@@ -663,12 +725,40 @@ class HeadlessVoiceAgent:
                 ts_to = seg.get("timestamps", {}).get("to", "00:00:05,000")
                 t_start = _parse_time_sec(ts_from)
                 t_end = _parse_time_sec(ts_to)
+                raw_segs.append((t_start, t_end, txt))
 
-                # Translate math formulas to standard LaTeX
-                latex = self.slm.translate(txt) if self.slm else txt
-                chunks.append(TranscriptChunk(t_start, t_end, txt, latex))
-                print(f"[{t_start:.1f}s - {t_end:.1f}s]: {txt}", flush=True)
-                if latex != txt:
+            # Sentence-boundary aggregation to prevent clause fractures and hallucinations
+            aggregated_units = []
+            curr_start = None
+            curr_end = None
+            curr_words = []
+
+            for t_start, t_end, txt in raw_segs:
+                if curr_start is None:
+                    curr_start = t_start
+                curr_end = t_end
+                curr_words.append(txt)
+
+                joined = " ".join(curr_words)
+                ends_with_punct = bool(re.search(r'[.!?]\s*$', txt))
+                word_count = len(joined.split())
+                duration = curr_end - curr_start
+
+                if ends_with_punct or word_count >= 24 or duration >= 16.0:
+                    aggregated_units.append((curr_start, curr_end, joined))
+                    curr_start = None
+                    curr_end = None
+                    curr_words = []
+
+            if curr_words:
+                aggregated_units.append((curr_start, curr_end, " ".join(curr_words)))
+
+            chunks = []
+            for t_start, t_end, full_spoken in aggregated_units:
+                latex = self.slm.translate(full_spoken) if self.slm else full_spoken
+                chunks.append(TranscriptChunk(t_start, t_end, full_spoken, latex))
+                print(f"[{t_start:.1f}s - {t_end:.1f}s]: {full_spoken}", flush=True)
+                if latex != full_spoken:
                     print(f"       -> [LaTeX]: {latex}", flush=True)
 
             json_file.unlink(missing_ok=True)
@@ -1080,7 +1170,7 @@ class HeadlessVoiceAgent:
         temp_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Save pristine unclipped raw audio WAV file
-        self.status_tracker.set_stage(ProcessingStage.SAVING_AUDIO)
+        self.status_tracker.set_stage(ProcessingStage.SAVING_AUDIO, additional_est=25.0)
         wav_file = temp_dir / f"{base_lecture_title}_raw.wav"
         with self._frames_lock:
             frames_to_save = list(raw_audio_frames)
@@ -1100,7 +1190,7 @@ class HeadlessVoiceAgent:
             active_chunks = chunks
         else:
             print("[Agent] Live chunks empty; performing full GPU batch transcription via whisper-cli...", flush=True)
-            self.status_tracker.set_stage(ProcessingStage.TRANSCRIBING)
+            self.status_tracker.set_stage(ProcessingStage.TRANSCRIBING, additional_est=22.0)
             batch_chunks = self.transcribe_full_audio(wav_file) if wav_file.is_file() else []
             if batch_chunks:
                 print(f"[Agent] whisper-cli captured {len(batch_chunks)} high-fidelity segments across full lecture.", flush=True)
@@ -1109,7 +1199,7 @@ class HeadlessVoiceAgent:
                 active_chunks = []
 
         # 3. Build Typeset Transcript TeX, Markdown, and Subtitles
-        self.status_tracker.set_stage(ProcessingStage.STRUCTURING_NOTES)
+        self.status_tracker.set_stage(ProcessingStage.STRUCTURING_NOTES, additional_est=18.0)
         tex_content, md_content, clean_title = self.book_builder.build_book(base_lecture_title, active_chunks)
         srt_content, vtt_content = generate_subtitles(active_chunks)
 
@@ -1136,6 +1226,7 @@ class HeadlessVoiceAgent:
         vtt_file.write_text(vtt_content, encoding="utf-8")
 
         # 4. Build Bilingual Hindi Monograph & Subtitles
+        self.status_tracker.set_stage(ProcessingStage.TRANSLATING_HINDI, additional_est=15.0)
         print(f"[Agent] Generating bilingual Hindi monograph and subtitles for Indian students...")
         try:
             hindi_tex, hindi_md, hindi_title, hindi_chunks, hindi_paras = self.book_builder.build_hindi_book(
@@ -1170,7 +1261,7 @@ class HeadlessVoiceAgent:
             hi_tex_file = hi_md_file = hi_srt_file = hi_vtt_file = hi_pdf_file = None
 
         # 5. English PDF Compilation Pass (Standalone XeTeX via Tectonic)
-        self.status_tracker.set_stage(ProcessingStage.COMPILING_PDF)
+        self.status_tracker.set_stage(ProcessingStage.COMPILING_PDF, additional_est=10.0)
         print(f"[Agent] Compiling typeset lecture transcript: '{clean_title}'...")
         post_res = self.post_processor.process_and_compile(
             lecture_title=clean_title,
@@ -1182,7 +1273,7 @@ class HeadlessVoiceAgent:
         pdf_file = post_res.get("pdf")
 
         # 6. Export to USB Drive AYUSH & Local SSD
-        self.status_tracker.set_stage(ProcessingStage.EXPORTING_USB)
+        self.status_tracker.set_stage(ProcessingStage.EXPORTING_USB, additional_est=5.0)
         print("[Agent] Exporting deliverables to USB drive AYUSH...")
         export_map = {
             "tex": tex_file,

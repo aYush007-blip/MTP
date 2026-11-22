@@ -449,13 +449,20 @@ def ensure_edge_daemons(model_type: str = "small"):
             "-m", str(LLAMA_MODEL),
             "-c", "4096",
             "-ngl", "28",
-            "-t", "2",
+            "-t", "4",
             "-np", "1",
+            "--fit", "off",
+            "--no-cache-prompt",
+            "-fa", "off",
+            "-sps", "0.0",
             "--port", "8080",
             "--host", "127.0.0.1"
         ]
-        log_llama = open("/tmp/llama-server.log", "w")
-        subprocess.Popen(cmd, stdout=log_llama, stderr=log_llama, start_new_session=True)
+        env_llama = os.environ.copy()
+        env_llama["LLAMA_ARG_FIT"] = "off"
+        env_llama["LD_LIBRARY_PATH"] = "/mnt/thesis/llama.cpp/build/bin:/usr/local/cuda/lib64:" + env_llama.get("LD_LIBRARY_PATH", "")
+        log_llama = open("/tmp/llama-server.log", "a")
+        subprocess.Popen(cmd, env=env_llama, stdin=subprocess.DEVNULL, stdout=log_llama, stderr=log_llama, start_new_session=True)
         for _ in range(50):
             time.sleep(0.5)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):

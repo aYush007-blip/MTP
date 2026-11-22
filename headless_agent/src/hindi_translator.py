@@ -43,11 +43,11 @@ HINDI_FEW_SHOTS = [
     },
     {
         "role": "user",
-        "content": "The continuous-time signal $x(t)$ is passed through a linear time-invariant system with impulse response $h(t)$."
+        "content": "A point $x^* \\in \\mathbb{R}$ is called a minimum if $f(x) \\ge f(x^*)$ for all $x \\in \\mathbb{R}$."
     },
     {
         "role": "assistant",
-        "content": "सतत-समय संकेत (continuous-time signal) $x(t)$ को आवेग प्रतिक्रिया $h(t)$ वाली रैखिक समय-अपरिवर्तनीय (LTI) प्रणाली से गुजारा जाता है।"
+        "content": "एक बिंदु $x^* \\in \\mathbb{R}$ को न्यूनतम (minimum) कहा जाता है यदि सभी $x \\in \\mathbb{R}$ के लिए $f(x) \\ge f(x^*)$ हो।"
     },
     {
         "role": "user",
@@ -93,42 +93,55 @@ class HindiLectureTranslator:
         if not clean_in or len(clean_in) < 3:
             return clean_in
 
-        messages = list(HINDI_FEW_SHOTS)
-        messages.append({
-            "role": "user",
-            "content": clean_in
-        })
+        prompt = ""
+        for m in HINDI_FEW_SHOTS:
+            prompt += f"<|im_start|>{m['role']}\n{m['content']}<|im_end|>\n"
+        prompt += f"<|im_start|>user\n{clean_in}<|im_end|>\n<|im_start|>assistant\n"
 
         token_budget = min(max_tokens, max(96, len(clean_in.split()) * 4 + 64))
         payload = {
-            "messages": messages,
-            "temperature": 0.0,
+            "prompt": prompt,
+            "temperature": 0.15,
             "repeat_penalty": 1.15,
-            "max_tokens": token_budget,
-            "stop": ["<|im_end|>", "<|endoftext|>", "\n\n"],
-            "cache_prompt": True,
+            "n_predict": token_budget,
+            "stop": ["<|im_end|>", "<|endoftext|>"],
+            "cache_prompt": False,
         }
 
-        try:
-            req = urllib.request.Request(
-                f"{self.server_url}/v1/chat/completions",
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=120.0) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                raw_translation = data["choices"][0]["message"]["content"].strip()
-                if raw_translation:
-                    # Clean any leading meta prefixes
-                    clean_res = re.sub(
-                        r"^(?:यहाँ अनुवाद है|अनुवाद|हिंदी अनुवाद|Here is the translation|Translation):\s*",
-                        "",
-                        raw_translation,
-                        flags=re.IGNORECASE
-                    ).strip()
-                    return clean_res
-        except Exception as e:
-            print(f"[HindiTranslator] Translation request failed: {e}. Falling back to original text.")
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    f"{self.server_url}/completion",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=120.0) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    raw_translation = data.get("content", "").strip()
+                    if raw_translation:
+                        # Clean any leading meta prefixes
+                        clean_res = re.sub(
+                            r"^(?:यहाँ अनुवाद है|अनुवाद|हिंदी अनुवाद|Here is the translation|Translation):\s*",
+                            "",
+                            raw_translation,
+                            flags=re.IGNORECASE
+                        ).strip()
+                        # Strip degenerate repetitive phrase loops (repeated 15+ char clauses)
+                        clean_res = re.sub(r'(.{15,}?)(?:\s+\1){2,}', r'\1', clean_res)
+                        return clean_res
+            except Exception as e:
+                err_str = str(e)
+                if ("Connection refused" in err_str or "Remote end closed" in err_str) and attempt == 0:
+                    print(f"[HindiTranslator] Connection dropped ({err_str}). Reviving daemon...")
+                    try:
+                        from test_system_wav import ensure_llama_server
+                        ensure_llama_server()
+                        time.sleep(2.0)
+                        continue
+                    except Exception:
+                        pass
+                print(f"[HindiTranslator] Translation request failed: {e}. Falling back to original text.")
+                break
 
         return clean_in
 
@@ -156,86 +169,92 @@ class HindiLectureTranslator:
 
         numbered = "\n".join(f"{i+1}. {line.strip()}" for i, line in enumerate(lines))
         prompt = (
+            "<|im_start|>system\n"
+            "You are a professional Hindi translator for academic STEM lectures. "
+            "Translate each numbered line into natural Hindi (Devanagari script) preserving line numbers "
+            "and keeping all LaTeX math ($...$) verbatim. Output ONLY the numbered lines.<|im_end|>\n"
+            "<|im_start|>user\n"
             "Translate each numbered subtitle line into natural Hindi for college students.\n"
             "Keep all LaTeX equations ($...$, $$...$$), variables, and numbers 100% verbatim.\n"
             "Maintain exact line numbering (1., 2., etc.). Output ONLY the numbered translations:\n\n"
-            f"{numbered}"
+            f"{numbered}<|im_end|>\n"
+            "<|im_start|>assistant\n"
         )
-
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a professional Hindi translator for academic STEM lectures. "
-                    "Translate each numbered line into natural Hindi (Devanagari script) preserving line numbers "
-                    "and keeping all LaTeX math ($...$) verbatim. Output ONLY the numbered lines."
-                )
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
 
         token_budget = min(1024, max(128, sum(len(l.split()) for l in lines) * 4 + 64))
         payload = {
-            "messages": messages,
-            "temperature": 0.0,
+            "prompt": prompt,
+            "temperature": 0.15,
             "repeat_penalty": 1.15,
-            "max_tokens": token_budget,
+            "n_predict": token_budget,
             "stop": ["<|im_end|>", "<|endoftext|>"],
-            "cache_prompt": True
+            "cache_prompt": False
         }
 
-        try:
-            req = urllib.request.Request(
-                f"{self.server_url}/v1/chat/completions",
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=120.0) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                raw_out = data["choices"][0]["message"]["content"].strip()
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    f"{self.server_url}/completion",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=120.0) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    raw_out = data.get("content", "").strip()
 
-                result_map = {}
-                for line in raw_out.split("\n"):
-                    m = re.match(r"^\s*(\d+)[\.\)]\s*(.*)", line.strip())
-                    if m:
-                        idx = int(m.group(1)) - 1
-                        result_map[idx] = m.group(2).strip()
+                    result_map = {}
+                    for line in raw_out.split("\n"):
+                        m = re.match(r"^\s*(\d+)[\.\)]\s*(.*)", line.strip())
+                        if m:
+                            idx = int(m.group(1)) - 1
+                            result_map[idx] = m.group(2).strip()
 
-                translated_lines = []
-                for i, orig in enumerate(lines):
-                    if i in result_map and result_map[i]:
-                        translated_lines.append(result_map[i])
-                    else:
-                        translated_lines.append(orig)
-                return translated_lines
-        except Exception as e:
-            print(f"[HindiTranslator] Subtitle batch translation fallback: {e}")
-            return lines
+                    translated_lines = []
+                    for i, orig in enumerate(lines):
+                        if i in result_map and result_map[i]:
+                            translated_lines.append(result_map[i])
+                        else:
+                            translated_lines.append(orig)
+                    return translated_lines
+            except Exception as e:
+                err_str = str(e)
+                if ("Connection refused" in err_str or "Remote end closed" in err_str) and attempt == 0:
+                    print(f"[HindiTranslator] Connection dropped during subtitle translation ({err_str}). Reviving daemon...")
+                    try:
+                        from test_system_wav import ensure_llama_server
+                        ensure_llama_server()
+                        time.sleep(2.0)
+                        continue
+                    except Exception:
+                        pass
+                print(f"[HindiTranslator] Subtitle batch translation fallback: {e}")
+                break
+        return lines
 
     def translate_title(self, title: str) -> str:
         """Translates the inferred monograph title to Hindi."""
         try:
-            messages = [
-                {"role": "system", "content": "You are a professional translator. Translate this academic title into formal Hindi (Devanagari script). Keep acronyms intact. Output ONLY the translated title."},
-                {"role": "user", "content": title}
-            ]
+            prompt = (
+                "<|im_start|>system\n"
+                "You are a professional translator. Translate this academic title into formal Hindi (Devanagari script). Keep acronyms intact. Output ONLY the translated title.<|im_end|>\n"
+                f"<|im_start|>user\n{title}<|im_end|>\n"
+                "<|im_start|>assistant\n"
+            )
             payload = {
-                "messages": messages,
+                "prompt": prompt,
                 "temperature": 0.1,
-                "max_tokens": 32,
-                "stop": ["<|im_end|>", "\n"]
+                "n_predict": 32,
+                "stop": ["<|im_end|>", "\n"],
+                "cache_prompt": False
             }
             req = urllib.request.Request(
-                f"{self.server_url}/v1/chat/completions",
+                f"{self.server_url}/completion",
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"}
             )
             with urllib.request.urlopen(req, timeout=15.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                ans = data["choices"][0]["message"]["content"].strip()
+                ans = data.get("content", "").strip()
                 if ans and len(ans) > 2:
                     return re.sub(r'^(?:शीर्षक|Title):\s*', '', ans, flags=re.IGNORECASE).strip()
         except Exception:
