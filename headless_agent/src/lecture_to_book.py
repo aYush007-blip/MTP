@@ -1531,6 +1531,7 @@ class LectureToBookBuilder:
         """
         from hindi_translator import HindiLectureTranslator
         translator = HindiLectureTranslator.get_instance()
+        translator.reset_audit_stats()
 
         if not date_str:
             date_str = time.strftime("%B %d, %Y")

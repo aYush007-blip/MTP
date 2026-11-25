@@ -19,6 +19,7 @@ Zero-Touch, 100% Offline Workflow:
 
 import argparse
 from enum import Enum
+import glob
 import io
 import json
 import os
@@ -61,7 +62,7 @@ from energy_vad import AdaptiveEnergyVAD
 from lecture_to_book import LectureToBookBuilder, TranscriptChunk, generate_subtitles
 from postprocess_lecture_ai import PostLectureProcessor
 from slm_translator import QwenMathTranslator
-from usb_exporter import LectureExporter, find_usb_mount
+from usb_exporter import LectureExporter, compute_sha256, find_usb_mount
 
 WHISPER_SERVER_URL = "http://127.0.0.1:8081"
 LLAMA_SERVER_URL = "http://127.0.0.1:8080"
@@ -300,6 +301,166 @@ def trigger_system_shutdown(delay_sec: float = 2.0):
         pass
 
 
+class EdgeBackpressureScheduler:
+    """
+    Telemetry-driven thermal and unified-memory backpressure scheduler for the
+    Jetson Orin Nano 8 GB edge board. Monitors /proc/meminfo, SoC thermal zones,
+    and worker queue depths to prioritize uninterrupted audio capture (Requirement R4)
+    and avoid out-of-memory kills under load.
+    """
+
+    def __init__(
+        self,
+        meminfo_path: str = "/proc/meminfo",
+        thermal_glob: str = "/sys/class/thermal/thermal_zone*/temp",
+        pressure_mem_mb: float = 1400.0,
+        critical_mem_mb: float = 950.0,
+        pressure_temp_c: float = 78.0,
+        critical_temp_c: float = 84.0,
+        pressure_q_depth: int = 6,
+        critical_q_depth: int = 10,
+    ):
+        self.meminfo_path = meminfo_path
+        self.thermal_glob = thermal_glob
+        self.pressure_mem_mb = pressure_mem_mb
+        self.critical_mem_mb = critical_mem_mb
+        self.pressure_temp_c = pressure_temp_c
+        self.critical_temp_c = critical_temp_c
+        self.pressure_q_depth = pressure_q_depth
+        self.critical_q_depth = critical_q_depth
+        self.reset()
+
+    def reset(self) -> None:
+        self.history: List[Dict] = []
+        self.deferred_chunks: int = 0
+        self.regimes_seen: List[str] = []
+        self.last_decision: Dict = {
+            "regime": "NORMAL",
+            "defer_live_slm": False,
+            "defer_heavy_rewrite": False,
+            "throttle_ms": 0,
+        }
+
+    def read_system_telemetry(self) -> Dict[str, float]:
+        mem_total_kb = 0.0
+        mem_avail_kb = 0.0
+        try:
+            with open(self.meminfo_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("MemTotal:"):
+                        mem_total_kb = float(line.split()[1])
+                    elif line.startswith("MemAvailable:"):
+                        mem_avail_kb = float(line.split()[1])
+                    if mem_total_kb > 0 and mem_avail_kb > 0:
+                        break
+        except Exception:
+            pass
+
+        temps: Dict[str, float] = {}
+        for tpath in sorted(glob.glob(self.thermal_glob)):
+            try:
+                raw_val = float(Path(tpath).read_text(encoding="utf-8").strip())
+                temp_c = raw_val / 1000.0 if raw_val > 200.0 else raw_val
+                type_path = Path(tpath).parent / "type"
+                zname = type_path.read_text(encoding="utf-8").strip() if type_path.is_file() else Path(tpath).parent.name
+                temps[zname] = round(temp_c, 2)
+            except Exception:
+                continue
+
+        mem_total_mb = round(mem_total_kb / 1024.0, 1) if mem_total_kb else 0.0
+        mem_avail_mb = round(mem_avail_kb / 1024.0, 1) if mem_avail_kb else mem_total_mb
+        max_temp = max(temps.values()) if temps else 0.0
+        return {
+            "mem_total_mb": mem_total_mb,
+            "mem_available_mb": mem_avail_mb,
+            "max_temp_c": round(max_temp, 2),
+            "cpu_temp_c": temps.get("cpu-thermal", 0.0),
+            "gpu_temp_c": temps.get("gpu-thermal", 0.0),
+        }
+
+    def evaluate(
+        self,
+        audio_q_depth: int = 0,
+        typeset_q_depth: int = 0,
+        telemetry: Optional[Dict[str, float]] = None,
+    ) -> Dict:
+        tel = dict(telemetry) if telemetry is not None else self.read_system_telemetry()
+        mem_avail = float(tel.get("mem_available_mb", 4096.0))
+        max_temp = float(tel.get("max_temp_c", 0.0))
+
+        is_critical = (
+            (mem_avail > 0 and mem_avail < self.critical_mem_mb)
+            or max_temp >= self.critical_temp_c
+            or typeset_q_depth >= self.critical_q_depth
+        )
+        is_pressure = (
+            is_critical
+            or (mem_avail > 0 and mem_avail < self.pressure_mem_mb)
+            or max_temp >= self.pressure_temp_c
+            or typeset_q_depth >= self.pressure_q_depth
+        )
+
+        if is_critical:
+            regime = "CRITICAL"
+            decision = {
+                "regime": regime,
+                "defer_live_slm": True,
+                "defer_heavy_rewrite": True,
+                "throttle_ms": 0,
+            }
+            self.deferred_chunks += 1
+        elif is_pressure:
+            regime = "PRESSURE"
+            decision = {
+                "regime": regime,
+                "defer_live_slm": False,
+                "defer_heavy_rewrite": False,
+                "throttle_ms": 120,
+            }
+        else:
+            regime = "NORMAL"
+            decision = {
+                "regime": regime,
+                "defer_live_slm": False,
+                "defer_heavy_rewrite": False,
+                "throttle_ms": 0,
+            }
+
+        entry = {
+            **tel,
+            "audio_queue_depth": int(audio_q_depth),
+            "typeset_queue_depth": int(typeset_q_depth),
+            **decision,
+        }
+        if len(self.history) < 500:
+            self.history.append(entry)
+        if regime not in self.regimes_seen:
+            self.regimes_seen.append(regime)
+        self.last_decision = decision
+        return entry
+
+    def summary(self) -> Dict:
+        if not self.history:
+            tel = self.read_system_telemetry()
+            return {
+                "samples": 0,
+                "min_mem_available_mb": tel.get("mem_available_mb", 0.0),
+                "peak_temp_c": tel.get("max_temp_c", 0.0),
+                "peak_typeset_queue": 0,
+                "deferred_chunks": self.deferred_chunks,
+                "regimes_seen": list(self.regimes_seen) or ["NORMAL"],
+            }
+        mem_vals = [h["mem_available_mb"] for h in self.history if h.get("mem_available_mb", 0) > 0]
+        return {
+            "samples": len(self.history),
+            "min_mem_available_mb": min(mem_vals) if mem_vals else 0.0,
+            "peak_temp_c": max(h.get("max_temp_c", 0.0) for h in self.history),
+            "peak_typeset_queue": max(h.get("typeset_queue_depth", 0) for h in self.history),
+            "deferred_chunks": self.deferred_chunks,
+            "regimes_seen": list(self.regimes_seen),
+        }
+
+
 class AgentState(Enum):
     STANDBY = "STANDBY"
     COUNTDOWN = "COUNTDOWN"
@@ -472,6 +633,7 @@ class HeadlessVoiceAgent:
         self.post_processor = PostLectureProcessor()
         self.slm = None
         self.hpf = HighPassHumFilter()
+        self.scheduler = EdgeBackpressureScheduler()
 
         # Decoupled high-priority audio capture thread & buffers
         self.audio_queue = queue.Queue(maxsize=1500)
@@ -643,12 +805,17 @@ class HeadlessVoiceAgent:
                     prev_latex = ""
 
             t_start, t_end, spoken = item
+            sched = self.scheduler.evaluate(self.audio_queue.qsize(), self.live_typeset_queue.qsize())
             try:
-                if self.slm:
+                if sched["defer_live_slm"] or not self.slm:
+                    if sched["defer_live_slm"]:
+                        print(f"[Scheduler] Backpressure ({sched['regime']}): deferring live SLM to protect capture.", flush=True)
+                    latex = spoken
+                else:
                     hist = [(prev_spoken, prev_latex)] if prev_spoken else None
                     latex = self.slm.translate(spoken, context=prev_latex, history=hist)
-                else:
-                    latex = spoken
+                    if sched["throttle_ms"] > 0:
+                        time.sleep(sched["throttle_ms"] / 1000.0)
             except Exception as e:
                 print(f"[SLM Translation Error]: {e}", flush=True)
                 latex = spoken
@@ -908,6 +1075,7 @@ class HeadlessVoiceAgent:
                                         break
                                 self.hpf.reset()
                                 vad.reset()
+                                self.scheduler.reset()
                                 if self.slm and hasattr(self.slm, "reset_symbol_registry"):
                                     self.slm.reset_symbol_registry()
                                 lecture_start_time = time.monotonic()
@@ -1005,6 +1173,7 @@ class HeadlessVoiceAgent:
                                             break
                                     self.hpf.reset()
                                     vad.reset()
+                                    self.scheduler.reset()
                                     if self.slm and hasattr(self.slm, "reset_symbol_registry"):
                                         self.slm.reset_symbol_registry()
 
@@ -1307,9 +1476,9 @@ class HeadlessVoiceAgent:
 
         pdf_file = post_res.get("pdf")
 
-        # 6. Export to USB Drive AYUSH & Local SSD
+        # 6. Build Cryptographic Mathematical-Invariance Audit Certificate & Export
         self.status_tracker.set_stage(ProcessingStage.EXPORTING_USB, additional_est=5.0)
-        print("[Agent] Exporting deliverables to USB drive AYUSH...")
+        print("[Agent] Writing invariance_audit.json and exporting deliverables to USB drive AYUSH...")
         export_map = {
             "tex": tex_file,
             "md": md_file,
@@ -1323,6 +1492,45 @@ class HeadlessVoiceAgent:
             "hindi_pdf": hi_pdf_file if (hi_pdf_file and hi_pdf_file.is_file()) else None,
             "wav": final_wav if final_wav.is_file() else None,
         }
+
+        artifact_hashes = {}
+        for k, p in export_map.items():
+            if p and Path(p).is_file():
+                artifact_hashes[Path(p).name] = compute_sha256(Path(p))
+
+        try:
+            from hindi_translator import HindiLectureTranslator
+            hindi_audit = dict(HindiLectureTranslator.get_instance().audit_stats)
+        except Exception:
+            hindi_audit = {}
+
+        reviewer_stats = {}
+        if getattr(self.book_builder, "_ai_reviewer", None) is not None:
+            reviewer_stats = dict(getattr(self.book_builder._ai_reviewer, "harmonisation_stats", {}))
+
+        slm_audit = {}
+        if self.slm and hasattr(self.slm, "symbol_registry_snapshot"):
+            slm_audit = {
+                "symbol_registry": self.slm.symbol_registry_snapshot(),
+                "cache_prompt_enabled": getattr(self.slm, "enable_cache_prompt", True),
+                "early_abort_enabled": getattr(self.slm, "enable_early_abort", True),
+            }
+
+        self.scheduler.evaluate(self.audio_queue.qsize(), self.live_typeset_queue.qsize())
+        audit_payload = {
+            "schema": "jetson-math-notes-invariance-audit-v1",
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "session_name": session_name,
+            "lecture_title": clean_title,
+            "slm_transduction": slm_audit,
+            "notation_harmonisation": reviewer_stats,
+            "hindi_math_preservation": hindi_audit,
+            "resource_scheduler": self.scheduler.summary(),
+            "artifact_hashes_sha256": artifact_hashes,
+        }
+        audit_file = temp_dir / f"{session_name}_invariance_audit.json"
+        audit_file.write_text(json.dumps(audit_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        export_map["audit"] = audit_file
 
         export_res = self.exporter.export(session_name, export_map, timestamp=ts)
         print(f"[Agent] Export Complete:")

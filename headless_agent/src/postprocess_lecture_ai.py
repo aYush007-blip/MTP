@@ -33,6 +33,15 @@ class GlobalAIReviewer:
 
     def __init__(self, server_url: str = LLAMA_SERVER_URL):
         self.server_url = server_url.rstrip("/")
+        self.reset_harmonisation_stats()
+
+    def reset_harmonisation_stats(self) -> None:
+        self.harmonisation_stats = {
+            "paragraphs_reviewed": 0,
+            "deterministic_edits": 0,
+            "slm_edits_accepted": 0,
+            "slm_edits_rejected": 0,
+        }
 
     def is_server_alive(self) -> bool:
         try:
@@ -207,7 +216,10 @@ class GlobalAIReviewer:
         Harmonizes mathematical notation deterministically and optionally runs a guarded
         Qwen2.5-1.5B proofreading pass if llama-server is active.
         """
+        self.harmonisation_stats["paragraphs_reviewed"] += 1
         harmonized = self.harmonize_notation_deterministic(text, context_text=context_text)
+        if harmonized != text:
+            self.harmonisation_stats["deterministic_edits"] += 1
         if not use_slm or not self.is_server_alive() or len(harmonized.strip()) < 10:
             return harmonized
 
@@ -245,7 +257,10 @@ class GlobalAIReviewer:
                 result = data.get("content", "").strip()
                 result = re.sub(r'^(?:Here is the (?:corrected|proofread).*?:\s*)', '', result, flags=re.IGNORECASE).strip()
                 if self.is_safe_harmonized_edit(harmonized, result):
+                    if result != harmonized:
+                        self.harmonisation_stats["slm_edits_accepted"] += 1
                     return result
+                self.harmonisation_stats["slm_edits_rejected"] += 1
         except Exception:
             pass
 

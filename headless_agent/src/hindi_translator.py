@@ -156,6 +156,23 @@ class HindiLectureTranslator:
     def __init__(self, server_url: str = LLAMA_SERVER_URL):
         self.server_url = server_url.rstrip("/")
         self.last_validation_log: List[str] = []
+        self.reset_audit_stats()
+
+    def reset_audit_stats(self) -> None:
+        """Reset structured span-preservation audit counters for a new lecture."""
+        self.last_validation_log = []
+        self.audit_stats = {
+            "paragraphs_total": 0,
+            "paragraphs_unchanged_no_prose": 0,
+            "spans_protected_total": 0,
+            "passed_attempt_1": 0,
+            "recovered_attempt_2": 0,
+            "english_fallbacks": 0,
+            "subtitle_lines_total": 0,
+            "subtitle_lines_preserved": 0,
+            "subtitle_lines_fallback": 0,
+            "events": [],
+        }
 
     @classmethod
     def get_instance(cls, server_url: str = LLAMA_SERVER_URL) -> "HindiLectureTranslator":
@@ -227,8 +244,11 @@ class HindiLectureTranslator:
             return clean_in
 
         masked_in, spans = mask_math_spans(clean_in)
+        self.audit_stats["paragraphs_total"] += 1
+        self.audit_stats["spans_protected_total"] += len(spans)
         prose_only = PLACEHOLDER_PATTERN.sub(" ", masked_in).strip()
         if not re.search(r"[a-zA-Z]", prose_only):
+            self.audit_stats["paragraphs_unchanged_no_prose"] += 1
             return clean_in
 
         token_budget = min(max_tokens, max(96, len(masked_in.split()) * 4 + 64))
@@ -246,9 +266,20 @@ class HindiLectureTranslator:
                     ok, restored, reason = restore_and_verify_math_spans(masked_in, cleaned, spans)
                     if ok:
                         self.last_validation_log.append(f"ok(attempt={attempt+1})")
+                        if attempt == 0:
+                            self.audit_stats["passed_attempt_1"] += 1
+                        else:
+                            self.audit_stats["recovered_attempt_2"] += 1
+                        self.audit_stats["events"].append(
+                            {"stage": "paragraph", "spans": len(spans), "status": f"ok_attempt_{attempt+1}", "detail": "ok"}
+                        )
                         return restored
                     print(f"[HindiTranslator] Verification failed on attempt {attempt+1}: {reason}")
                     self.last_validation_log.append(f"fail({reason})")
+                    if attempt == 1:
+                        self.audit_stats["events"].append(
+                            {"stage": "paragraph", "spans": len(spans), "status": "fallback", "detail": reason}
+                        )
             except Exception as e:
                 err_str = str(e)
                 if ("Connection refused" in err_str or "Remote end closed" in err_str) and attempt == 0:
@@ -262,8 +293,12 @@ class HindiLectureTranslator:
                         pass
                 print(f"[HindiTranslator] Translation request failed: {e}. Falling back to original text.")
                 self.last_validation_log.append(f"error({e})")
+                self.audit_stats["events"].append(
+                    {"stage": "paragraph", "spans": len(spans), "status": "fallback_error", "detail": str(e)}
+                )
                 break
 
+        self.audit_stats["english_fallbacks"] += 1
         return clean_in
 
     def translate_paragraphs(self, paragraphs: List[str]) -> List[str]:
@@ -295,6 +330,8 @@ class HindiLectureTranslator:
             m_line, sp = mask_math_spans(line.strip())
             masked_lines.append(m_line)
             line_spans.append(sp)
+            self.audit_stats["subtitle_lines_total"] += 1
+            self.audit_stats["spans_protected_total"] += len(sp)
 
         numbered = "\n".join(f"{i+1}. {ml}" for i, ml in enumerate(masked_lines))
         prompt = (
@@ -331,8 +368,10 @@ class HindiLectureTranslator:
                             masked_lines[i], cand, line_spans[i]
                         )
                         if ok:
+                            self.audit_stats["subtitle_lines_preserved"] += 1
                             translated_lines.append(restored)
                             continue
+                    self.audit_stats["subtitle_lines_fallback"] += 1
                     translated_lines.append(orig)
                 return translated_lines
             except Exception as e:
@@ -348,6 +387,7 @@ class HindiLectureTranslator:
                         pass
                 print(f"[HindiTranslator] Subtitle batch translation fallback: {e}")
                 break
+        self.audit_stats["subtitle_lines_fallback"] += len(lines)
         return lines
 
     def translate_title(self, title: str) -> str:

@@ -34,6 +34,7 @@ from audio import stereo_48k_to_mono_16k
 from energy_vad import AdaptiveEnergyVAD
 from headless_voice_agent import (
     AgentState,
+    EdgeBackpressureScheduler,
     HighPassHumFilter,
     ProcessingStage,
     ProcessingTracker,
@@ -594,6 +595,124 @@ class TestNoteGenerationPDFAndExport(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "r") as zf:
                 self.assertIn("sample.tex", zf.namelist())
                 self.assertIn("sample.pdf", zf.namelist())
+
+    def test_backpressure_scheduler_regimes_and_telemetry(self):
+        # 1. Verify live sysfs/meminfo reader returns non-negative Jetson telemetry
+        live_sched = EdgeBackpressureScheduler()
+        tel = live_sched.read_system_telemetry()
+        self.assertGreater(tel["mem_total_mb"], 0.0)
+        self.assertGreater(tel["mem_available_mb"], 0.0)
+        self.assertGreaterEqual(tel["max_temp_c"], 0.0)
+
+        # 2. Verify NORMAL -> PRESSURE -> CRITICAL transitions from synthetic sysfs/queue inputs
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            mem_f = tdir / "meminfo"
+            z0 = tdir / "tz0"
+            z0.mkdir()
+            (z0 / "type").write_text("cpu-thermal\n", encoding="utf-8")
+            temp_f = z0 / "temp"
+
+            sched = EdgeBackpressureScheduler(
+                meminfo_path=str(mem_f),
+                thermal_glob=str(tdir / "tz*/temp"),
+            )
+
+            # NORMAL: ample unified RAM, cool SoC, low queue depth
+            mem_f.write_text("MemTotal:        8000000 kB\nMemAvailable:    3600000 kB\n", encoding="utf-8")
+            temp_f.write_text("52000\n", encoding="utf-8")
+            d1 = sched.evaluate(audio_q_depth=2, typeset_q_depth=1)
+            self.assertEqual(d1["regime"], "NORMAL")
+            self.assertFalse(d1["defer_live_slm"])
+            self.assertEqual(d1["throttle_ms"], 0)
+
+            # PRESSURE: thermal rise (80 C) triggers pacing without dropping SLM
+            temp_f.write_text("80000\n", encoding="utf-8")
+            d2 = sched.evaluate(audio_q_depth=4, typeset_q_depth=4)
+            self.assertEqual(d2["regime"], "PRESSURE")
+            self.assertFalse(d2["defer_live_slm"])
+            self.assertEqual(d2["throttle_ms"], 120)
+
+            # CRITICAL: low free RAM (<950 MB) or thermal spike defers live SLM to protect capture (R4)
+            mem_f.write_text("MemTotal:        8000000 kB\nMemAvailable:     750000 kB\n", encoding="utf-8")
+            temp_f.write_text("85500\n", encoding="utf-8")
+            d3 = sched.evaluate(audio_q_depth=10, typeset_q_depth=12)
+            self.assertEqual(d3["regime"], "CRITICAL")
+            self.assertTrue(d3["defer_live_slm"])
+            self.assertTrue(d3["defer_heavy_rewrite"])
+
+            summ = sched.summary()
+            self.assertEqual(summ["samples"], 3)
+            self.assertEqual(summ["deferred_chunks"], 1)
+            self.assertEqual(summ["peak_typeset_queue"], 12)
+            self.assertAlmostEqual(summ["peak_temp_c"], 85.5, places=1)
+            self.assertEqual(summ["regimes_seen"], ["NORMAL", "PRESSURE", "CRITICAL"])
+
+    def test_audit_telemetry_counters_and_bundle_binding(self):
+        # 1. Verify Hindi translator structured audit counters (attempt 1, retry 2, fallback)
+        tr = HindiLectureTranslator(server_url="http://127.0.0.1:19999")
+        with patch.object(
+            tr,
+            "_request_completion",
+            side_effect=[
+                "सिग्नल [[MATH_0]] कारण-निष्ठ है।",              # pass attempt 1
+                "यह केवल [[MATH_0]] है।",                       # fail attempt 1 (drops MATH_1)
+                "यह [[MATH_0]] तथा [[MATH_1]] है।",              # recover attempt 2
+                "यहाँ संख्या बदल गई।",                          # fail attempt 1 (drops 5)
+                "यहाँ भी बदली।",                                # fail attempt 2 -> English fallback
+            ],
+        ):
+            _ = tr.translate_text("Signal $x(t)$ is causal.")
+            _ = tr.translate_text("From $x(t)$ we get $X(s)$.")
+            _ = tr.translate_text("We need 5 samples of $x[n]$.")
+
+        st = tr.audit_stats
+        self.assertEqual(st["paragraphs_total"], 3)
+        self.assertEqual(st["spans_protected_total"], 4)
+        self.assertEqual(st["passed_attempt_1"], 1)
+        self.assertEqual(st["recovered_attempt_2"], 1)
+        self.assertEqual(st["english_fallbacks"], 1)
+
+        # 2. Verify GlobalAIReviewer harmonisation counters
+        reviewer = GlobalAIReviewer(server_url="http://127.0.0.1:19999")
+        reviewer.harmonize_paragraphs(["We write $x ( t )$ and $X ( s )$."], use_slm=False)
+        self.assertEqual(reviewer.harmonisation_stats["paragraphs_reviewed"], 1)
+        self.assertEqual(reviewer.harmonisation_stats["deterministic_edits"], 1)
+
+        # 3. Verify invariance_audit.json binds artifact hashes inside LectureExporter ZIP + SHA256SUMS.txt
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            eng_pdf = tdir / "lec.pdf"
+            hi_pdf = tdir / "lec_hindi.pdf"
+            eng_pdf.write_bytes(b"%PDF-1.4\n" + b"A" * 1200)
+            hi_pdf.write_bytes(b"%PDF-1.4\n" + b"B" * 1200)
+            audit_json = tdir / "lec_invariance_audit.json"
+            audit_payload = {
+                "schema": "jetson-math-notes-invariance-audit-v1",
+                "hindi_math_preservation": st,
+                "notation_harmonisation": reviewer.harmonisation_stats,
+                "artifact_hashes_sha256": {
+                    eng_pdf.name: compute_sha256(eng_pdf),
+                    hi_pdf.name: compute_sha256(hi_pdf),
+                },
+            }
+            audit_json.write_text(json.dumps(audit_payload, indent=2), encoding="utf-8")
+
+            exporter = LectureExporter(local_base=str(tdir / "exports"))
+            with patch("usb_exporter.find_usb_mount", return_value=None), patch("usb_exporter.time.sleep"):
+                res = exporter.export(
+                    "Audit_Test",
+                    {"pdf": eng_pdf, "hindi_pdf": hi_pdf, "audit": audit_json},
+                    timestamp="20261126_000003",
+                )
+            local_dir = Path(res["local_path"])
+            sums = (local_dir / "SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertIn("lec_invariance_audit.json", sums)
+            zip_path = local_dir / "Audit_Test_bundle.zip"
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                self.assertIn("lec_invariance_audit.json", zf.namelist())
+                loaded = json.loads(zf.read("lec_invariance_audit.json").decode("utf-8"))
+                self.assertEqual(loaded["artifact_hashes_sha256"]["lec.pdf"], compute_sha256(eng_pdf))
 
 
 if __name__ == "__main__":
