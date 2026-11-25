@@ -9,6 +9,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+if [ -f "$SCRIPT_DIR/.disable_headless" ]; then
+    echo "Headless background agent is disabled by user configuration (.disable_headless present). Exiting cleanly."
+    exit 0
+fi
+
 export PYTHONPATH="$SCRIPT_DIR/src:${PYTHONPATH:-}"
 export PYTHONUNBUFFERED=1
 

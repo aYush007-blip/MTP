@@ -64,7 +64,7 @@ class GlobalAIReviewer:
             "temperature": 0.15,
             "top_p": 0.90,
             "stop": ["<|im_end|>", "<|im_start|>"],
-            "cache_prompt": True,
+            "cache_prompt": False,
         }
 
         try:
@@ -95,25 +95,54 @@ class AcademicPDFRenderer:
 
     @classmethod
     def compile_with_tectonic(cls, tex_path: Path, output_dir: Path) -> Optional[Path]:
-        """Compile using offline cached Tectonic binary."""
+        """Compile using offline cached Tectonic binary with pre-compilation source sanitization and auto-healing."""
         tectonic_bin = cls.TECTONIC_BIN if cls.TECTONIC_BIN.is_file() else shutil.which("tectonic")
         if not tectonic_bin:
             return None
 
+        # 1. Pre-compilation sanitization pass
         try:
+            from lecture_to_book import sanitize_latex_source
+            if tex_path.is_file():
+                raw_tex = tex_path.read_text(encoding="utf-8")
+                sanitized_tex = sanitize_latex_source(raw_tex)
+                if sanitized_tex != raw_tex:
+                    tex_path.write_text(sanitized_tex, encoding="utf-8")
+        except Exception as e:
+            print(f"[PDF Compiler] Sanitization notice: {e}")
+
+        def _run_tectonic():
             cmd = [
                 str(tectonic_bin),
                 "-C",  # 100% offline: only use locally cached packages
                 str(tex_path),
                 "-o", str(output_dir)
             ]
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
+            return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
+
+        try:
+            res = _run_tectonic()
             pdf_candidate = output_dir / f"{tex_path.stem}.pdf"
             if pdf_candidate.is_file() and pdf_candidate.stat().st_size > 1000:
                 print(f"[PDF Compiler] Tectonic successfully compiled: {pdf_candidate} ({pdf_candidate.stat().st_size} bytes)")
                 return pdf_candidate
-            else:
-                print(f"[PDF Compiler] Tectonic compilation failed: {res.stderr[:300]}")
+
+            # 2. Auto-healing retry pass if Tectonic reported a syntax error
+            print(f"[PDF Compiler] First Tectonic pass encountered error: {res.stderr[:200]}")
+            if tex_path.is_file():
+                content = tex_path.read_text(encoding="utf-8")
+                # Fix unspaced backslashes after common math functions: e.g. \int_{...}^\inftyf(x) -> \int_{...}^\infty f(x)
+                content = re.sub(r'\\([a-zA-Z]+)([a-zA-Z]{2,})', lambda m: f"\\{m.group(1)} {m.group(2)}" if m.group(1) in ["infty", "lambda", "omega", "theta", "alpha", "beta"] else m.group(0), content)
+                # Remove unclosed begin{cases} or broken control sequence
+                content = re.sub(r'\\begin\{cases\}\.?\s*$', '', content)
+                tex_path.write_text(content, encoding="utf-8")
+
+                retry_res = _run_tectonic()
+                if pdf_candidate.is_file() and pdf_candidate.stat().st_size > 1000:
+                    print(f"[PDF Compiler] Auto-healing succeeded! Tectonic compiled: {pdf_candidate}")
+                    return pdf_candidate
+                else:
+                    print(f"[PDF Compiler] Tectonic compilation failed: {retry_res.stderr[:300]}")
         except Exception as e:
             print(f"[PDF Compiler] Tectonic execution error: {e}")
         return None

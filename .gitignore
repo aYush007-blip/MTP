@@ -55,3 +55,6 @@ logs/
 .vscode/
 .idea/
 .DS_Store
+manual_tests/
+.disable_headless
+assets/tikz_library/repos/

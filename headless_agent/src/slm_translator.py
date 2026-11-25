@@ -31,7 +31,8 @@ SYSTEM_PROMPT = (
     "2. VERBATIM FIDELITY: Preserve EVERY surrounding spoken English word, explanation, presentation dialogue, "
     "and question VERBATIM. NEVER summarize, condense, delete, or rephrase non-mathematical speech. "
     "NEVER wrap normal conversational English words in LaTeX.\n"
-    "3. CLEAN OUTPUT: Output ONLY the inline LaTeX-typeset transcript of the user message. NEVER output preamble, labels, answers, or commentary."
+    "3. DO NOT INVENT FORMULAS: Never fabricate or invent formulas, functions (such as g(x), s(t)), or symbols not present in the spoken transcript.\n"
+    "4. CLEAN OUTPUT: Output ONLY the inline LaTeX-typeset transcript of the user message. NEVER output preamble, labels, answers, or commentary."
 )
 
 
@@ -43,6 +44,14 @@ FEW_SHOT_MESSAGES = [
     {
         "role": "assistant",
         "content": "Taking the integral $\\int_0^\\infty x^2 e^{-\\lambda x} \\, dx$ gives $\\frac{2}{\\lambda^3}$."
+    },
+    {
+        "role": "user",
+        "content": "Spoken transcript:\nA point x bar in R is called a minimum if f of x is greater than or equal to f of x bar for all x in R."
+    },
+    {
+        "role": "assistant",
+        "content": "A point $\\bar{x} \\in \\mathbb{R}$ is called a minimum if $f(x) \\ge f(\\bar{x})$ for all $x \\in \\mathbb{R}$."
     },
     {
         "role": "user",
@@ -269,6 +278,20 @@ class QwenMathTranslator:
                 if not any(pt.replace("\\", "").lower() in raw_lower for pt in physics_tokens):
                     return raw_text
 
+            # Fabricated piecewise / cases block check
+            if r"\begin{cases}" in s and not any(k in raw_text.lower() for k in ["cases", "piecewise", "otherwise"]):
+                return raw_text
+
+            # Fabricated integral check
+            if r"\int" in s and not any(k in raw_text.lower() for k in ["integral", "integrate", "integration"]):
+                return raw_text
+
+            # Fabricated function checks
+            if r"s(t)" in s and "s of t" not in raw_text.lower() and "s(t)" not in raw_text.lower():
+                s = s.replace(r"s(t)", "such that")
+            if r"g(x)" in s and "g of x" not in raw_text.lower() and "g(x)" not in raw_text.lower() and r"\bar{f}(x)" in s:
+                return raw_text
+
         return s
 
     def translate_server(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
@@ -281,7 +304,7 @@ class QwenMathTranslator:
             "repeat_penalty": 1.15,
             "stream": False,
             "stop": ["<|im_end|>", "<|endoftext|>", "\n\n"],
-            "cache_prompt": True,
+            "cache_prompt": False,
         }
         data_bytes = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
@@ -312,21 +335,26 @@ class QwenMathTranslator:
                             ensure_edge_daemons = None
                     if ensure_edge_daemons:
                         ensure_edge_daemons()
-                    time.sleep(2.0)
+                    time.sleep(3.0)
                 except Exception as revive_err:
                     print(f"[SLM Revive Failed] {revive_err}")
-            # Retry loop with backoff
+            # Retry loop with backoff and fresh request object
             for attempt in range(3):
                 if self._is_server_alive():
                     try:
-                        with urllib.request.urlopen(req, timeout=45.0) as resp:
+                        retry_req = urllib.request.Request(
+                            f"{self.server_url}/v1/chat/completions",
+                            data=data_bytes,
+                            headers={"Content-Type": "application/json"},
+                        )
+                        with urllib.request.urlopen(retry_req, timeout=45.0) as resp:
                             resp_data = json.loads(resp.read().decode("utf-8"))
                             content = resp_data["choices"][0]["message"]["content"]
                             return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
                     except Exception:
-                        time.sleep(1.0)
+                        time.sleep(1.5)
                 else:
-                    time.sleep(1.0)
+                    time.sleep(1.5)
             return spoken_text
 
     def translate_cli(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
@@ -403,6 +431,15 @@ class QwenMathTranslator:
         text = spoken_text.strip()
         if not text:
             return ""
+
+        # Pre-clean spoken shorthands and meta-phrases before SLM evaluation
+        text = re.sub(
+            r'\b(?:I am writing a short hand s t for such that|short hand s t for such that|s t for such that|short hand s t)\b',
+            'such that',
+            text,
+            flags=re.IGNORECASE
+        )
+        text = re.sub(r'\bx\s+a\s+cube\b|\bx\s+cube\b', 'x cubed', text, flags=re.IGNORECASE)
 
         # If sentence has no mathematical cues or variables, return verbatim without invoking LLM
         if not self._has_math_cues(text):
