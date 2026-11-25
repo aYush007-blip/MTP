@@ -358,8 +358,11 @@ def ensure_edge_daemons():
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/main/whisper.cpp/build-orin/bin:" + env.get("LD_LIBRARY_PATH", "")
         log_whisper = open("/tmp/whisper-server.log", "a")
-        subprocess.Popen(cmd, env=env, stdin=subprocess.DEVNULL, stdout=log_whisper, stderr=log_whisper, start_new_session=True)
+        w_proc = subprocess.Popen(cmd, env=env, stdin=subprocess.DEVNULL, stdout=log_whisper, stderr=log_whisper, start_new_session=True)
         for _ in range(60):
+            if w_proc.poll() is not None:
+                print(f"[Agent Error] whisper-server exited prematurely (code {w_proc.returncode}).", flush=True)
+                break
             time.sleep(1.0)
             if is_service_alive(WHISPER_SERVER_URL, endpoint="/"):
                 break
@@ -371,6 +374,7 @@ def ensure_edge_daemons():
             LLAMA_BIN,
             "-m", LLAMA_MODEL,
             "-c", "2048",
+            "-np", "1",
             "-ngl", "0",
             "-t", "4",
             "--fit", "off",
@@ -381,8 +385,11 @@ def ensure_edge_daemons():
         env["CUDA_VISIBLE_DEVICES"] = ""
         env["LD_LIBRARY_PATH"] = "/mnt/thesis/llama.cpp/build/bin:" + env.get("LD_LIBRARY_PATH", "")
         log_llama = open("/tmp/llama-server.log", "a")
-        subprocess.Popen(cmd, env=env, stdin=subprocess.DEVNULL, stdout=log_llama, stderr=log_llama, start_new_session=True)
+        l_proc = subprocess.Popen(cmd, env=env, stdin=subprocess.DEVNULL, stdout=log_llama, stderr=log_llama, start_new_session=True)
         for _ in range(60):
+            if l_proc.poll() is not None:
+                print(f"[Agent Error] llama-server exited prematurely (code {l_proc.returncode}).", flush=True)
+                break
             time.sleep(1.0)
             if is_service_alive(LLAMA_SERVER_URL, endpoint="/health"):
                 break

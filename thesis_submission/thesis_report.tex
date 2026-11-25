@@ -480,9 +480,9 @@ In initial iterations, ASR conditioning prompts were narrowly customized for ele
 Prefixing this conditioning token sequence to the Whisper decoder primes the beam-search decoder to output mathematical vocabulary while maintaining equal sensitivity across linear algebra, digital signal processing, mechanics, and computational complexity.
 
 \section{Mathematical Transduction via Edge SLM}
-Raw speech transcription output contains phonetic transcriptions of mathematical concepts. The mathematical transduction stage converts this prose into valid inline ($...$) and display (\texttt{\textbackslash begin\{equation\}}) LaTeX syntax. We employ Qwen2.5-1.5B-Instruct quantized to 4.5 bits (Q4\_K\_M) running on the 6-core ARM CPU via \texttt{llama-server} with KV-cache reuse.
+Raw speech transcription output contains phonetic transcriptions of mathematical concepts. The mathematical transduction stage converts this prose into valid inline ($...$) and display (\texttt{\textbackslash begin\{equation\}}) LaTeX syntax. We distinguish between the interactive GPU-offloaded evaluation profile (\texttt{-ngl 28} in \texttt{server.py}) and the autonomous headless deployment configuration (\texttt{headless\_voice\_agent.py}), which pins 4.5-bit quantized Qwen2.5-1.5B-Instruct (Q4\_K\_M) to 4 ARM Cortex-A78AE CPU cores via \texttt{llama-server} (\texttt{-ngl 0 -t 4}, \texttt{CUDA\_VISIBLE\_DEVICES=""}) to prevent CUDA unified memory contention with Whisper.
 
-Algorithm~\ref{alg:math_transduction} formalizes the transduction procedure. By leveraging ChatML prefix caching, the system prompt tokens are evaluated only once at daemon initialization, reducing per-utterance prompt evaluation latency from 1,200\,ms to under 45\,ms.
+Algorithm~\ref{alg:math_transduction} formalizes the transduction procedure. A regex-based mathematical-cue gate (normalizing English possessive suffixes such as \textit{``today's''} before variable matching) bypasses SLM inference for purely conversational utterances, while output guards (\texttt{\_clean\_response}) reject repetition loops, length explosions, context-echo hijacking, and fabricated environments (\texttt{\textbackslash begin\{cases\}}, unrequested integrals, or \texttt{\textbackslash nabla}). Prior to display-equation promotion and Hindi translation, \texttt{LectureToBookBuilder} invokes a cross-chunk notation harmonisation pass (\texttt{GlobalAIReviewer}) that deterministically normalizes erratic delimiter spacing and context-confirmed inconsistencies (e.g., harmonising \texttt{\$x(n)\$} $\to$ \texttt{\$x[n]\$} when \texttt{\$x[n]\$} is established, or \texttt{\$x(s)\$}/\texttt{\$h(s)\$}/\texttt{\$H[s]\$} $\to$ \texttt{\$X(s)\$}/\texttt{\$H(s)\$} in Laplace contexts) while strictly preserving distinct continuous-time and discrete-time expressions such as $x(t)$ vs.\ $x[n]$.
 
 \begin{algorithm}[H]
 \caption{Mathematical Speech-to-LaTeX Transduction with Prompt Caching}
@@ -526,31 +526,33 @@ If a translation mapping $\mathcal{F}$ satisfies Mathematical Invariant Preserva
 Mathematical deductions in formal STEM monographs depend strictly on the syntactic evaluation of algebraic relations within $\mathcal{M}$. Because $\forall m_j, \mathcal{F}(m_j) = m_j$, the algebraic truth value of every proposition $\mathcal{P}(m_j)$ is invariant under $\mathcal{F}$. Since discourse markers in $\mathcal{L}$ serve strictly pedagogical explanatory functions, linguistic translation into Devanagari script preserves pedagogical context without altering the underlying mathematical truth.
 \end{proof}
 
-To implement this principle in practice, our bilingual translation engine employs a two-tier architecture:
+To implement this principle in practice, our bilingual translation engine (\texttt{hindi\_translator.py}) employs span-level mathematical masking and verification:
 \begin{enumerate}[noitemsep]
-    \item \textbf{Syntactic Math Masking:} Major numbered display equations (\texttt{\textbackslash begin\{equation\}} to \texttt{\textbackslash end\{equation\}}) are extracted and replaced with invariant tokens (\texttt{\_\_DISPLAY\_EQ\_K\_\_}).
-    \item \textbf{Pedagogical Devanagari Translation:} The surrounding technical discourse is translated into formal academic Hindi, while retaining core English engineering terminology parenthetically (e.g., \textit{\hi{सतत-समय LTI प्रणालियाँ} (continuous-time LTI systems)}, \textit{\hi{प्रारंभिक मान प्रमेय} (initial value theorem)}). Following translation, the masked equation blocks are re-injected verbatim into the translated document.
+    \item \textbf{Span-Level Math Masking:} Both inline expressions (\texttt{\$...\$}, \texttt{\textbackslash(...\textbackslash)}) and display/environment formulas (\texttt{\$\$...\$\$}, \texttt{\textbackslash[...\textbackslash]}, \texttt{\textbackslash begin\{equation|align|gather|multline|eqnarray\}}, \texttt{\textbackslash label/\textbackslash ref/\textbackslash eqref}) are extracted prior to translation and replaced with ordered invariant tokens (\texttt{[[MATH\_0]]}, \texttt{[[MATH\_1]]}, \dots).
+    \item \textbf{Pedagogical Devanagari Translation and Verification:} Surrounding natural-language prose is translated into formal academic Hindi while retaining core English engineering terms parenthetically. After translation, \texttt{restore\_and\_verify\_math\_spans} enforces that every \texttt{[[MATH\_i]]} token appears exactly once in strict ascending order, that no stray \texttt{\$} or placeholder residue was introduced, and that all outside-math numeric tokens (normalising Devanagari numerals) match the source multiset. On validation failure, translation is retried once with stricter constraints; if validation fails again, the original English paragraph is retained rather than emitting corrupted mathematics or numbers. This guarantees syntactic preservation of protected spans and numbers, rather than semantic correctness of the Hindi prose.
 \end{enumerate}
 
-The execution sequence is formalized in Algorithm~\ref{alg:invariant_translation}. The document parser first isolates display formulas into an invariant look-up table. For discourse sections whose length exceeds 350 words, an adaptive sentence-boundary tokenizer partitions the prose into contiguous chunks bounded by sentence terminators. Each sub-block is translated independently using the domain glossary $\mathcal{G}_{\text{stem}}$, after which all sections are reassembled and the preserved mathematical equations are re-injected bit-for-bit into the Devanagari target document.
+The execution sequence is formalized in Algorithm~\ref{alg:invariant_translation}. The parser first masks all inline and display math spans into an invariant look-up table, translates the masked prose (with automatic retry and English fallback on verification failure), and re-injects the preserved mathematical expressions bit-for-bit into the Devanagari target document.
 
 \begin{algorithm}[H]
 \caption{Mathematical Invariant Masking and Bilingual Monograph Synthesis}
 \label{alg:invariant_translation}
 \begin{algorithmic}[1]
 \Require Source LaTeX Monograph $\mathcal{D}_{\text{en}}$, Deterministic Pedagogical Glossary $\mathcal{G}_{\text{stem}}$
-\Ensure Bilingual Hindi Monograph $\mathcal{D}_{\text{hi}}$ with 100\% invariant formulas
-\State $\mathcal{M}_{\text{display}} \gets \Call{ExtractDisplayEquations}{\mathcal{D}_{\text{en}}}$
-\State $\mathcal{D}_{\text{masked}} \gets \Call{ReplaceWithPlaceholders}{\mathcal{D}_{\text{en}}, \mathcal{M}_{\text{display}}}$
-\For{each section $S_i \in \mathcal{D}_{\text{masked}}$}
-    \State $\{s_{i,1}, s_{i,2}, \dots\} \gets (\Call{WordCount}{S_i} > 350) \; ? \; \Call{PartitionSentences}{S_i} : \{S_i\}$
-    \For{each sub-block $s_{i,j}$}
-        \State $t_{i,j} \gets \Call{TranslatePedagogicalProse}{s_{i,j}, \mathcal{G}_{\text{stem}}}$
+\Ensure Bilingual Hindi Monograph $\mathcal{D}_{\text{hi}}$ with verified math-span preservation
+\For{each section/paragraph $S_i \in \mathcal{D}_{\text{en}}$}
+    \State $(\tilde{S}_i, \mathcal{M}_i) \gets \Call{MaskMathSpans}{S_i}$ \Comment{Extract inline \& display math into \texttt{[[MATH\_k]]}}
+    \State $N_i \gets \Call{ExtractOutsideNumbers}{\tilde{S}_i}$
+    \State $T_i \gets S_i$ \Comment{Default safe fallback to original English}
+    \For{$\text{attempt} \in \{1, 2\}$}
+        \State $\tilde{T}_i \gets \Call{TranslateProse}{\tilde{S}_i, \mathcal{G}_{\text{stem}}, \text{attempt}}$
+        \If{$\Call{VerifyOrderAndCount}{\tilde{T}_i, \mathcal{M}_i} \land \Call{VerifyNumbers}{\tilde{T}_i, N_i}$}
+            \State $T_i \gets \Call{RestoreMathSpans}{\tilde{T}_i, \mathcal{M}_i}$
+            \State \textbf{break}
+        \EndIf
     \EndFor
-    \State $T_i \gets \Call{ConcatenateSubBlocks}{\{t_{i,j}\}}$
 \EndFor
-\State $\mathcal{D}_{\text{raw\_hi}} \gets \Call{AssembleSections}{\{T_i\}}$
-\State $\mathcal{D}_{\text{hi}} \gets \Call{ReinjectFormulasVerbatim}{\mathcal{D}_{\text{raw\_hi}}, \mathcal{M}_{\text{display}}}$
+\State $\mathcal{D}_{\text{hi}} \gets \Call{AssembleMonograph}{\{T_i\}}$
 \State \Return $\mathcal{D}_{\text{hi}}$
 \end{algorithmic}
 \end{algorithm}
@@ -827,6 +829,38 @@ To verify the edge appliance for continuous campus deployment, the Jetson Orin N
     \item \textbf{Thermal Equilibrium at 15\,W TDP:} Operating under the 15\,W power preset with active fan cooling, the Tegra SoC temperature stabilized at $47^\circ\text{C}$--$49^\circ\text{C}$ with an ambient room temperature of $26^\circ\text{C}$. Zero thermal throttling was recorded, enabling sustained $18.2\times$ real-time throughput indefinitely.
 \end{enumerate}
 
+\section{Spoken-Math-to-LaTeX Quantitative Evaluation (Phase 1 vs.\ Phase 2)}
+\label{sec:phase1_phase2_eval}
+To evaluate mathematical transduction accuracy independently of ASR audio variability, we compared the Phase~1 baseline (fine-tuned \texttt{T5-Small} + heuristic \texttt{MathRouter}) against Phase~2 (\texttt{Qwen2.5-1.5B-Instruct Q4\_K\_M}) using identical input transcripts and identical evaluation metrics (\texttt{evaluate\_model.py}). On the supplementary engineering manifest, the original Phase~1 run covered 1,101 \texttt{MathSpeech} rows (6.81\% Norm-EM, 0.91\% Strict-EM), whereas Phase~2 had previously been evaluated on the first 50 rows (\texttt{example\_id} 0--49). To establish a statistically comparable comparison, Table~\ref{tab:phase1_phase2} reports both the 107-sample MathSpeech test split and the exact matched 50-sample subset (\texttt{manifest\_mathspeech\_50.jsonl}). Because live PyTorch execution on the Jetson is currently blocked by a corrupted \texttt{libtorch\_python.so} wheel, the Phase~1 $n=50$ metrics were recomputed directly from the preserved per-sample predictions of the original 1,101-sample Phase~1 run using the same metric routines.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Statistically Comparable Phase-1 vs.\ Phase-2 Spoken-Math-to-LaTeX Evaluation}
+\label{tab:phase1_phase2}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X c c c c}
+\toprule
+\textbf{Metric} & \textbf{Phase 1} & \textbf{Phase 2} & \textbf{Phase 1} & \textbf{Phase 2} \\
+ & \textbf{(MS, $n=107$)} & \textbf{(MS, $n=107$)} & \textbf{(Man., $n=50$)} & \textbf{(Man., $n=50$)} \\
+\midrule
+Strict-EM (\%)       & 0.93\% (1/107)   & \textbf{4.67\%} (5/107)   & 8.00\% (4/50)    & \textbf{28.00\%} (14/50) \\
+Norm-EM (\%)         & 8.41\% (9/107)   & \textbf{40.19\%} (43/107) & 8.00\% (4/50)    & \textbf{48.00\%} (24/50) \\
+Token BLEU-4         & 27.06            & \textbf{47.79}            & 22.56            & \textbf{60.29} \\
+CER (\%)             & 72.74\%          & \textbf{47.01\%}          & 66.90\%          & \textbf{29.62\%} \\
+TER (\%)             & 61.15\%          & \textbf{30.75\%}          & 64.42\%          & \textbf{27.08\%} \\
+Mean Latency (ms)    & 787.4            & \textbf{519.8}            & 721.0            & \textbf{566.2} \\
+P95 Latency (ms)     & 2,125.1          & \textbf{969.2}            & 1,712.2          & \textbf{1,023.9} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Headless CPU Smoke Test and Automated Regression Verification}
+\label{sec:smoke_and_regression}
+To validate the production headless deployment without relying on interactive GPU-offloaded SLM settings, an end-to-end offline smoke test was executed on a representative 10\,s slice of \texttt{tie\_sample.wav} (\texttt{headless\_voice\_agent.py --sim-file ... --max-duration 10 --no-auto-shutdown}). The headless pipeline launched \texttt{llama-server} on ARM CPU (\texttt{-ngl 0 -t 4}, achieving 48.85--50.66\,tok/s prompt evaluation and 14.01--16.67\,tok/s token generation), transcribed speech via \texttt{whisper-cli}, applied SLM LaTeX conversion and notation harmonisation, translated notes into Hindi with verified placeholder preservation, compiled both English (10,253\,bytes) and Hindi (15,592\,bytes) PDFs offline via Tectonic, and verified 12/12 SHA-256 deliverable checksums on both local SSD and USB drive \texttt{AYUSH}.
+
+Additionally, a 17-test offline regression suite (\texttt{tests/test\_regression\_pipeline.py}) passes in 6.5\,s, covering 48\,kHz$\to$16\,kHz decimation, 50\,Hz hum attenuation, adaptive VAD hysteresis/pre-roll, mathematical-cue gating, SLM hallucination guards, notation harmonisation ($x(t)$, $x[n]$, $X(s)$, $H(s)$), Hindi math/number placeholder retry and fallback, offline Tectonic PDF compilation, headless state transitions, and USB export checksum integrity. Live Hindi stress tests against the CPU \texttt{llama-server} further confirmed automatic retry recovery when a placeholder was dropped on the first attempt and safe English fallback when an outside numeric value was lost across both attempts.
+
 \section{Comparative Architectural Evaluation}
 \label{sec:comparative_eval}
 Table~\ref{tab:comparative_systems} summarizes the comparative performance of EdgeLectureAI against alternative deployment paradigms.
@@ -862,7 +896,7 @@ Physical Privacy & \textbf{100\% Sovereign} & High Data Leak Risk & 100\% Sovere
 The experimental results yield several pivotal engineering insights for edge AI design:
 \begin{itemize}
     \item \textbf{CPU vs. GPU Compute Partitioning:} Attempting to run both Whisper ASR and the Qwen2.5-1.5B SLM concurrently on the Jetson Orin Nano Ampere GPU causes catastrophic CUDA Out-Of-Memory (OOM) errors due to unified memory exhaustion. Partitioning Whisper to GPU Tensor Cores and pinning the quantized SLM to 4 ARM Cortex-A78AE CPU cores achieves optimal workload concurrency with zero swap overhead.
-    \item \textbf{Limitations of Pure Neural Machine Translation:} Small language models (1.5B) running on edge CPUs lack the parametric memory required to reliably translate complex multi-line mathematical subtitles without hallucinating irrelevant lexical tokens (as observed when translating raw equations without masking). The hybrid approach---coupling a deterministic pedagogical glossary with syntactic equation masking---guarantees 100\% mathematical correctness.
+    \item \textbf{Limitations of Pure Neural Machine Translation:} Small language models (1.5B) running on edge CPUs lack the parametric memory required to reliably translate complex multi-line mathematical prose or subtitles without occasionally dropping formulas or numeric values. Coupling placeholder masking (\texttt{[[MATH\_i]]}) with span-order verification, outside-number checks, single retry, and safe English fallback guarantees syntactic preservation of protected equations and numeric constants, while semantic fluency of the surrounding Hindi text remains bounded by the 1.5B model.
     \item \textbf{Embedded Compilation Efficiency:} Replacing interpreted Python PDF generation libraries with Tectonic XeTeX delivers a $10\times$ improvement in typographic quality, native micro-typography, and seamless Devanagari font rendering at sub-6-second speeds.
 \end{itemize}
 

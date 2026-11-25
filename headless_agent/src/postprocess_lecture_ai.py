@@ -24,47 +24,214 @@ LLAMA_SERVER_URL = "http://127.0.0.1:8080"
 
 class GlobalAIReviewer:
     """
-    Interfaces with the local Qwen2.5-1.5B SLM to proofread and harmonize
-    mathematical notation across the full lecture transcript.
+    Interfaces with the local Qwen2.5-1.5B SLM and deterministic notation rules
+    to proofread and harmonize mathematical notation across the lecture transcript.
     """
+
+    _SIGNAL_SYMS = ("x", "y", "h", "u", "w", r"\\delta")
+    _TRANSFORM_PAIRS = (("X", "x"), ("Y", "y"), ("H", "h"), ("G", "g"))
+
     def __init__(self, server_url: str = LLAMA_SERVER_URL):
         self.server_url = server_url.rstrip("/")
 
     def is_server_alive(self) -> bool:
         try:
             req = urllib.request.Request(f"{self.server_url}/health", method="GET")
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
+            with urllib.request.urlopen(req, timeout=0.5) as resp:
                 return resp.status == 200
         except Exception:
             return False
 
-    def proofread_section(self, text: str) -> str:
+    @staticmethod
+    def _split_math_segments(text: str) -> List[Tuple[bool, str]]:
+        """Split text into (is_math, segment) pairs preserving $$...$$ and $...$ spans."""
+        pattern = re.compile(r'(\$\$[\s\S]*?\$\$|(?<!\\)\$[^$\n]+?(?<!\\)\$)')
+        parts: List[Tuple[bool, str]] = []
+        pos = 0
+        for m in pattern.finditer(text):
+            if m.start() > pos:
+                parts.append((False, text[pos:m.start()]))
+            parts.append((True, m.group(0)))
+            pos = m.end()
+        if pos < len(text):
+            parts.append((False, text[pos:]))
+        return parts
+
+    @classmethod
+    def harmonize_notation_deterministic(cls, text: str, context_text: str = "") -> str:
         """
-        Sends a lecture section to Qwen2.5-1.5B for proofreading and notation harmonization.
+        Conservatively harmonize unambiguous notation inconsistencies inside math spans
+        without altering distinct mathematical expressions (e.g. preserves x(t) vs x[n] vs X(s) vs H(s)).
         """
-        if not self.is_server_alive() or len(text.strip()) < 10:
+        if not text or "$" not in text:
             return text
+
+        ctx = context_text if context_text else text
+
+        # Detect established discrete bracket notation (e.g. x[n], y[n], h[n], \delta[n])
+        discrete_bracket_syms = set()
+        for sym in cls._SIGNAL_SYMS:
+            if re.search(rf'(?<![\\a-zA-Z]){sym}(?:_[a-zA-Z0-9]+)?\[n\b', ctx):
+                discrete_bracket_syms.add(sym)
+
+        # Detect established uppercase s/z/frequency-domain transforms (e.g. X(s), H(s), Y(s), X(z))
+        upper_transforms = set()
+        for up, _ in cls._TRANSFORM_PAIRS:
+            for dom in ("s", "z", r"j\\omega"):
+                if re.search(rf'(?<![\\a-zA-Z]){up}(?:_[a-zA-Z0-9]+)?\(\s*{dom}\s*\)', ctx):
+                    upper_transforms.add((up, dom))
+
+        has_s_domain_context = bool(
+            re.search(r'\b(?:laplace|transfer function|s-domain|s domain|region of convergence)\b', ctx, re.IGNORECASE)
+            or any(dom == "s" for _, dom in upper_transforms)
+        )
+
+        out_parts: List[str] = []
+        for is_math, seg in cls._split_math_segments(text):
+            if not is_math:
+                out_parts.append(seg)
+                continue
+
+            # 1. Clean erratic whitespace around function/sequence delimiters: x ( t ) -> x(t), x [ n ] -> x[n]
+            seg = re.sub(
+                r'(\\delta|(?<![\\a-zA-Z])[xyhugfXYHGRTSEFPQ](?:_[a-zA-Z0-9]+)?)\s*\(\s*([^()\n]{1,24}?)\s*\)',
+                lambda m: f"{m.group(1)}({m.group(2).strip()})",
+                seg,
+            )
+            seg = re.sub(
+                r'(\\delta|(?<![\\a-zA-Z])[xyhugfXYHGRTSEFPQ](?:_[a-zA-Z0-9]+)?)\s*\[\s*([^\[\]\n]{1,24}?)\s*\]',
+                lambda m: f"{m.group(1)}[{m.group(2).strip()}]",
+                seg,
+            )
+
+            # 2. Harmonize x(n) -> x[n] ONLY when bracket form x[n] is already established in context
+            for sym in discrete_bracket_syms:
+                seg = re.sub(
+                    rf'(?<![\\a-zA-Z])({sym}(?:_[a-zA-Z0-9]+)?)\(n\)',
+                    r'\1[n]',
+                    seg,
+                )
+
+            # 3. Harmonize lowercase transform casing (e.g. x(s) -> X(s), h(s) -> H(s))
+            #    ONLY when the uppercase transform form is already established in context
+            for up, low in cls._TRANSFORM_PAIRS:
+                for dom in ("s", "z", r"j\\omega"):
+                    if (up, dom) in upper_transforms:
+                        seg = re.sub(
+                            rf'(?<![\\a-zA-Z]){low}(_[a-zA-Z0-9]+)?\({dom}\)',
+                            lambda m, u=up: f"{u}{m.group(1) or ''}({m.group(0).split('(', 1)[1]}",
+                            seg,
+                        )
+
+            # 4. Harmonize X[s]/H[s]/Y[s] -> X(s)/H(s)/Y(s) when s-domain transform context is present
+            if has_s_domain_context:
+                seg = re.sub(
+                    r'(?<![\\a-zA-Z])([XYHG](?:_[a-zA-Z0-9]+)?)\[s\]',
+                    r'\1(s)',
+                    seg,
+                )
+
+            out_parts.append(seg)
+
+        return "".join(out_parts)
+
+    @staticmethod
+    def _extract_math_signatures(text: str) -> Dict[str, int]:
+        """Count critical continuous/discrete/transform notation tokens and numbers."""
+        sigs: Dict[str, int] = {}
+        patterns = {
+            "cont_x": r'\bx\s*\(\s*t\s*\)',
+            "disc_x": r'\bx\s*\[\s*n\s*\]',
+            "cont_y": r'\by\s*\(\s*t\s*\)',
+            "disc_y": r'\by\s*\[\s*n\s*\]',
+            "cont_h": r'\bh\s*\(\s*t\s*\)',
+            "disc_h": r'\bh\s*\[\s*n\s*\]',
+            "X_s": r'\bX\s*\(\s*s\s*\)',
+            "H_s": r'\bH\s*\(\s*s\s*\)',
+            "Y_s": r'\bY\s*\(\s*s\s*\)',
+            "X_z": r'\bX\s*\(\s*z\s*\)',
+            "H_z": r'\bH\s*\(\s*z\s*\)',
+        }
+        for name, pat in patterns.items():
+            sigs[name] = len(re.findall(pat, text))
+        return sigs
+
+    @classmethod
+    def is_safe_harmonized_edit(cls, original: str, candidate: str) -> bool:
+        """
+        Verify an SLM-proofread candidate did not corrupt math delimiters, numbers,
+        or distinct domain notations (e.g. turning x(t) into x[n]).
+        """
+        if not candidate or not candidate.strip():
+            return False
+        if len(candidate) < len(original) * 0.75 or len(candidate) > len(original) * 1.35:
+            return False
+
+        # Reject unbalanced math delimiters
+        no_dd = re.sub(r'\$\$[\s\S]*?\$\$', '', candidate)
+        if '$$' in no_dd:
+            return False
+        if len(re.findall(r'(?<!\\)\$', no_dd)) % 2 != 0:
+            return False
+
+        # Reject unrequested structural hallucinations
+        if r'\begin{cases}' in candidate and r'\begin{cases}' not in original:
+            return False
+        if r'\nabla' in candidate and r'\nabla' not in original:
+            return False
+
+        # Ensure math span count is not reduced
+        orig_spans = re.findall(r'\$\$[\s\S]*?\$\$|(?<!\\)\$[^$\n]+?(?<!\\)\$', original)
+        cand_spans = re.findall(r'\$\$[\s\S]*?\$\$|(?<!\\)\$[^$\n]+?(?<!\\)\$', candidate)
+        if len(cand_spans) < len(orig_spans):
+            return False
+
+        # Preserve numeric constants (including numbers immediately before sentence punctuation like '2.5.')
+        num_pat = r'(?<![\w.])\d+(?:\.\d+)?(?!\d|\.\d|\w)'
+        orig_nums = sorted(re.findall(num_pat, original))
+        cand_nums = sorted(re.findall(num_pat, candidate))
+        if orig_nums != cand_nums:
+            return False
+
+        # Do not alter distinct continuous/discrete or Laplace/Z domain symbols once established
+        orig_sigs = cls._extract_math_signatures(original)
+        cand_sigs = cls._extract_math_signatures(candidate)
+        for key, cnt in orig_sigs.items():
+            if cnt > 0 and cand_sigs.get(key, 0) < cnt:
+                return False
+
+        return True
+
+    def proofread_section(self, text: str, context_text: str = "", use_slm: bool = True) -> str:
+        """
+        Harmonizes mathematical notation deterministically and optionally runs a guarded
+        Qwen2.5-1.5B proofreading pass if llama-server is active.
+        """
+        harmonized = self.harmonize_notation_deterministic(text, context_text=context_text)
+        if not use_slm or not self.is_server_alive() or len(harmonized.strip()) < 10:
+            return harmonized
 
         prompt = (
             "<|im_start|>system\n"
             "You are an expert academic editor and mathematical typesetter. "
-            "Your task is to proofread a transcribed lecture section. "
-            "1. Harmonize mathematical notation throughout (e.g. ensure variables like z, omega, psi, and time indices n, t are consistent). "
-            "2. Ensure all LaTeX math environments are correctly balanced with closing braces. "
-            "3. Smooth out spoken transitions into formal textbook prose. "
-            "4. Retain all technical depth, equations, and diagrams. "
-            "Return ONLY the corrected LaTeX text without introductory chatter.<|im_end|>\n"
-            f"<|im_start|>user\n{text}<|im_end|>\n"
+            "Your task is to lightly harmonize inconsistent notation in a transcribed lecture paragraph.\n"
+            "STRICT RULES:\n"
+            "1. Keep continuous-time signals like $x(t)$ and discrete-time sequences like $x[n]$ distinct — NEVER convert $x(t)$ to $x[n]$ or vice versa.\n"
+            "2. Keep transform symbols ($X(s)$, $H(s)$, $Y(s)$, $X(z)$) and all numbers 100% intact.\n"
+            "3. Ensure all $...$ delimiters are balanced.\n"
+            "4. Preserve all factual content without summarizing or adding commentary.\n"
+            "Return ONLY the corrected text.<|im_end|>\n"
+            f"<|im_start|>user\n{harmonized}<|im_end|>\n"
             "<|im_start|>assistant\n"
         )
 
         payload = {
             "prompt": prompt,
-            "n_predict": min(1024, len(text.split()) * 2 + 128),
-            "temperature": 0.15,
+            "n_predict": min(1024, len(harmonized.split()) * 2 + 128),
+            "temperature": 0.1,
             "top_p": 0.90,
             "stop": ["<|im_end|>", "<|im_start|>"],
-            "cache_prompt": False,
+            "cache_prompt": True,
         }
 
         try:
@@ -73,17 +240,27 @@ class GlobalAIReviewer:
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=45.0) as resp:
+            with urllib.request.urlopen(req, timeout=30.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 result = data.get("content", "").strip()
-                if result and len(result) > len(text) * 0.4:
-                    # Strip any accidental chatter
-                    result = re.sub(r'^(?:Here is the (?:corrected|proofread).*?:\s*)', '', result, flags=re.IGNORECASE)
+                result = re.sub(r'^(?:Here is the (?:corrected|proofread).*?:\s*)', '', result, flags=re.IGNORECASE).strip()
+                if self.is_safe_harmonized_edit(harmonized, result):
                     return result
         except Exception:
             pass
 
-        return text
+        return harmonized
+
+    def harmonize_paragraphs(self, paragraphs: List[str], use_slm: bool = True) -> List[str]:
+        """Harmonize notation consistently across a list of lecture paragraphs."""
+        if not paragraphs:
+            return []
+        full_ctx = "\n".join(paragraphs)
+        slm_active = bool(use_slm and self.is_server_alive())
+        return [
+            self.proofread_section(p, context_text=full_ctx, use_slm=slm_active)
+            for p in paragraphs
+        ]
 
 
 class AcademicPDFRenderer:

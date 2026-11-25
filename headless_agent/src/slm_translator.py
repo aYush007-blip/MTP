@@ -100,10 +100,16 @@ class QwenMathTranslator:
         backend: str = "auto",
         device: str = "cuda",
         server_url: str = LLAMA_SERVER_URL,
+        enable_cache_prompt: bool = True,
+        enable_early_abort: bool = True,
     ):
         self.device = device
         self.server_url = server_url
         self.backend = backend
+        self.enable_cache_prompt = enable_cache_prompt
+        self.enable_early_abort = enable_early_abort
+        self.last_abort_reason: Optional[str] = None
+        self.last_stream_stats: dict = {}
         self.model_path = None
         self.tokenizer = None
         self.model = None
@@ -211,33 +217,30 @@ class QwenMathTranslator:
         prompt += "<|im_start|>assistant\n"
         return prompt
 
-    def _clean_response(self, text: str, raw_text: str = "", context_text: str = "") -> str:
+    @staticmethod
+    def _strip_formatting_wrappers(text: str, context_text: str = "") -> str:
+        """Strip markdown code fences, leaked prompt labels, delimiters, and context echo."""
         s = text.strip()
-        # Remove accidental markdown code fences
         s = re.sub(r"^```(?:latex|markdown)?\s*", "", s)
         s = re.sub(r"\s*```$", "", s)
-        # Strip Native and repetitive hallucinations
         s = re.sub(r"\bNative\b", "", s, flags=re.IGNORECASE)
-        # Remove conversational meta prefixes and leaked prompt markers
-        s = re.sub(r"(?:^|\n)\s*\[?(?:Spoken transcript|Preceding context|Translation|Output|Text|Transcription)\]?:\s*", "\n", s, flags=re.IGNORECASE)
+        s = re.sub(
+            r"(?:^|\n)\s*\[?(?:Spoken transcript|Preceding context|Translation|Output|Text|Transcription)\]?:\s*",
+            "\n",
+            s,
+            flags=re.IGNORECASE,
+        )
         s = s.strip()
-        # Unpack accidental \text{...} wrappers around non-math speech
         s = re.sub(r"\$\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$\$", r"\1", s)
         s = re.sub(r"\$(?:\\text\{([^\}]+)\}\s*(?:\\quad\s*)?)+\$", r"\1", s)
-        # Convert any display math delimiters $$...$$ or \[...\] or \(...\) to inline $...$
         s = re.sub(r"\$\$([^$]+)\$\$", r"$\1$", s)
         s = re.sub(r"\\\[(.*?)\\\]", r"$\1$", s, flags=re.DOTALL)
         s = re.sub(r"\\\((.*?)\\\)", r"$\1$", s, flags=re.DOTALL)
-        # Collapse empty $ $
         s = re.sub(r"\$\s*\$", "", s)
-        # Fix unbracketed or dropped variable symbol before [n]$
         s = re.sub(r"(?<![a-zA-Z\$])\[([a-zA-Z0-9]+)\]\$", r"$x[\1]$", s)
-        # Clean illegal math artifacts like $0 + \pm$ or $0 - 2 - 4 + ...$
         s = re.sub(r"\$0\s*\+\s*\\pm\$", r"$0, \\pm 1, \\pm 2, \\ldots$", s)
-        # Collapse multiple spaces
         s = re.sub(r"[ \t]+", " ", s).strip()
 
-        # Context echo stripping: remove verbatim context prefix echoed by model
         if context_text:
             ctx_clean = context_text.strip()
             if s.startswith(ctx_clean):
@@ -249,78 +252,220 @@ class QwenMathTranslator:
                     rem = s[len(line):].strip()
                     if rem:
                         s = rem
+        return s
 
-        # Hallucination & fidelity checks if raw_text is provided
-        if raw_text:
-            words_out = re.findall(r"\b[a-zA-Z0-9_]{3,}\b", s.lower())
-            words_raw = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", raw_text.lower()))
-            # Length explosion check
-            if len(words_out) > max(20, len(words_raw) * 3 + 10):
-                return raw_text
-            # Repetition loop check
-            if len(words_out) >= 9:
-                tri_grams = [" ".join(words_out[i:i+3]) for i in range(len(words_out)-2)]
-                counts = Counter(tri_grams)
-                if any(cnt >= 3 for cnt in counts.values()):
-                    return raw_text
-            # Context echo hijacking check
-            if context_text and len(words_out) >= 5:
-                words_ctx = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", context_text.lower()))
-                spoken_overlap = len(set(words_out) & words_raw) / max(1, len(set(words_out)))
-                context_overlap = len(set(words_out) & words_ctx) / max(1, len(set(words_out)))
-                if context_overlap > 0.6 and spoken_overlap < 0.2:
-                    return raw_text
+    @staticmethod
+    def _detect_guard_violation(
+        candidate: str,
+        raw_text: str,
+        context_text: str = "",
+        *,
+        streaming: bool = False,
+    ) -> Optional[str]:
+        """
+        Check whether a candidate (or partial streaming) response violates output guards.
+        In streaming mode, only monotonic invariants are evaluated so early abort never
+        discards a valid output that might recover once completed.
+        """
+        if not raw_text:
+            return None
 
-            # Prompt leakage / cross-domain physics formula hallucination check
-            physics_tokens = [r"\nabla", r"\mu \nabla", r"\partial \mathbf{v}", r"momentum equation"]
-            if any(pt in s for pt in physics_tokens):
-                raw_lower = raw_text.lower()
-                if not any(pt.replace("\\", "").lower() in raw_lower for pt in physics_tokens):
-                    return raw_text
+        # Avoid aborting mid-echo of context_text before full echo-stripping applies
+        if streaming and context_text:
+            ctx_clean = context_text.strip()
+            if ctx_clean and len(candidate) <= len(ctx_clean) and ctx_clean.startswith(candidate):
+                return None
 
-            # Fabricated piecewise / cases block check
-            if r"\begin{cases}" in s and not any(k in raw_text.lower() for k in ["cases", "piecewise", "otherwise"]):
-                return raw_text
+        words_out = re.findall(r"\b[a-zA-Z0-9_]{3,}\b", candidate.lower())
+        words_raw = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", raw_text.lower()))
 
-            # Fabricated integral check
-            if r"\int" in s and not any(k in raw_text.lower() for k in ["integral", "integrate", "integration"]):
-                return raw_text
+        # 1. Monotonic length explosion check
+        if len(words_out) > max(20, len(words_raw) * 3 + 10):
+            return "length_explosion"
 
-            # Fabricated function checks
-            if r"s(t)" in s and "s of t" not in raw_text.lower() and "s(t)" not in raw_text.lower():
-                s = s.replace(r"s(t)", "such that")
-            if r"g(x)" in s and "g of x" not in raw_text.lower() and "g(x)" not in raw_text.lower() and r"\bar{f}(x)" in s:
-                return raw_text
+        # 2. Monotonic repetition loop check (ignore trailing partial token while streaming)
+        eval_words = words_out[:-1] if (streaming and candidate and not candidate[-1].isspace()) else words_out
+        if len(eval_words) >= 9:
+            tri_grams = [" ".join(eval_words[i:i + 3]) for i in range(len(eval_words) - 2)]
+            if any(cnt >= 3 for cnt in Counter(tri_grams).values()):
+                return "repetition_loop"
+
+        raw_lower = raw_text.lower()
+
+        # 3. Monotonic prompt leakage / fabricated math checks
+        physics_tokens = [r"\nabla", r"\mu \nabla", r"\partial \mathbf{v}", r"momentum equation"]
+        if any(pt in candidate for pt in physics_tokens):
+            if not any(pt.replace("\\", "").lower() in raw_lower for pt in physics_tokens):
+                return "physics_leakage"
+
+        if r"\begin{cases}" in candidate and not any(k in raw_lower for k in ["cases", "piecewise", "otherwise"]):
+            return "fabricated_cases"
+
+        if re.search(r"\\int(?![a-zA-Z])", candidate) and not any(k in raw_lower for k in ["integral", "integrate", "integration"]):
+            return "fabricated_integral"
+
+        if streaming:
+            return None
+
+        # Non-monotonic checks evaluated only on completed outputs
+        if context_text and len(words_out) >= 5:
+            words_ctx = set(re.findall(r"\b[a-zA-Z0-9_]{3,}\b", context_text.lower()))
+            spoken_overlap = len(set(words_out) & words_raw) / max(1, len(set(words_out)))
+            context_overlap = len(set(words_out) & words_ctx) / max(1, len(set(words_out)))
+            if context_overlap > 0.6 and spoken_overlap < 0.2:
+                return "context_echo_hijack"
+
+        if r"g(x)" in candidate and "g of x" not in raw_lower and "g(x)" not in raw_lower and r"\bar{f}(x)" in candidate:
+            return "fabricated_g_of_x"
+
+        return None
+
+    def _clean_response(self, text: str, raw_text: str = "", context_text: str = "") -> str:
+        s = self._strip_formatting_wrappers(text, context_text=context_text)
+        violation = self._detect_guard_violation(s, raw_text, context_text=context_text, streaming=False)
+        if violation is not None:
+            return raw_text
+
+        if raw_text and r"s(t)" in s and "s of t" not in raw_text.lower() and "s(t)" not in raw_text.lower():
+            s = s.replace(r"s(t)", "such that")
 
         return s
 
+    def _consume_server_response(
+        self,
+        resp,
+        spoken_text: str,
+        ctx_str: str,
+        t_start: float,
+    ) -> str:
+        """Read either an SSE streaming response with early abort or a plain JSON completion."""
+        content_type = ""
+        if getattr(resp, "headers", None) is not None:
+            content_type = (resp.headers.get("Content-Type") or "").lower()
+
+        if "text/event-stream" not in content_type and not self.enable_early_abort:
+            resp_data = json.loads(resp.read().decode("utf-8"))
+            content = resp_data["choices"][0]["message"]["content"]
+            self.last_abort_reason = None
+            self.last_stream_stats = {
+                "aborted": False,
+                "abort_reason": None,
+                "chunks": 1,
+                "chars_generated": len(content),
+                "cache_prompt": self.enable_cache_prompt,
+                "elapsed_ms": round((time.monotonic() - t_start) * 1000.0, 2),
+            }
+            return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+
+        chunks = []
+        raw_lines_seen = 0
+        for raw_line in resp:
+            raw_lines_seen += 1
+            line = raw_line.decode("utf-8", errors="replace").strip()
+            if not line:
+                continue
+            # Fallback if a mock/non-streaming server returns raw JSON without text/event-stream header
+            if line.startswith("{"):
+                resp_data = json.loads(line + resp.read().decode("utf-8", errors="replace"))
+                content = resp_data["choices"][0]["message"]["content"]
+                self.last_abort_reason = None
+                self.last_stream_stats = {
+                    "aborted": False,
+                    "abort_reason": None,
+                    "chunks": 1,
+                    "chars_generated": len(content),
+                    "cache_prompt": self.enable_cache_prompt,
+                    "elapsed_ms": round((time.monotonic() - t_start) * 1000.0, 2),
+                }
+                return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+
+            if not line.startswith("data:"):
+                continue
+            payload_str = line[5:].strip()
+            if payload_str == "[DONE]":
+                break
+
+            try:
+                evt = json.loads(payload_str)
+            except json.JSONDecodeError:
+                continue
+
+            choices = evt.get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta") or {}
+            piece = delta.get("content")
+            if piece is None and "message" in choices[0]:
+                piece = (choices[0].get("message") or {}).get("content")
+            if not piece:
+                continue
+
+            chunks.append(piece)
+
+            if self.enable_early_abort and (len(chunks) % 3 == 0 or "\\" in piece or "}" in piece or piece[-1].isspace()):
+                partial = self._strip_formatting_wrappers("".join(chunks), context_text=ctx_str)
+                reason = self._detect_guard_violation(partial, spoken_text, context_text=ctx_str, streaming=True)
+                if reason is not None:
+                    self.last_abort_reason = reason
+                    self.last_stream_stats = {
+                        "aborted": True,
+                        "abort_reason": reason,
+                        "chunks": len(chunks),
+                        "chars_generated": sum(len(c) for c in chunks),
+                        "cache_prompt": self.enable_cache_prompt,
+                        "elapsed_ms": round((time.monotonic() - t_start) * 1000.0, 2),
+                    }
+                    return spoken_text
+
+        content = "".join(chunks)
+        self.last_abort_reason = None
+        self.last_stream_stats = {
+            "aborted": False,
+            "abort_reason": None,
+            "chunks": len(chunks),
+            "chars_generated": len(content),
+            "cache_prompt": self.enable_cache_prompt,
+            "elapsed_ms": round((time.monotonic() - t_start) * 1000.0, 2),
+        }
+        return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+
+    def _execute_server_request(
+        self,
+        data_bytes: bytes,
+        spoken_text: str,
+        ctx_str: str,
+        timeout: float,
+    ) -> str:
+        t_start = time.monotonic()
+        req = urllib.request.Request(
+            f"{self.server_url}/v1/chat/completions",
+            data=data_bytes,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return self._consume_server_response(resp, spoken_text, ctx_str, t_start)
+
     def translate_server(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
-        """Call llama-server via OpenAI-compatible REST API with automatic reconnect/revive."""
+        """Call llama-server via OpenAI-compatible REST API with KV prefix reuse, streaming early abort, and reconnect."""
         messages = self._build_messages(spoken_text, context=context, history=history)
         payload = {
             "messages": messages,
             "max_tokens": max_new_tokens,
             "temperature": 0.0,
             "repeat_penalty": 1.15,
-            "stream": False,
+            "stream": self.enable_early_abort,
             "stop": ["<|im_end|>", "<|endoftext|>", "\n\n"],
-            "cache_prompt": False,
+            "cache_prompt": self.enable_cache_prompt,
         }
         data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            f"{self.server_url}/v1/chat/completions",
-            data=data_bytes,
-            headers={"Content-Type": "application/json"},
-        )
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
+        self.last_abort_reason = None
+        self.last_stream_stats = {}
+
         try:
-            with urllib.request.urlopen(req, timeout=60.0) as resp:
-                resp_data = json.loads(resp.read().decode("utf-8"))
-                content = resp_data["choices"][0]["message"]["content"]
-                return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+            return self._execute_server_request(data_bytes, spoken_text, ctx_str, timeout=60.0)
         except Exception as e:
             print(f"[SLM Server Warning] {e}. Checking server health...")
-            # Auto-revive daemon if down
             if not self._is_server_alive():
                 try:
                     main_dir = str(Path(__file__).resolve().parent.parent)
@@ -338,19 +483,11 @@ class QwenMathTranslator:
                     time.sleep(3.0)
                 except Exception as revive_err:
                     print(f"[SLM Revive Failed] {revive_err}")
-            # Retry loop with backoff and fresh request object
-            for attempt in range(3):
+
+            for _ in range(3):
                 if self._is_server_alive():
                     try:
-                        retry_req = urllib.request.Request(
-                            f"{self.server_url}/v1/chat/completions",
-                            data=data_bytes,
-                            headers={"Content-Type": "application/json"},
-                        )
-                        with urllib.request.urlopen(retry_req, timeout=45.0) as resp:
-                            resp_data = json.loads(resp.read().decode("utf-8"))
-                            content = resp_data["choices"][0]["message"]["content"]
-                            return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+                        return self._execute_server_request(data_bytes, spoken_text, ctx_str, timeout=45.0)
                     except Exception:
                         time.sleep(1.5)
                 else:
@@ -407,6 +544,8 @@ class QwenMathTranslator:
 
     def _has_math_cues(self, text: str) -> bool:
         """Check if spoken sentence contains mathematical terms, variables, or symbols."""
+        # Strip English possessive/contraction suffixes like "today's", "it's" so "'s" is not misread as variable s
+        cleaned = re.sub(r"([a-zA-Z])['’]s\b", r"\1", text)
         pattern = (
             r'\b(?:'
             r'[a-zA-Z]\s+of\s+[a-zA-Z0-9]+|'
@@ -424,7 +563,7 @@ class QwenMathTranslator:
             r'sub|super|bracket|fraction|real|imaginary|complex'
             r')\b|\d+|[=+\-*/^<>~|]'
         )
-        return bool(re.search(pattern, text, re.IGNORECASE))
+        return bool(re.search(pattern, cleaned, re.IGNORECASE))
 
     def translate(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: Optional[int] = None) -> str:
         """Translate spoken lecture transcript into clean prose + LaTeX notation with rolling context."""

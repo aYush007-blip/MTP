@@ -59,24 +59,17 @@ def escape_latex_text(paragraph: str) -> str:
     """
     Sanitizes LaTeX text and math:
     - Balances math delimiters ($...$)
-    - Protects display math ($$...$$ and \\[...\\]) and LaTeX environments (\\begin{...}...\\end{...}) from escaping
+    - Protects display math ($$...$$) from escaping
     - Replaces unicode Greek and math symbols with proper LaTeX commands
     - Wraps stray math expressions (e.g. e^(j\\omega t), x^n, R^n) into inline math
     - Escapes special LaTeX characters (&, %, #, _, ^) outside math mode
     """
-    protected_blocks = []
-    def _mask_prot(m):
-        idx = len(protected_blocks)
-        protected_blocks.append(m.group(0))
-        return f"XXAGYPROT{idx}YY"
-
-    # Mask display math ($$...$$ and \[...\])
-    paragraph = re.sub(r"\$\$.*?\$\$", _mask_prot, paragraph, flags=re.DOTALL)
-    paragraph = re.sub(r"\\\[.*?\\\]", _mask_prot, paragraph, flags=re.DOTALL)
-    # Mask all LaTeX environments (\begin{...}...\end{...})
-    paragraph = re.sub(r"\\begin\{([a-zA-Z*]+)\}.*?\\end\{\1\}", _mask_prot, paragraph, flags=re.DOTALL)
-    # Mask standalone labels or references
-    paragraph = re.sub(r"\\(?:label|ref|eqref)\{[^}]+\}", _mask_prot, paragraph)
+    dd_blocks = []
+    def _mask_dd(m):
+        idx = len(dd_blocks)
+        dd_blocks.append(m.group(0))
+        return f"XXAGYESCDD{idx}YY"
+    paragraph = re.sub(r"\$\$.*?\$\$", _mask_dd, paragraph, flags=re.DOTALL)
 
     paragraph = balance_math_delimiters(paragraph)
     unicode_map = {
@@ -118,8 +111,8 @@ def escape_latex_text(paragraph: str) -> str:
             result.append(s)
     out = "".join(result)
 
-    for idx, prot in enumerate(protected_blocks):
-        out = out.replace(f"XXAGYPROT{idx}YY", prot)
+    for idx, dd in enumerate(dd_blocks):
+        out = out.replace(f"XXAGYESCDD{idx}YY", dd)
 
     return balance_math_delimiters(out)
 
@@ -179,39 +172,6 @@ def sanitize_latex_source(tex: str) -> str:
 
 TIKZ_INDEX_PATH = Path("/mnt/thesis/assets/tikz_library/tikz_index.json")
 
-TIKZ_STOPWORDS = {
-    # LaTeX drawing syntax and style commands
-    "above", "below", "begin", "end", "fill", "draw", "node", "nodes", "path",
-    "clip", "circle", "rectangle", "matrix", "edge", "thick", "thin", "dashed",
-    "dotted", "gray", "black", "blue", "red", "green", "color", "anchor", "shift",
-    "scale", "domain", "samples", "font", "small", "tiny", "large", "huge", "def",
-    "let", "coordinate", "coordinates", "standalone", "caption", "label", "width",
-    "height", "text", "inner", "sep", "minimum", "distance", "foreach", "style",
-    "latex", "east", "west", "north", "south", "align", "center", "column", "row",
-    "stealth", "arrow", "arrows", "positioning", "calc", "shapes", "tikzpicture",
-    "scope", "axis", "xshift", "yshift", "rounded", "corners", "picture", "centered",
-    # LaTeX math macro primitives
-    "frac", "cdot", "left", "right", "geq", "leq", "mathbb", "mathcal", "mathbf",
-    "times", "sum", "int", "infty", "bar", "tilde", "hat", "number", "real",
-    # English grammar and conversation stopwords
-    "actual", "advance", "after", "again", "against", "all", "almost", "also",
-    "and", "any", "are", "around", "back", "basically", "because", "been", "before",
-    "being", "between", "both", "but", "came", "can", "cannot", "come", "could",
-    "did", "does", "doing", "done", "down", "during", "each", "even", "every", "few", "for",
-    "from", "further", "get", "give", "going", "got", "had", "has", "have", "having",
-    "here", "how", "into", "its", "just", "know", "let", "like", "look", "make",
-    "many", "more", "most", "much", "must", "not", "now", "off", "once", "one",
-    "only", "other", "our", "out", "over", "own", "put", "said", "same", "say",
-    "see", "should", "since", "some", "start", "such", "take", "than", "that", "the", "their",
-    "theirs", "them", "then", "there", "these", "they", "this", "those", "through",
-    "time", "too", "two", "under", "until", "use", "used", "using", "very", "want",
-    "was", "way", "well", "were", "what", "when", "where", "which", "while", "who",
-    "whom", "why", "will", "with", "would", "you", "your", "yours",
-    # Non-academic calendar and misc terms
-    "calendario", "calendar", "semana", "dia", "mes", "ano", "feriado", "domingo",
-    "bleasdale", "nelder", "aponta", "mug", "emacs"
-}
-
 
 class TikZDiagramGenerator:
     """
@@ -238,14 +198,11 @@ class TikZDiagramGenerator:
         index = cls.load_index()
         if not index or not text:
             return []
-        tokens = set(w.lower() for w in re.findall(r'[a-zA-Z]{3,}', text)) - TIKZ_STOPWORDS
+        tokens = set(w.lower() for w in re.findall(r'[a-zA-Z]{3,}', text))
         scored = []
         for d in index:
-            did = d.get("id", "").lower()
-            if any(k in did for k in ["calendario", "calendar", "mug", "git_workflow"]):
-                continue
-            clean_kw = set(k.lower() for k in d.get("keywords", [])) - TIKZ_STOPWORDS
-            overlap = len(tokens & clean_kw)
+            kw = set(d.get("keywords", []))
+            overlap = len(tokens & kw)
             if overlap >= min_score:
                 scored.append((overlap, d))
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -664,79 +621,31 @@ class EquationFormatter:
         return text
 
     def should_promote_to_display(self, eq_body: str) -> bool:
-        """
-        Determines if a math expression is a major formula that should be on a separate display line.
-        Strictly prevents trivial scalar bounds (e.g. \delta > 0), simple assignments, isolated variables,
-        or single function evaluations from becoming display equations.
-        """
+        """Determines if a math expression is a formula that should be on a separate display line."""
         eq = eq_body.strip()
-        if not eq:
-            return False
 
-        # --- Rejection Filters (MUST remain inline math) ---
-        # 1. Scalar bounds & simple inequalities: e.g. \delta > 0, \epsilon > 0, t \ge 0, x \ge 0, k > 0
-        if re.match(r'^(?:\\[a-zA-Z]+|[a-zA-Z_])\s*(?:[=><]|\\le|\\ge|\\ne|\\approx)\s*[0-9\.\-]+$', eq):
-            return False
+        # 1. Any equation or relational operator (=, >, <, \le, \ge, \approx, \equiv)
+        if any(op in eq for op in ['=', '>', '<', r'\ge', r'\le', r'\approx', r'\equiv']):
+            if not re.match(r'^[a-zA-Z_]\s*=\s*\d+$', eq):
+                return True
 
-        # 2. Simple equality assignments: e.g. x = 0, x = 1, x = \bar{x} = 0, f(x) = 0, f(x) = x
-        if re.match(r'^(?:[a-zA-Z_\\]+(?:\([a-zA-Z_0-9\\]+\))?)\s*=\s*(?:[a-zA-Z_\\]+(?:\([a-zA-Z_0-9\\]+\))?\s*=\s*)?[a-zA-Z0-9_\\]+$', eq):
-            return False
-
-        # 3. Simple inequality between single variables/functions: e.g. g(x) > g(\bar{x}), f(x) > f(\bar{x})
-        if re.match(r'^(?:[a-zA-Z_\\]+(?:\([a-zA-Z_0-9\\]+\))?)\s*(?:[><]|\\ge|\\le)\s*(?:[a-zA-Z_\\]+(?:\([a-zA-Z_0-9\\]+\))?)$', eq):
-            return False
-
-        # 4. Simple set membership or interval: e.g. x \in \mathbb{R}^n, x \in (a-\delta, a+\delta), x \in S
-        if r'\in' in eq and not any(op in eq for op in [r'\sum', r'\int', r'\min', r'\max', r'\begin']):
-            return False
-
-        # 5. Isolated variables, norms, or short coordinate vectors: e.g. |x|, \left|x\right|, y = x_1, x_2.., x_n
-        if re.match(r'^(?:\\left\||\||\\|)[a-zA-Z0-9_]+(?:\\right\||\|)?$', eq):
-            return False
-        if re.match(r'^[a-zA-Z_]\s*=\s*[a-zA-Z0-9_,\.\s]+$', eq):
-            return False
-
-        # --- Mandatory Requirement: MUST contain an actual relation or major operator environment ---
-        has_relation = any(rel in eq for rel in ['=', r'\le', r'\ge', r'\approx', r'\equiv', r'\ne', r'\sim', '<', '>'])
-        has_operator = any(st in eq for st in [
-            r'\begin{cases}', r'\begin{aligned}', r'\begin{matrix}', r'\begin{pmatrix}', r'\begin{bmatrix}',
-            r'\int', r'\sum', r'\prod', r'\lim', r'\min_{', r'\max_{', r'\arg\min', r'\arg\max'
-        ])
-        if not (has_relation or has_operator):
-            return False
-
-        # --- Acceptance Filters (Promote to Numbered Display Equation) ---
-        # 1. Multi-line, cases, or matrix environments
-        if any(st in eq for st in [r'\begin{cases}', r'\begin{aligned}', r'\begin{matrix}', r'\begin{pmatrix}', r'\begin{bmatrix}']):
+        # 2. Fractions, calculus, sums, integrals, ROC
+        if any(st in eq for st in [r'\frac', r'\sum', r'\int', r'\partial', r'\text{Re}', r'\text{Im}', r'\text{ROC}']):
             return True
 
-        # 2. Calculus, Summations, Integrals, and Optimization
-        if any(st in eq for st in [r'\int', r'\sum', r'\prod', r'\min_{', r'\max_{', r'\arg\min', r'\arg\max', r'\inf_{', r'\sup_{', r'\partial']):
-            return True
-
-        # 3. Substantive Fractions with an equality/relation (e.g. f(x) = \frac{x^2}{2}, X(s) = \frac{1}{s+a})
-        if r'\frac' in eq and '=' in eq and len(eq) >= 10:
-            return True
-
-        # 4. Limits accompanied by an expression (e.g. \lim_{s \to 0} s X(s))
+        # 3. Limits: Only promote if accompanied by an evaluation expression (not naked \lim_{t \to \infty})
         if r'\lim' in eq:
             clean_lim = re.sub(r'\\lim_\{[^}]+\}', '', eq).strip()
             if clean_lim and (any(c.isalpha() for c in clean_lim) or '=' in clean_lim):
                 return True
+            return False
 
-        # 5. Compound signal transforms or time expressions with equality: e.g. x(t) = (e^{-t} - e^{-2t}) u(t)
-        if re.search(r'(?:e\^\{|\bcos\(|\bsin\().*?u\(t\)', eq) and '=' in eq:
+        # 4. Compound signals: e.g. e^{-3t} u(t), (e^{-t} - e^{-2t}) u(t), t e^{-at} u(t), \cos(\omega_0 t) u(t)
+        if re.search(r'(?:e\^\{|\bcos\(|\bsin\().*?u\(t\)', eq):
             return True
 
-        # 6. Compound equations with substantial left and right-hand sides
-        if '=' in eq:
-            sides = eq.split('=', 1)
-            left, right = sides[0].strip(), sides[1].strip()
-            if len(left) >= 2 and len(right) >= 2 and any(c in right for c in ['+', '-', '^', '/', r'\cdot', r'\times', r'\sqrt', r'\frac']):
-                return True
-
-        # 7. Substantial compound relations (length >= 15 with algebraic operations AND relation)
-        if any(op in eq for op in [' - ', ' + ', r'\pm', r'\times', r'\cdot']) and has_relation and len(eq) >= 15:
+        # 5. Multi-term compound expressions (e.g. s X(s) H(s), s^2 + \omega_0^2)
+        if any(op in eq for op in [' - ', ' + ', r'\pm', r'\times']) and len(eq) >= 8:
             return True
 
         return False
@@ -758,15 +667,13 @@ class EquationFormatter:
             eq = eq.replace(r'\textasciicircum{}', '^').replace(r'\textasciicircum', '^')
             return eq.strip()
 
-        # 1. Handle explicit display math \[ ... \] and double dollars $$ ... $$
-        def _replace_display_block(match):
+        # 1. Handle explicit double dollars $$ ... $$
+        def _replace_double_dollars(match):
             self.eq_counter += 1
-            raw_body = match.group(1).replace('$', '').strip()
-            eq_body = _clean_eq_body(raw_body)
+            eq_body = _clean_eq_body(match.group(1).replace('$', ''))
             return f"\n\\begin{{equation}}\n  \\label{{eq:{self.eq_counter}}}\n  {eq_body}\n\\end{{equation}}\n"
 
-        paragraph = re.sub(r'\\\[(.*?)\\\]', _replace_display_block, paragraph, flags=re.DOTALL)
-        paragraph = re.sub(r'\$\$(.*?)\$\$', _replace_display_block, paragraph, flags=re.DOTALL)
+        paragraph = re.sub(r'\$\$(.*?)\$\$', _replace_double_dollars, paragraph, flags=re.DOTALL)
 
         # 2. Tokenize by single dollar pairs: ($[^\$]+$)
         tokens = re.split(r'(\$[^\$]+\$)', paragraph)
@@ -803,125 +710,6 @@ class EquationFormatter:
         res = re.sub(r'\\end\{equation\}\s*[\.,;]', r'\\end{equation}', res)
         # Clean multiple consecutive blank lines
         return re.sub(r'\n{3,}', '\n\n', res)
-
-
-class AcademicMonographSynthesizer:
-    """
-    Transforms raw or transcribed lecture speech into rigorous, publication-grade academic textbook prose.
-    Leverages local Qwen2.5-1.5B (llama-server) to:
-      1. Eliminate conversational speech fluff ('today we start', 'let us go back', 'in this lecture').
-      2. Synthesize clear, authoritative pedagogical exposition in standard third-person academic style.
-      3. Structure definitions, theorems, and mathematical problems with standard LaTeX environments.
-      4. Retain 100% of mathematical variables, equations, and technical depth.
-    """
-    def __init__(self, server_url: str = "http://127.0.0.1:8080"):
-        self.server_url = server_url.rstrip("/")
-
-    def is_available(self) -> bool:
-        try:
-            req = urllib.request.Request(f"{self.server_url}/health", method="GET")
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
-                return resp.status == 200
-        except Exception:
-            return False
-
-    def synthesize_section(self, section_title: str, text: str) -> str:
-        """
-        Synthesizes a thematic section of lecture text into publication-grade monograph prose.
-        """
-        clean_text = text.strip()
-        if not clean_text or len(clean_text) < 40 or not self.is_available():
-            return clean_text
-
-        # If section is very long (> 350 words), chunk at a sentence boundary and synthesize both parts
-        words = clean_text.split()
-        if len(words) > 350:
-            mid = len(words) // 2
-            # Find period or punctuation near mid
-            split_idx = mid
-            for off in range(0, min(50, mid)):
-                if words[mid + off].endswith(('.', '!', '?')):
-                    split_idx = mid + off + 1
-                    break
-                if words[mid - off].endswith(('.', '!', '?')):
-                    split_idx = mid - off + 1
-                    break
-
-            c1 = " ".join(words[:split_idx])
-            c2 = " ".join(words[split_idx:])
-            s1 = self.synthesize_section(f"{section_title}", c1)
-            s2 = self.synthesize_section(f"{section_title}", c2)
-            return f"{s1}\n\n{s2}"
-
-        prompt = (
-            "<|im_start|>system\n"
-            "You are a distinguished university professor and author of graduate-level STEM textbooks.\n"
-            "Rewrite conversational lecture transcripts into rigorous, publication-grade academic monograph prose.\n\n"
-            "DIRECTIVES:\n"
-            "1. ELIMINATE CONVERSATIONAL FILLER: Remove all spoken dialogue ('today we start', 'for example let me look', 'let me tell you', 'as you can see').\n"
-            "2. OBJECTIVE SCHOLARLY STYLE: Write authoritative, clear formal textbook exposition.\n"
-            "3. MATHEMATICAL RIGOR: State mathematical definitions and optimization problems formally with standard LaTeX environments (\\begin{definition}[Title] ... \\end{definition}, \\begin{theorem}[Title] ... \\end{theorem}). Use standard inline $...$ and display \\[ ... \\].\n"
-            "4. TECHNICAL COMPLETENESS: Retain all variables, parameters, and functional relations without omitting technical steps.\n"
-            "Output ONLY the synthesized academic LaTeX text.<|im_end|>\n"
-            "<|im_start|>user\n"
-            "Today, we are going to start this exciting journey on a subject called convex optimization. Convex optimization involves the minimization of a convex function subject to a convex set C. Now, of course, this is a very special class of optimization problems. This class is special and why it is important to applications and why good algorithms can be constructed about it, that would be essentially the matter of this course. So, we would now like to refresh our knowledge about maxima and minima. So, in doing so, we will go back to high school Once again, and we will focus on a function f: R -> R and let's see what we've learned in high school and let's see what it means to be the minimum of f. Of course, this minimum A point x bar in R is called a minimum if f(x) is greater than f(x bar) for every x in R.<|im_end|>\n"
-            "<|im_start|>assistant\n"
-            "Convex optimization is a fundamental discipline within mathematical programming concerned with minimizing a convex objective function over a convex feasible set $\\mathcal{C} \\subseteq \\mathbb{R}^n$. The canonical optimization problem is formulated as:\n"
-            "\\[\n"
-            "\\min_{x \\in \\mathcal{C}} \\quad f(x)\n"
-            "\\]\n"
-            "This problem class possesses remarkable analytical and algorithmic properties; notably, any local minimum is guaranteed to be a global minimum, and efficient, globally convergent numerical algorithms can be constructed to compute optimal solutions.\n\n"
-            "To establish rigorous optimality criteria, we first recall the foundational definitions of unconstrained extrema for a scalar function $f: \\mathbb{R} \\to \\mathbb{R}$.\n\n"
-            "\\begin{definition}[Global Minimum]\n"
-            "Let $f: \\mathbb{R} \\to \\mathbb{R}$. A point $\\bar{x} \\in \\mathbb{R}$ is a global minimum of $f$ if:\n"
-            "\\[\n"
-            "f(x) \\ge f(\\bar{x}), \\quad \\forall x \\in \\mathbb{R}\n"
-            "\\]\n"
-            "\\end{definition}<|im_end|>\n"
-            f"<|im_start|>user\n"
-            f"Lecture topic: {section_title}\n"
-            f"Transcript text:\n{clean_text}<|im_end|>\n"
-            "<|im_start|>assistant\n"
-        )
-
-        n_tokens = max(256, min(512, len(clean_text.split()) * 2 + 100))
-        payload = {
-            "prompt": prompt,
-            "temperature": 0.1,
-            "top_p": 0.9,
-            "n_predict": n_tokens,
-            "stop": ["<|im_end|>", "<|im_start|>"],
-            "cache_prompt": False
-        }
-
-        for attempt in range(2):
-            try:
-                req = urllib.request.Request(
-                    f"{self.server_url}/completion",
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
-                )
-                with urllib.request.urlopen(req, timeout=90.0) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    result = data.get("content", "").strip()
-                    if result and len(result) > len(clean_text) * 0.35:
-                        result = re.sub(r'^(?:Here is the (?:synthesized|corrected|formal).*?:\s*)', '', result, flags=re.IGNORECASE)
-                        return result
-            except Exception as e:
-                err_str = str(e)
-                if ("Connection refused" in err_str or "Remote end closed" in err_str) and attempt == 0:
-                    print(f"[Synthesizer] Connection dropped ({err_str}). Reviving daemon...")
-                    try:
-                        from test_system_wav import ensure_llama_server
-                        ensure_llama_server()
-                        time.sleep(2.0)
-                        continue
-                    except Exception:
-                        pass
-                print(f"[Synthesizer] Note: SLM synthesis pass bypassed: {e}")
-                break
-
-        return clean_text
 
 
 class AcademicSectionizer:
@@ -1034,12 +822,15 @@ class AcademicSectionizer:
     ]
 
     @classmethod
-    def partition_into_sections(
+    def structure_monograph(
         cls,
-        paragraphs: List[str]
-    ) -> List[Tuple[str, List[str]]]:
+        paragraphs: List[str],
+        tikz_blocks: List[str],
+        full_text: str = ""
+    ) -> List[str]:
         """
-        Partitions paragraphs into cohesive thematic sections based on academic domain rules.
+        Structures paragraphs into formal numbered LaTeX sections.
+        Inserts definitions, theorems, examples, remarks, and TikZ figures contextually.
         Guarantees 3-5 structured sections across any engineering lecture.
         """
         if not paragraphs:
@@ -1092,18 +883,7 @@ class AcademicSectionizer:
                 sec_title = fallback_headings[i] if i < len(fallback_headings) else f"Advanced Theoretical Analysis {i+1}"
                 sections.append((sec_title, paragraphs[start_p:end_p]))
 
-        return sections
-
-    @classmethod
-    def structure_monograph_from_sections(
-        cls,
-        sections: List[Tuple[str, List[str]]],
-        tikz_blocks: List[str],
-        full_text: str = ""
-    ) -> List[str]:
-        """
-        Builds output body parts from structured sections and contextually matches TikZ figures.
-        """
+        # Build output body with LaTeX sections and contextual TikZ insertion
         body_parts = []
         tikz_remaining = list(tikz_blocks)
 
@@ -1112,18 +892,23 @@ class AcademicSectionizer:
             for p in sec_paras:
                 p_strip = p.strip()
                 if not p_strip.startswith(r"\begin{"):
-                    # Wrap formal definition / theorem labels if not already inside environment
-                    if re.match(r'^(?:definition|formal definition)\s*:\s*', p_strip, re.IGNORECASE):
-                        clean_body = re.sub(r'^(?:definition|formal definition)\s*:\s*', '', p_strip, flags=re.IGNORECASE)
-                        p = f"\\begin{{definition}}\n{clean_body}\n\\end{{definition}}"
-                    elif re.match(r'^(?:theorem|fundamental theorem)\s*:\s*', p_strip, re.IGNORECASE):
-                        clean_body = re.sub(r'^(?:theorem|fundamental theorem)\s*:\s*', '', p_strip, flags=re.IGNORECASE)
-                        p = f"\\begin{{theorem}}\n{clean_body}\n\\end{{theorem}}"
+                    # Wrap definition cues
+                    if re.search(r'\b(we define|definition:|is defined as|by definition|a function .* is said to be|a set .* is said to be)\b', p_strip, re.IGNORECASE):
+                        p = f"\\begin{{definition}}\n{p_strip}\n\\end{{definition}}"
+                    # Wrap theorem cues
+                    elif re.search(r'\b(theorem:|fundamental theorem|we state the theorem|principle of|it can be proved that|the following theorem holds)\b', p_strip, re.IGNORECASE):
+                        p = f"\\begin{{theorem}}\n{p_strip}\n\\end{{theorem}}"
+                    # Wrap example cues
+                    elif re.search(r'\b(for example|as an example|consider the example|illustrative example|to illustrate this, consider)\b', p_strip, re.IGNORECASE):
+                        p = f"\\begin{{example}}\n{p_strip}\n\\end{{example}}"
+                    # Wrap remark cues
+                    elif re.search(r'\b(note that|it is worth noting|remark:|an important observation is)\b', p_strip, re.IGNORECASE):
+                        p = f"\\begin{{remark}}\n{p_strip}\n\\end{{remark}}"
 
                 body_parts.append(p)
                 body_parts.append("")
 
-            # Insert TikZ diagrams contextually based on strict content scoring
+            # Insert TikZ diagrams contextually based on content scoring
             if tikz_remaining:
                 lower_sec = (sec_title + " " + " ".join(sec_paras)).lower()
                 diag_to_insert = None
@@ -1133,32 +918,30 @@ class AcademicSectionizer:
                 for d in tikz_remaining:
                     m_cap = re.search(r'\\caption\{([^}]+)\}', d)
                     cap_text = m_cap.group(1).lower() if m_cap else ""
-                    cap_words = set(w for w in re.findall(r'[a-zA-Z]{4,}', cap_text)) - TIKZ_STOPWORDS
+                    cap_words = set(w for w in re.findall(r'[a-zA-Z]{4,}', cap_text))
                     overlap = sum(1 for w in cap_words if w in lower_sec)
                     if overlap > best_score:
                         best_score = overlap
                         best_match = d
 
-                # Strict requirement: only insert if there is strong substantive overlap (score >= 2)
-                if best_match and best_score >= 2:
+                if best_match and best_score >= 1:
                     diag_to_insert = best_match
+                elif sec_idx == max(1, len(sections) // 2) and tikz_remaining:
+                    diag_to_insert = tikz_remaining[0]
+                elif sec_idx == len(sections) and tikz_remaining:
+                    diag_to_insert = tikz_remaining[0]
 
                 if diag_to_insert:
                     body_parts.append(diag_to_insert)
                     body_parts.append("")
                     tikz_remaining.remove(diag_to_insert)
 
-        return body_parts
+        # Append any remaining diagrams distributed across document
+        for d in tikz_remaining:
+            body_parts.append(d)
+            body_parts.append("")
 
-    @classmethod
-    def structure_monograph(
-        cls,
-        paragraphs: List[str],
-        tikz_blocks: List[str],
-        full_text: str = ""
-    ) -> List[str]:
-        sections = cls.partition_into_sections(paragraphs)
-        return cls.structure_monograph_from_sections(sections, tikz_blocks, full_text)
+        return body_parts
 
 
 class LectureToBookBuilder:
@@ -1169,8 +952,25 @@ class LectureToBookBuilder:
         self.tikz_gen = TikZDiagramGenerator()
         self.eq_formatter = EquationFormatter()
         self.sectionizer = AcademicSectionizer()
-        self.synthesizer = AcademicMonographSynthesizer()
-        self.last_synthesized_paragraphs = []
+        self._ai_reviewer = None
+        self._harmonized_cache: Dict[Tuple[str, ...], List[str]] = {}
+
+    def harmonize_paragraphs(self, paragraphs: List[str], use_slm: bool = True) -> List[str]:
+        """
+        Run cross-chunk notation harmonization on assembled lecture paragraphs
+        before equation promotion and bilingual translation.
+        """
+        if not paragraphs:
+            return []
+        key = tuple(paragraphs)
+        if key in self._harmonized_cache:
+            return list(self._harmonized_cache[key])
+        if self._ai_reviewer is None:
+            from postprocess_lecture_ai import GlobalAIReviewer
+            self._ai_reviewer = GlobalAIReviewer()
+        harmonized = self._ai_reviewer.harmonize_paragraphs(paragraphs, use_slm=use_slm)
+        self._harmonized_cache[key] = list(harmonized)
+        return harmonized
 
     def clean_speech_text(self, text: str) -> str:
         """Clean acoustic noise tags and artifacts while strictly preserving 100% of spoken words."""
@@ -1611,52 +1411,28 @@ class LectureToBookBuilder:
         if not date_str:
             date_str = time.strftime("%B %d, %Y")
 
-        paragraphs = self.assemble_paragraphs(chunks)
+        paragraphs = self.harmonize_paragraphs(self.assemble_paragraphs(chunks))
         full_text = " ".join(paragraphs)
 
         # Infer intelligent title based on transcript content
         inferred_title = self.infer_lecture_title(full_text)
         clean_title = inferred_title if inferred_title else lecture_title
 
-        # 1. Detect diagram triggers
+        # Detect diagram triggers
         triggers = self.tikz_gen.detect_diagram_triggers(full_text)
         tikz_blocks = self.tikz_gen.get_tikz_for_triggers(triggers, full_text=full_text)
 
-        # 2. Partition raw transcript paragraphs into cohesive thematic sections
-        raw_sections = self.sectionizer.partition_into_sections(paragraphs)
-
-        # 3. Synthesize each section into publication-grade academic textbook prose via SLM
-        synthesized_sections = []
-        all_synth_paras = []
-        print(f"[MonographBuilder] Synthesizing {len(raw_sections)} monograph sections via local SLM...")
-        for sec_idx, (sec_title, sec_paras) in enumerate(raw_sections, 1):
-            sec_raw = "\n\n".join(sec_paras)
-            t0_sec = time.monotonic()
-            synth_text = self.synthesizer.synthesize_section(sec_title, sec_raw)
-            dt_sec = time.monotonic() - t0_sec
-            paras_out = [p.strip() for p in synth_text.split("\n\n") if p.strip()]
-            if not paras_out:
-                paras_out = sec_paras
-            print(f"[MonographBuilder] Section {sec_idx}/{len(raw_sections)} '{sec_title}' synthesized in {dt_sec:.1f}s ({len(paras_out)} paragraphs)")
-            synthesized_sections.append((sec_title, paras_out))
-            all_synth_paras.extend(paras_out)
-
-        self.last_synthesized_paragraphs = list(all_synth_paras)
-
-        # 4. Sanitize text and promote significant formulas to numbered display equations
-        processed_sections = []
-        for sec_title, s_paras in synthesized_sections:
-            p_paras = [self.eq_formatter.promote_to_display_equations(escape_latex_text(p)) for p in s_paras]
-            processed_sections.append((sec_title, p_paras))
+        # Sanitize text and inline math first, then promote major formulas to numbered display equations
+        processed_paragraphs = [self.eq_formatter.promote_to_display_equations(escape_latex_text(p)) for p in paragraphs]
 
         # Escape ampersands and strip math delimiters for clean document header
         clean_title_tex = clean_title.replace("$", "").replace("&", r"\&").strip()
 
-        # 5. Build structured monograph with formal sections, theorems, definitions, and contextual TikZ diagrams
-        body_tex_parts = self.sectionizer.structure_monograph_from_sections(processed_sections, tikz_blocks, full_text)
+        # Build structured monograph with formal sections, theorems, definitions, and contextual TikZ diagrams
+        body_tex_parts = self.sectionizer.structure_monograph(processed_paragraphs, tikz_blocks, full_text)
         body_tex = "\n".join(body_tex_parts)
 
-        # LaTeX Document Template (Publication-Grade Academic Monograph)
+        # LaTeX Document Template (100% Complete Transcript, Typeset with Vector Math)
         latex_doc = rf"""\documentclass[11pt,a4paper]{{article}}
 \usepackage{{amsmath,amssymb,amsfonts,amsthm,mathtools}}
 \usepackage{{geometry}}
@@ -1723,17 +1499,15 @@ class LectureToBookBuilder:
             "---",
             ""
         ]
-        for sec_title, p_paras in processed_sections:
-            md_parts.append(f"## {sec_title}\n")
-            for p in p_paras:
-                p_md = re.sub(
-                    r'\\begin\{equation\}\s*(?:\\label\{[^}]+\})?\s*(.*?)\s*\\end\{equation\}',
-                    r'\n$$\n\1\n$$\n',
-                    p,
-                    flags=re.DOTALL
-                )
-                md_parts.append(p_md)
-                md_parts.append("")
+        for p in processed_paragraphs:
+            p_md = re.sub(
+                r'\\begin\{equation\}\s*(?:\\label\{[^}]+\})?\s*(.*?)\s*\\end\{equation\}',
+                r'\n$$\n\1\n$$\n',
+                p,
+                flags=re.DOTALL
+            )
+            md_parts.append(p_md)
+            md_parts.append("")
 
         if tikz_blocks:
             md_parts.append("*(Vector graphics rendered in compiled PDF)*\n")
@@ -1748,8 +1522,7 @@ class LectureToBookBuilder:
         clean_title: str,
         chunks: List[TranscriptChunk],
         author: str = "",
-        date_str: Optional[str] = None,
-        synthesized_paragraphs: Optional[List[str]] = None
+        date_str: Optional[str] = None
     ) -> Tuple[str, str, str, List[TranscriptChunk], List[str]]:
         """
         Builds the bilingual Hindi typeset monograph (.md and .tex) and translated subtitle chunks.
@@ -1765,9 +1538,9 @@ class LectureToBookBuilder:
         # 1. Translate title
         hindi_title = translator.translate_title(clean_title)
 
-        # 2. Translate monograph paragraphs using synthesized academic prose
-        target_paragraphs = synthesized_paragraphs or getattr(self, "last_synthesized_paragraphs", None) or self.assemble_paragraphs(chunks)
-        hindi_paragraphs = translator.translate_paragraphs(target_paragraphs)
+        # 2. Assemble cohesive paragraphs, harmonize notation, and translate them
+        english_paragraphs = self.harmonize_paragraphs(self.assemble_paragraphs(chunks))
+        hindi_paragraphs = translator.translate_paragraphs(english_paragraphs)
 
         # 3. Translate subtitle chunks for .srt and .vtt (in high-throughput batches)
         print(f"[HindiTranslator] Translating {len(chunks)} subtitle segments into Hindi in parallel batches...")
