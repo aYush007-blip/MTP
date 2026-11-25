@@ -1,0 +1,926 @@
+% =============================================================================
+%  Live and Offline Multilingual Lecture Transcription and Automated Study
+%  Notes Generation Using NVIDIA Jetson Orin
+%  M.Tech (Dual Degree) Project Report -- IIT Kharagpur
+%  Compile with:  xelatex Final_Polished_MTP_Report.tex  (run twice)
+% =============================================================================
+\documentclass[11pt,a4paper,oneside]{report}
+
+% ---------------------------------------------------------------- page & fonts
+\usepackage[a4paper,top=25mm,bottom=25mm,left=27mm,right=25mm,headheight=14pt]{geometry}
+\usepackage{fontspec}
+\newfontfamily\devfont{FreeSerif}[Script=Devanagari]
+\newcommand{\hi}[1]{{\devfont #1}}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.12}
+
+% ---------------------------------------------------------------- packages
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs,tabularx,multirow,array}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage[font=small,labelfont=bf,labelsep=period,skip=6pt]{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{needspace}
+\usepackage{tocloft}
+\setlength{\cftbeforechapskip}{5pt}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{8pt}
+\renewcommand{\cfttoctitlefont}{\LARGE\bfseries\color{navy}}
+\renewcommand{\cftchapfont}{\bfseries}
+\renewcommand{\cftchappagefont}{\bfseries}
+\usepackage[hyphens]{url}
+\usepackage[colorlinks=true,linkcolor=linkblue,citecolor=linkblue,urlcolor=linkblue,
+            bookmarksnumbered=true,pdfstartview=FitH]{hyperref}
+
+% ---------------------------------------------------------------- colours
+\definecolor{navy}{RGB}{22,40,90}
+\definecolor{linkblue}{RGB}{25,60,140}
+\definecolor{rulegray}{RGB}{150,155,165}
+\definecolor{boxfill}{RGB}{243,245,250}
+\definecolor{accA}{RGB}{38,84,164}
+\definecolor{accB}{RGB}{204,120,40}
+\definecolor{accC}{RGB}{70,140,90}
+
+\hypersetup{
+  pdftitle={Live Lecture Transcription and Automated Bilingual Study Notes Generation Using NVIDIA Jetson Orin},
+  pdfauthor={Ayush Gurjar (22IE35002)},
+  pdfsubject={M.Tech (Dual Degree) Project Report, Department of Electrical Engineering, IIT Kharagpur}}
+
+% ---------------------------------------------------------------- headings
+\titleformat{\chapter}[hang]{\normalfont\LARGE\bfseries\color{navy}}{\thechapter}{0.6em}{}
+\titlespacing*{\chapter}{0pt}{-6pt}{14pt}
+\titleformat{\section}{\normalfont\large\bfseries\color{navy}}{\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{12pt plus 3pt minus 2pt}{5pt plus 2pt}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\titlespacing*{\subsection}{0pt}{9pt plus 2pt minus 2pt}{3pt plus 1pt}
+\titleformat{\paragraph}[runin]{\normalfont\normalsize\bfseries}{}{0pt}{}[.]
+\titlespacing*{\paragraph}{0pt}{5pt plus 2pt}{0.5em}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt plus 1pt}
+\setlist{itemsep=2pt,topsep=3pt,parsep=0pt}
+\renewcommand{\arraystretch}{1.18}
+\setlength{\tabcolsep}{5pt}
+\setlength{\abovecaptionskip}{5pt}
+\setlength{\textfloatsep}{12pt plus 2pt minus 3pt}
+\setlength{\floatsep}{10pt plus 2pt minus 2pt}
+\clubpenalty=10000 \widowpenalty=10000 \displaywidowpenalty=10000
+
+% ---------------------------------------------------------------- header/footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\color{rulegray!60!black}\nouppercase{\leftmark}}
+\fancyhead[R]{\small\color{rulegray!60!black}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{{\color{rulegray}\hrule width\headwidth height\headrulewidth}}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter\quad #1}{}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---------------------------------------------------------------- theorem-like
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
+\newtheorem*{remark}{Remark}
+
+% ---------------------------------------------------------------- helpers
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\RTF}{\mathrm{RTF}}
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+
+% TikZ styles
+\tikzset{
+  blk/.style={draw=navy,fill=boxfill,rounded corners=2pt,thick,align=center,
+              font=\footnotesize,minimum height=9mm,inner sep=3pt},
+  dev/.style={draw=accB!80!black,fill=accB!8,rounded corners=2pt,thick,align=center,
+              font=\footnotesize,minimum height=9mm,inner sep=3pt},
+  outb/.style={draw=accC!80!black,fill=accC!8,rounded corners=2pt,thick,align=center,
+              font=\footnotesize,minimum height=9mm,inner sep=3pt},
+  arr/.style={-{Stealth[length=2.2mm]},thick,draw=navy!80},
+  lane/.style={draw=rulegray,dashed,rounded corners=4pt,inner sep=5pt},
+  lanelbl/.style={font=\scriptsize\itshape,text=rulegray!50!black},
+}
+
+\begin{document}
+
+% =============================================================================
+%  TITLE PAGE
+% =============================================================================
+\begin{titlepage}
+\newgeometry{top=20mm,bottom=20mm,left=25mm,right=25mm}
+\centering
+\includegraphics[width=33mm]{iitkgp_logo.png}\par
+\vspace{6mm}
+{\LARGE\bfseries\color{navy} Live Lecture Transcription\\[2pt]
+and Automated Bilingual Study Notes\\[2pt]
+Generation Using NVIDIA Jetson Orin\par}
+\vspace{6mm}
+{\large\bfseries Master’s Thesis Project 1 (MTP-1: IE57201) Report\par}
+\vspace{3mm}
+{\normalsize Submitted in partial fulfilment of the requirements for the degree of\par}
+\vspace{2mm}
+{\large\bfseries Dual Degree (B.Tech + M.Tech)\par}
+\vspace{1mm}
+{\normalsize in\par}
+\vspace{1mm}
+{\large\bfseries Electrical Engineering\par}
+\vspace{1mm}
+{\normalsize Specialisation: Signal Processing and Machine Learning (SPML)\par}
+\vspace{7mm}
+{\normalsize\itshape Submitted by\par}
+\vspace{1.5mm}
+{\Large\bfseries Ayush Gurjar\par}
+\vspace{1mm}
+{\normalsize Roll No.\ 22IE35002\par}
+\vspace{6mm}
+{\normalsize\itshape Under the supervision of\par}
+\vspace{1.5mm}
+{\large\bfseries Prof.\ Ashish Ranjan Hota\par}
+\vspace{0.5mm}
+{\normalsize Assistant Professor, Department of Electrical Engineering\par}
+\vfill
+{\color{navy}\rule{0.55\textwidth}{0.6pt}\par}
+\vspace{2mm}
+{\normalsize Department of Electrical Engineering\par}
+{\normalsize\bfseries Indian Institute of Technology Kharagpur\par}
+{\normalsize Kharagpur 721302, West Bengal, India\par}
+\vspace{2mm}
+{\normalsize Autumn Semester 2026--27\par}
+\restoregeometry
+\end{titlepage}
+
+% =============================================================================
+%  FRONT MATTER
+% =============================================================================
+\pagenumbering{roman}
+\setcounter{page}{2}
+
+\chapter*{Certificate}
+\addcontentsline{toc}{chapter}{Certificate}
+\thispagestyle{plain}
+
+This is to certify that the project report entitled \textbf{``Live Lecture Transcription and Automated Bilingual Study Notes Generation Using NVIDIA Jetson Orin''}, submitted by \textbf{Ayush Gurjar} (Roll No.\ 22IE35002) to the Indian Institute of Technology Kharagpur in partial fulfilment of the requirements for the award of the Dual Degree (B.Tech + M.Tech) in Electrical Engineering with specialisation in Signal Processing and Machine Learning, is a record of bona fide work carried out under my supervision and guidance during the Autumn Semester of the academic year 2026--27.
+
+The results presented in this report have not been submitted to any other university or institute for the award of any degree or diploma.
+
+\vspace{30mm}
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Date:} 28 November 2026\\[3pt]
+\textbf{Place:} IIT Kharagpur
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\textwidth}
+\rule{60mm}{0.4pt}\\[3pt]
+\textbf{Prof.\ Ashish Ranjan Hota}\\
+Department of Electrical Engineering\\
+Indian Institute of Technology Kharagpur
+\end{minipage}
+
+\chapter*{Declaration}
+\addcontentsline{toc}{chapter}{Declaration}
+\thispagestyle{plain}
+
+I declare that the work in this report is original and has been done by me under the guidance of my supervisor; that it has not been submitted to any other institute for any degree or diploma; that I have followed the guidelines of the Institute in preparing it; and that wherever I have used material (data, models, figures or text) from other sources, I have given due credit by citing them in the text and listing them in the references.
+
+The software described here, and the benchmark logs from which the quantitative results in Chapter~\ref{chap:results} are taken, were produced on the NVIDIA Jetson Orin Nano testbed used for this project.
+
+\vspace{18mm}
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Date:} 28 November 2026\\[3pt]
+\textbf{Place:} IIT Kharagpur
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\textwidth}
+\rule{60mm}{0.4pt}\\[3pt]
+\textbf{Ayush Gurjar}\\
+Roll No.\ 22IE35002\\
+Dual Degree (B.Tech + M.Tech), Electrical Engineering
+\end{minipage}
+
+
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\thispagestyle{plain}
+
+Automatic speech recognition systems can transcribe general lecture audio effectively, but often represent spoken mathematical expressions as ordinary words rather than structured notation. This limits the usefulness of raw transcripts for technical revision. Cloud-based language models offer one possible approach to correcting such expressions, but introduce network dependence, data-transfer considerations and recurring inference costs. This project presents an offline framework that converts spoken lectures into typeset study notes using a 15\,W NVIDIA Jetson Orin Nano with 8\,GB of unified memory.
+
+The proposed framework comprises five stages. Audio acquired from a USB microphone is converted to 16\,kHz mono and segmented into utterances using an energy-based voice activity detector. Whisper \texttt{small.en}, deployed through \texttt{whisper.cpp}, performs speech recognition using a domain-informed decoding prompt. A 4-bit quantised Qwen2.5-1.5B-Instruct model, deployed through \texttt{llama.cpp}, converts mathematical expressions into inline LaTeX while a mathematical-cue gate limits model invocation to relevant utterances. Following the lecture, a document-generation stage organises the transcript into sections, formats selected expressions as numbered equations, incorporates TikZ diagrams from a template library and produces an English PDF. A corresponding Hindi edition is generated in Devanagari while retaining mathematical notation. A voice-controlled headless agent coordinates recording, processing, spoken status feedback and integrity-verified export to removable storage.
+
+On the 107-sample MathSpeech test split, the language-model-based approach improved normalised exact match from 8.4\% to 40.2\% compared with the initial regex-router and fine-tuned T5-Small approach. Token error rate decreased from 61.2\% to 30.8\%, while mean conversion latency decreased from 787\,ms to 520\,ms per utterance. In three recorded-lecture experiments lasting 32, 60 and 65 minutes, the complete ASR and formatting pipeline operated at 2.95--4.47$\times$ real-time speed. These results demonstrate the feasibility of integrating offline speech recognition, mathematical expression conversion and bilingual study-note generation on resource-constrained edge hardware.
+
+\vspace{6pt}
+\noindent\textbf{Keywords:} edge AI, automatic speech recognition, spoken mathematics, speech-to-LaTeX, small language models, quantisation, NVIDIA Jetson Orin Nano, bilingual study material, NEP 2020.
+
+% ---------------------------------------------------------------- contents
+\cleardoublepage
+{\setstretch{1.0}\setlength{\parskip}{0pt}
+\renewcommand{\contentsname}{Contents}
+\tableofcontents}
+\thispagestyle{plain}
+
+
+
+% =============================================================================
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+% =============================================================================
+%  CHAPTER 1
+% =============================================================================
+\chapter{Introduction}
+\label{chap:intro}
+
+\section{Motivation}
+Anyone who has sat through an engineering lecture knows the routine. You listen to the argument, try to follow the derivation on the board, and copy both into a notebook, all at once. Something always slips. A video recording helps a little, but nobody revises from a two-hour video the night before an exam. What a student really wants is a tidy set of notes where the explanation and the mathematics sit side by side, written in the instructor's own notation.
+
+Automatic speech recognition (ASR) seems like the natural tool here, and modern models such as Whisper~\cite{radford2023whisper} are very good at conversational English. Spoken mathematics is another matter. If a lecturer says ``limit $s$ goes to zero of $s$ times $X$ of $s$ times $H$ of $s$'', the transcript is just those words in lower case. Nothing tells the reader that $\lim_{s\to0}$ is an operator, that $X(s)$ is a function, or how the product is grouped. Hyeon et al.~\cite{hyeon2025mathspeech} studied this failure in detail when they released the MathSpeech benchmark. It is the first problem we tackle in this project.
+
+\section{Why the system runs on the edge}
+The easy fix would be to send the transcript to a large model in the cloud. For a device meant to sit in a classroom, we saw three reasons not to. Wi-Fi in big lecture halls is often congested or firewalled, and a tool that freezes whenever the network does cannot be relied on. Per-minute and per-token charges become significant over a full semester. Some lectures also contain unpublished material, which an institution may reasonably not want on a third-party server. So we fixed one constraint early, and it ended up shaping the whole design. Every stage, from the microphone to the final PDF, has to run on a single low-power board inside the room, with no network at all.
+
+The board we used is the NVIDIA Jetson Orin Nano Developer Kit. Its 8\,GB of memory is shared by the CPU and GPU, which means the speech model, the language model, the operating system and the LaTeX compiler all draw from one pool. A large part of the engineering effort went into keeping the pipeline inside that budget, so that the kernel's out-of-memory killer never had to step in.
+
+\section{Study material in Indian languages}
+The National Education Policy 2020~\cite{nep2020} encourages teaching material in Indian languages. At IIT Kharagpur, many students come from Hindi-medium schools, and in their first years they have to keep up with fast technical English while learning difficult mathematics at the same time. Hindi versions of lecture notes could ease that, provided the mathematics comes through the translation intact. Variable names, transforms and operators are international notation, and writing $x(t)$ or $H(s)$ in Devanagari would only make every later textbook harder to use. What we aimed for is therefore a \emph{bilingual} document. The explanation is in Hindi with English technical terms in parentheses, and the mathematics is left in its standard form.
+
+\section{Objectives and research questions}
+We had two goals: build a classroom appliance that actually works, and measure how well it does its job. Three questions guided the work:
+\begin{enumerate}[label=\textbf{RQ\arabic*.},leftmargin=3em]
+  \item Can an 8\,GB, 15\,W edge device transcribe a lecture faster than real time and convert its spoken mathematics into usable LaTeX, without cloud services and without running out of memory?
+  \item How much does a small instruction-tuned language model improve spoken-math conversion over a rule-based router with a small fine-tuned translator, and how much latency does it add?
+  \item Can the whole workflow, from starting a recording to getting notes on a USB drive, be made hands-free enough to use at the lecture podium without a monitor or keyboard?
+\end{enumerate}
+
+\section{Contributions}
+The main contributions of this work are the following.
+\begin{itemize}
+  \item A complete, fully offline speech-to-notes pipeline on the Jetson Orin Nano, built from \texttt{whisper.cpp} and \texttt{llama.cpp} server processes with a thin Python layer coordinating them (Chapters~\ref{chap:arch} and~\ref{chap:method}).
+  \item A two-phase study of spoken-math conversion. Phase~1 is a heuristic router feeding a fine-tuned T5-Small model. Phase~2 replaces it with a quantised Qwen2.5-1.5B-Instruct model, a gate on mathematical cues and a set of hallucination guards. Both are evaluated on the same data (Section~\ref{sec:res-accuracy}).
+  \item A document generator that writes sectioned English notes with numbered equations and TikZ figures, plus a Hindi edition that keeps the formulas in LaTeX (Section~\ref{sec:book}).
+  \item A voice-controlled headless agent with spoken feedback, start-up at boot and checksummed export to USB (Section~\ref{sec:headless}).
+  \item Benchmarks on hour-long recorded lectures and a live microphone session, along with a look at the errors still left (Chapter~\ref{chap:results}).
+\end{itemize}
+
+\section{Organisation of the report}
+Chapter~\ref{chap:background} covers related work and the hardware. Chapter~\ref{chap:arch} lists the requirements and lays out the architecture, and Chapter~\ref{chap:method} goes through each stage of the pipeline. The experiments are in Chapter~\ref{chap:results}, together with what they do and do not show. Chapter~\ref{chap:conclusion} sums up and discusses future work.
+
+% =============================================================================
+%  CHAPTER 2
+% =============================================================================
+\chapter{Background and Related Work}
+\label{chap:background}
+
+\section{Speech recognition with Whisper}
+Over the last decade, end-to-end neural models have mostly replaced GMM--HMM speech recognisers. They are trained with connectionist temporal classification (CTC), with transducer losses, or as attention-based encoder--decoders~\cite{vaswani2017attention}. Whisper~\cite{radford2023whisper} is one of the encoder--decoder models, trained on 680{,}000 hours of weakly labelled audio collected from the web. It converts 16\,kHz audio into 80-channel log-Mel spectrograms, passes them through a convolutional front end and a stack of Transformer layers, and then decodes text one token at a time. Two things about Whisper matter for this project. It copes well with accents and moderate background noise, which is exactly what classroom audio is like. Its decoder can also be given a text \emph{prompt}, which it treats as the earlier part of the transcript. If the prompt is full of technical words, the decoder becomes more likely to write ``Fourier transform'' than ``Fourier form''. The prompt adds nothing to inference cost, and our system leans on it heavily.
+
+\texttt{whisper.cpp}~\cite{whispercpp} is a C/C++ port of Whisper built on the GGML tensor library. It supports CUDA and flash attention, and it can run as a long-lived HTTP server, so the weights stay loaded between requests. On the Jetson it also let us get rid of the PyTorch runtime completely, which turned out to matter a lot for stability (Chapter~\ref{chap:arch}).
+
+\section{Converting spoken mathematics to LaTeX}
+Spoken mathematics is ambiguous in ways that written mathematics usually is not. Does ``$a$ over $b$ plus $c$'' mean $\frac{a}{b}+c$, or $\frac{a}{b+c}$? ``$x$ of $n$'' could be $x(n)$ or $x[n]$, depending on whether the course is about continuous or discrete signals. Speech is also linear while notation is nested, so a phrase like ``summation from $n$ equals minus infinity to infinity of $|x[n]|^2$'' has to end up with sub- and superscripts in the right places. MathSpeech~\cite{hyeon2025mathspeech} treated the problem as ASR post-correction followed by text-to-LaTeX generation. The authors released a benchmark built from real lecture recordings and showed that pipelines using models of roughly 120M parameters can compete with much bigger general-purpose models. Follow-up work added audio-language models and larger datasets~\cite{korzh2025s2l}. We take the same post-correction route, with one extra constraint that the earlier papers did not have to deal with. Everything has to run on an 8\,GB edge device, next to the ASR model.
+
+\section{Small language models and weight quantisation}
+Models with tens of billions of parameters are good at mathematical reasoning, but their weights alone would not fit in the Jetson's memory. The Qwen2.5 family~\cite{qwen2025report} includes 0.5B, 1.5B and 3B variants intended for edge use, all pre-trained on 18 trillion tokens, and the technical report shows that they do well on mathematics and coding for their size. Qwen2.5-1.5B-Instruct has 1.54B parameters and needs about 3.1\,GB in FP16. That is too much to sit comfortably beside Whisper and the operating system. Post-training weight quantisation~\cite{dettmers2022llmint8} shrinks the footprint. \texttt{llama.cpp}~\cite{llamacpp} provides block-wise ``k-quant'' formats, and in Q4\_K\_M most weights are stored as 4-bit codes with one scale per block, while a few sensitive tensors keep higher precision. The quantised Qwen file we use is about 1.1\,GB, or roughly a third of its FP16 size.
+
+\section{Machine translation for Indian languages}
+Translation for Indic languages has improved quickly, thanks to multilingual models like IndicBART~\cite{dabre2022indicbart} and NLLB-200~\cite{nllb2022}. These models were trained on ordinary text, though. Their tokenisers break a LaTeX expression such as \verb|\frac{s}{s^2+\omega_0^2}| into lots of small sub-word pieces, and when decoding they tend to transliterate variable names, drop delimiters, or produce LaTeX that no longer compiles. Since the Jetson is already running an instruction-following model, we use that same model for translation and tell it explicitly which spans to leave alone (Section~\ref{sec:hindi}). This also saves loading a second model into the shared memory.
+
+\section{The hardware platform}
+Table~\ref{tab:jetson} lists the main specifications of the Jetson Orin Nano 8\,GB Developer Kit~\cite{nvidia2023orinnano}. Two of them drive most of the design decisions. The memory is unified, meaning the CPU and GPU both allocate from the same 8\,GB of LPDDR5, so every megabyte the GPU takes is a megabyte the CPU processes lose. The memory bandwidth is also fairly modest at 68\,GB/s. Generating tokens with a language model is limited mostly by how fast the weights can be read from memory, so for the SLM, bandwidth matters more than raw compute.
+
+\begin{table}[ht]
+\centering\small
+\caption{Jetson Orin Nano 8\,GB Developer Kit specifications relevant to this work~\cite{nvidia2023orinnano}.}
+\label{tab:jetson}
+\begin{tabularx}{0.9\textwidth}{@{}lX@{}}
+\toprule
+CPU & 6-core Arm Cortex-A78AE v8.2 (64-bit), up to 1.5\,GHz; 1.5\,MB L2 + 4\,MB L3 \\
+GPU & NVIDIA Ampere, 1024 CUDA cores, 32 Tensor Cores (compute capability \texttt{sm\_87}) \\
+AI throughput & 40 TOPS (sparse INT8) \\
+Memory & 8\,GB 128-bit LPDDR5, 68\,GB/s, shared by CPU and GPU \\
+Power modes & 7\,W to 15\,W \\
+Storage & microSD; NVMe SSD via M.2 Key-M \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =============================================================================
+%  CHAPTER 3
+% =============================================================================
+\chapter{System Requirements and Architecture}
+\label{chap:arch}
+
+\section{Requirements}
+The requirements in Table~\ref{tab:req} come from the classroom, not from any benchmark. Each one pushed a particular design choice, shown in the right-hand column and explained in Chapter~\ref{chap:method}.
+
+\begin{table}[ht]
+\centering\small
+\caption{System requirements and the design decisions they led to.}
+\label{tab:req}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.33\textwidth}X@{}}
+\toprule
+\textbf{Requirement} & \textbf{Design response} \\
+\midrule
+R1. No network dependence at any stage & All models stored locally; \texttt{whisper.cpp}/\texttt{llama.cpp} servers bound to \texttt{127.0.0.1}; local LaTeX compiler; local TTS voice. \\
+R2. Fit in 8\,GB shared memory with headroom & C++ inference runtimes instead of PyTorch; 4-bit quantised SLM; models loaded once and kept resident. \\
+R3. Faster than real time on long lectures & GPU Whisper with flash attention and greedy decoding; SLM invoked only on utterances with mathematical cues. \\
+R4. Never lose audio & Capture runs in its own thread and archives every frame; the live queue drops packets under load, the archive does not. \\
+R5. Usable without monitor or keyboard & \texttt{systemd} start-up, wake phrases, spoken status messages, automatic USB export. \\
+R6. Notes students can revise from & Sectioned LaTeX document with numbered equations, figures, subtitles and a Hindi edition. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{End-to-end architecture}
+Figure~\ref{fig:arch} shows the headless pipeline. The two model servers, \code{whisper-server} on port 8081 and \code{llama-server} on port 8080, run as separate long-lived processes, and the agent starts them if they are not already up. The Python agent talks to both over HTTP on the loopback interface. Keeping them separate has two advantages. The models load once at boot instead of once per utterance. And if either server crashes, only that process has to be restarted, so the agent keeps its state and the audio archive is untouched.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[node distance=5mm and 5mm,
+    every node/.append style={font=\scriptsize},
+    blk/.append style={text width=23mm,font=\scriptsize},
+    dev/.append style={font=\scriptsize},
+    outb/.append style={text width=20mm,font=\scriptsize}]
+  % row 1 : live path
+  \node[dev,text width=18mm] (mic) {USB\\microphone\\48\,kHz stereo};
+  \node[blk,right=of mic] (fe) {Decimation + hum filter\\16\,kHz mono};
+  \node[blk,right=of fe] (vad) {Calibrated energy VAD\\(utterances)};
+  \node[blk,right=of vad] (asr) {Whisper small.en\\\texttt{whisper-server}, GPU};
+  \node[blk,right=of asr] (slm) {Math-cue gate +\\Qwen2.5-1.5B Q4\_K\_M\\\texttt{llama-server}};
+  % archive
+  \node[outb,below=7mm of fe] (wav) {Lossless WAV archive};
+  % row 2 : post-lecture
+  \node[blk,below=19mm of slm] (book) {Monograph builder\\(sections,\\equations, TikZ)};
+  \node[blk,left=of book] (hindi) {Hindi edition\\(math kept in LaTeX)};
+  \node[blk,left=of hindi] (pdf) {PDF compilation\\Tectonic / pdflatex};
+  \node[outb,left=of pdf,text width=18mm] (usb) {USB export\\+ SHA-256};
+  % control
+  \path (mic.west) -- (slm.east) coordinate[midway] (mid);
+  \node[dev,minimum width=0pt,text width=138mm,anchor=south] (agent) at ([yshift=9mm]mid |- slm.north) {Headless agent (supervises all stages): state machine, wake/stop phrases, Piper TTS status messages};
+  \draw[arr] (mic) -- (fe);
+  \draw[arr] (fe) -- (vad);
+  \draw[arr] (vad) -- (asr);
+  \draw[arr] (asr) -- (slm);
+  \draw[arr] (fe) -- (wav);
+  \draw[arr] (slm) -- node[right,align=left]{typeset\\chunks} (book);
+  \draw[arr] (book) -- (hindi);
+  \draw[arr] (hindi) -- (pdf);
+  \draw[arr] (pdf) -- (usb);
+  \draw[arr,dashed] (wav.south) -- (wav.south |- usb.north);
+  \begin{scope}[on background layer]
+    \node[lane,fit=(mic)(fe)(vad)(asr)(slm)(wav),label={[lanelbl,anchor=north west]south west:during the lecture}] {};
+    \node[lane,fit=(book)(hindi)(pdf)(usb),label={[lanelbl,anchor=north east]south east:after ``stop recording''}] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{Architecture of the headless appliance. During the lecture, utterances are transcribed and typeset concurrently with capture. After the stop command, the typeset chunks are assembled into English and Hindi documents and exported. The full-length WAV is archived separately and is used for batch transcription if no live chunks were produced.}
+\label{fig:arch}
+\end{figure}
+
+The agent itself runs three threads at the same time. The capture thread reads 100\,ms blocks from the microphone, converts and filters them, appends them to the archive while a recording is on, and pushes them onto a bounded queue. The main thread takes blocks off that queue, runs voice activity detection, sends complete utterances to Whisper and checks every transcript for a stop command. A third thread does the typesetting by picking transcribed utterances off a second queue and passing them to the language model. Because of this split, capture never has to wait for inference. A slow SLM call delays the typeset notes but never the recording, which is how requirement R4 is met.
+
+\section{Models and memory budget}
+Table~\ref{tab:models} lists the models installed on the device, with sizes from the deployed model configuration. When we first planned the 8\,GB, the split was roughly 2.5\,GB for the operating system and services, 350\,MB for ASR with the original \code{base.en}, 150\,MB for audio buffers, up to 3.2\,GB for the translation model, and at least 1.5\,GB left free. Moving to \code{small.en} later added about 320\,MB of weights. The total still stays well inside the board's limit, mainly because of two decisions. The language model is loaded from a 1.1\,GB quantised file rather than 3.1\,GB of FP16 weights. Both models also run in C++ servers instead of under PyTorch, which in early experiments used about 1.8\,GB for the ASR stage alone.
+
+\begin{table}[ht]
+\centering\small
+\caption{Models deployed on the Jetson (sizes from the deployed model configuration).}
+\label{tab:models}
+\begin{tabularx}{\textwidth}{@{}l l l >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Model} & \textbf{Format} & \textbf{Size} & \textbf{Role} \\
+\midrule
+Whisper \texttt{small.en} (244M) & GGML & 466\,MB & Primary ASR, served by \texttt{whisper-server} \\
+Whisper \texttt{base.en} (74M) & GGML & 142\,MB & Earlier ASR model, retained as a fallback \\
+Qwen2.5-1.5B-Instruct & GGUF Q4\_K\_M & 1.1\,GB & Math typesetting, section rewriting, Hindi translation \\
+T5-Small (60M), fine-tuned & PyTorch & $\approx$240\,MB & Phase-1 translator (interactive version only) \\
+Piper TTS (\texttt{lessac-medium} voice) & ONNX & -- & Spoken status messages \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =============================================================================
+%  CHAPTER 4
+% =============================================================================
+\chapter{Methodology and Implementation}
+\label{chap:method}
+
+This chapter follows a lecture as it moves through the system. It starts at the microphone (Section~\ref{sec:audio}), becomes text (Section~\ref{sec:asr}) and then LaTeX (Sections~\ref{sec:phase1}--\ref{sec:slm}), gets assembled into a document (Sections~\ref{sec:book}--\ref{sec:hindi}), and ends with the agent that runs the whole process (Section~\ref{sec:headless}).
+
+\section{Audio front end and voice activity detection}
+\label{sec:audio}
+
+\paragraph{Format conversion} The microphone we used, an AB13X USB audio device, outputs 48\,kHz, 16-bit stereo, but Whisper expects 16\,kHz mono. The conversion is implemented using NumPy-based signal-processing operations. For a stereo block with samples $x_L[n]$ and $x_R[n]$,
+\begin{equation}
+  x_{\text{mono}}[n] = \tfrac{1}{2}\bigl(x_L[n] + x_R[n]\bigr), \qquad
+  x[m] = \frac{1}{3\cdot 32768}\sum_{i=0}^{2} x_{\text{mono}}[3m+i].
+  \label{eq:decim}
+\end{equation}
+The three-sample average in~\eqref{eq:decim} provides basic anti-aliasing before 3:1 decimation. Its first spectral null is at 16\,kHz; consequently, attenuation near the new Nyquist frequency is limited. This lightweight implementation was selected to meet the real-time input-processing requirement. The whole conversion takes well under a millisecond for each 100\,ms block.
+
+\paragraph{Hum removal} In early tests the microphone picked up strong 50\,Hz mains hum and its harmonics, with an ambient RMS of 0.065--0.089 of full scale. The headless agent removes it with two identical first-order DC-blocking sections in cascade,
+\begin{equation}
+  H(z) = \left(\frac{1 - z^{-1}}{1 - r z^{-1}}\right)^{2}, \qquad r = 0.953,
+  \label{eq:hpf}
+\end{equation}
+implemented as a recursive filter whose state carries over from one block to the next. Each section has a zero at $z=1$ and a pole at $z=r$. At $f_s = 16$\,kHz, \eqref{eq:hpf} gives a $-3$\,dB point of about 190\,Hz for the cascade, roughly 17\,dB of attenuation at 50\,Hz, and about 8\,dB at 100\,Hz (Figure~\ref{fig:hpf}). That cut-off is higher than we would like, because it also takes out some low-frequency voice energy. Intelligibility depends far more on the formants above 300\,Hz, however, and we did not see any noticeable drop in Whisper's accuracy. The interactive version does the same job with a 4th-order Butterworth filter at 120\,Hz from SciPy.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.62\textwidth,height=48mm,xmode=log,xmin=10,xmax=4000,ymin=-48,ymax=3,
+  xlabel={Frequency (Hz)},ylabel={Magnitude (dB)},grid=both,grid style={draw=gray!20},
+  tick label style={font=\footnotesize},label style={font=\footnotesize},
+  domain=1:3.602,samples=240]
+  \addplot[thick,navy,smooth] ({10^x},{20*log10( (4*(sin(deg(pi*(10^x)/16000)))^2)/(0.002209+3.812*(sin(deg(pi*(10^x)/16000)))^2) * 0.953552 )});
+  \addplot[dashed,accB] coordinates {(50,-48) (50,3)};
+  \addplot[dashed,accB] coordinates {(100,-48) (100,3)};
+  \addplot[dotted,thick,gray] coordinates {(10,-3) (4000,-3)};
+  \node[font=\scriptsize,accB!80!black,anchor=east] at (axis cs:48,-38) {50\,Hz};
+  \node[font=\scriptsize,accB!80!black,anchor=west] at (axis cs:104,-38) {100\,Hz};
+\end{axis}
+\end{tikzpicture}
+\caption{Magnitude response of the cascaded DC-blocking filter~\eqref{eq:hpf} at $f_s=16$\,kHz, normalised to unity gain at Nyquist.}
+\label{fig:hpf}
+\end{figure}
+
+\paragraph{Calibrated, hysteretic VAD} For every 100\,ms block of $M = 1600$ samples, the detector computes the RMS level
+\begin{equation}
+  E_k = \Bigl(\frac{1}{M}\sum_{m=0}^{M-1} x^2[kM+m]\Bigr)^{1/2}.
+\end{equation}
+Our first attempt used a fixed threshold, and it did not work at all. The static value of 0.012 was below the hum floor, so the detector never left the speech state and Whisper filled the silence with hallucinated tags like ``(whirring)''. Now the agent records eight blocks of room noise at start-up and derives two thresholds from their 85th percentile $\hat\theta$:
+\begin{equation}
+  T_{\text{on}} = \max(2.2\,\hat\theta,\; 0.020), \qquad T_{\text{off}} = \max(1.3\,\hat\theta,\; 0.012).
+  \label{eq:vad}
+\end{equation}
+When the detector is idle, a block counts as speech if $E_k \ge T_{\text{on}}$. Once it is inside an utterance, the test becomes $E_k \ge T_{\text{off}}$. This Schmitt-trigger behaviour keeps the detector from flickering on and off at word boundaries. While recording, an utterance ends after 16 non-speech blocks in a row (1.6\,s) or when it reaches 12\,s. We settled on the 1.6\,s hangover after live testing. With 0.7\,s, the system kept cutting lecturers off whenever they paused in the middle of an equation, for example ``the Fourier transform is $\ldots$ integral from minus infinity''. The VAD class also has a 400\,ms pre-roll buffer that adds audio from just before the trigger, so that the first consonant does not get clipped. The agent's recording loop does not use this buffer yet (Section~\ref{sec:limits}), but since the archive keeps every frame, the batch-transcription fallback is not affected.
+
+\section{Speech recognition}
+\label{sec:asr}
+Whisper \texttt{small.en} runs inside \texttt{whisper-server} with CUDA, flash attention (\code{-fa}), greedy decoding (\code{-bo 1 -bs 1}), suppression of non-speech tokens (\code{-sns}) and a no-speech threshold of 0.65. We started out with \texttt{base.en} (74M parameters). In live tests it got domain terms wrong again and again, writing ``Fourier form'' for ``Fourier transform'' and ``continuity'' for ``continuous-time signal''. The 244M-parameter \texttt{small.en} fixed most of these mistakes and still fits in memory without trouble.
+
+Every request includes a decoding prompt that steers Whisper towards technical vocabulary without tying it to one subject:
+\begin{quote}\small\itshape
+Academic STEM lecture and professional presentation: mathematics, physics, computer science, algorithms, engineering, calculus, linear algebra, limits, integrals, derivatives, differential equations, matrices, vectors, proofs, theorems, definitions, functions f(x), variables x, y, z, t, n, parameters alpha, beta, theta, omega, equations, formulas, and technical exposition.
+\end{quote}
+An earlier prompt written around signals and systems worked well on those lectures. On other subjects, though, it pulled the transcripts towards circuit terminology, so we switched to the broader prompt as a compromise. In the benchmark harness, the last 140 characters of the previous transcript are also appended to the prompt, which keeps the terminology consistent from one utterance to the next. Whisper sometimes emits bracketed non-speech annotations such as \code{[BLANK\_AUDIO]} or \code{(crashing)}, and a regular expression removes them before the text goes any further.
+
+\section{Phase 1: heuristic routing with a fine-tuned T5}
+\label{sec:phase1}
+Our first conversion design was a conventional pipeline. A regular-expression segmenter split the transcript into sentences, taking care not to break decimals like ``0.8''. A router then tagged each sentence as pure English, pure mathematics or mixed, using a lexicon of variable names, operators and phrases like ``with respect to''. Mathematical spans went to a T5-Small model~\cite{raffel2020t5} fine-tuned on MathSpeech pairs and a synthetic grammar dataset, with the prefix ``\textit{translate spoken math to LaTeX:}''. A last clean-up step balanced braces and fixed broken fractions. Getting T5 to run on the Jetson at all meant forcing its layer normalisation into FP32, because otherwise PyTorch crashed on ARM.
+
+The design was cheap, using about 240\,MB of memory. It also failed in ways that adding more rules could not fix (Table~\ref{tab:accuracy}). When we went through 1{,}026 failed samples from the engineering manifest, about a quarter of the failures turned out to come from rules that were too greedy. The fraction rule, for instance, treated everything said before ``over'' as the numerator and squashed the words together:
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+Spoken: & ``two times sine of $x$ plus pi over three'' \\
+Intended: & $2\sin\!\left(x + \frac{\pi}{3}\right)$ \\[2pt]
+Phase-1 output: & $\dfrac{\mathrm{2timessineofxpluspi}}{3}$ \\
+\end{tabular}
+\end{center}
+Another 6.5\% came from compound variables that were missing from the lexicon. In ``$ax$ plus $by$ plus $cz$ equals $d$'', the router did not recognise $ax$ as mathematics and simply dropped it. Around 10\% were T5 hallucinations on longer expressions. The rest, which was the biggest share, were formatting differences between ground truth and prediction (\verb|\displaystyle|, for example) that string matching counts as errors. Fixing these properly needs context and a sense of operator precedence, and a rule-based pipeline has neither.
+
+\section{Phase 2: transduction with a small language model}
+\label{sec:slm}
+In Phase 2, a single instruction-tuned model took over from the router, the T5 model and most of the clean-up rules. We used Qwen2.5-1.5B-Instruct~\cite{qwen2025report}, quantised to Q4\_K\_M and served by \texttt{llama-server}. We also considered two other models. Qwen2.5-0.5B left plenty of memory free but was clearly worse at writing LaTeX, and Llama-3.2-3B ($\approx$2.3\,GB quantised) would not have fit in the budget alongside Whisper. The 1.5B model was the largest that fit with reasonable headroom.
+
+\paragraph{Prompt} The system prompt gives the model four rules. It should convert spoken mathematics from any field into inline LaTeX. Every non-mathematical word has to stay as it is, and ordinary English must never go into math mode. It must not invent formulas that were never spoken. Finally, it should output only the typeset transcript, with no preamble. After the rules come five few-shot examples covering an integral, a definition, a statement about an algorithm, a convolution from signals, and one purely conversational sentence that has to come out unchanged. That last example turned out to be important, because without it the model kept trying to ``improve'' ordinary sentences.
+
+\paragraph{Gating and decoding} Most of what a lecturer says is plain prose. Sending it through the model wastes time and gives the model chances to paraphrase. Before any call, a regular expression therefore checks the utterance for mathematical cues, namely single-letter variables, names of Greek letters, words from transforms and calculus, arithmetic words like ``plus'' and ``over'', digits, and operator symbols. An utterance with no cues is returned as it is in about 0.1\,ms. Decoding is deterministic, with temperature 0 and a repetition penalty of 1.15. The token budget grows with the input at four tokens per word, with a minimum of 256. Inputs longer than 45 words are broken into pairs of sentences, and each pair is typeset with the previous output as context.
+
+\paragraph{Guards} Even at temperature 0, a 1.5B model sometimes makes things up. We wrote each guard in Algorithm~\ref{alg:slm} after seeing a specific failure in practice. None of them tries to repair the output; each one just falls back to the raw transcript. Prompt-level KV caching (\code{cache\_prompt}) is currently \emph{disabled} in every request, so the system prompt and few-shot examples are processed again on every call. Turning it on is the obvious next step for reducing latency (Section~\ref{sec:future}).
+
+\begin{algorithm}[ht]
+\caption{Typesetting one utterance with the SLM (headless agent).}
+\label{alg:slm}
+\begin{algorithmic}[1]
+\Require transcript $u$ from Whisper; optional preceding context $c$
+\Ensure text $v$ with inline LaTeX
+\State normalise spoken shorthands (e.g.\ ``s t'' $\to$ ``such that'', ``$x$ cube'' $\to$ ``$x$ cubed'')
+\If{$u$ contains no mathematical cue} \Return $u$ \Comment{no model call}
+\EndIf
+\State $v \gets$ \textsc{LlamaServer}(system prompt, few-shot examples, $c$, $u$; $T=0$)
+\State strip code fences, leaked labels (``Spoken transcript:''), echoed context; convert display delimiters to inline \texttt{\$}$\ldots$\texttt{\$}
+\If{$|v|_{\text{words}} > \max(20,\,3|u|_{\text{words}}+10)$} \Return $u$ \Comment{length explosion}
+\EndIf
+\If{any word trigram of $v$ occurs $\ge 3$ times} \Return $u$ \Comment{repetition loop}
+\EndIf
+\If{$v$ contains \texttt{\textbackslash int}, \texttt{cases} or physics operators not supported by words in $u$} \Return $u$ \Comment{fabricated math}
+\EndIf
+\State \Return $v$
+\end{algorithmic}
+\end{algorithm}
+
+If \texttt{llama-server} is down, the translator falls back first to a one-shot \texttt{llama-cli} process and then to Hugging Face Transformers. A crashed server therefore slows transcription down but does not stop it. In the headless agent, \texttt{llama-server} is launched with \code{-ngl 0} and with \code{CUDA\_VISIBLE\_DEVICES} cleared, so the SLM runs on four CPU cores and the GPU is left free for Whisper. The interactive version puts all 28 layers on the GPU instead (\code{-ngl 28}). When we tried offloading the embedding table as well (\code{-ngl 99}), it caused a CUDA kernel fault.
+
+\section{From transcript to monograph}
+\label{sec:book}
+Once recording stops, the typeset utterances are turned into a document in five steps.
+\begin{enumerate}
+  \item \textbf{Paragraph assembly and sectioning.} Utterances are joined into paragraphs. Timestamps are left out of the document but saved in \code{.srt}/\code{.vtt} subtitle files. A rule-based sectioniser groups the paragraphs into three to five sections and picks headings from subject keywords. If a lecture matches none of the rules, it is just split evenly.
+  \item \textbf{Section rewriting.} Each section goes back to the SLM with a prompt asking for textbook-style prose, in which spoken filler is removed, definitions are stated formally, and every variable and relation is kept. Sections longer than 350 words are split at the sentence boundary closest to the middle and rewritten as two halves, so that each request fits in the model's 2048-token context. The notes read much better after this step. Unlike the per-utterance pass, however, it makes no attempt to keep the lecturer's exact words, and Section~\ref{sec:limits} discusses the risk that comes with this.
+  \item \textbf{Equation promotion.} Inline formulas that look important, such as definitions, transforms and ROC conditions, are moved into numbered \code{equation} environments with labels. Before any text is escaped for LaTeX, the math spans are swapped out for opaque placeholders so that escaping cannot damage them. They are put back afterwards.
+  \item \textbf{Figures.} The full transcript is scanned for geometric cues. Phrases like ``unit circle'', ``region of convergence'', ``direct and quadrature axes'' or ``phasor'' trigger one of seven built-in TikZ generators: $s$-plane and $z$-plane ROC, $d$--$q$ axes, phasors, a Bode sketch, a feedback loop, and a discrete sequence. Other subjects are handled by a keyword-matched index of 364 further TikZ templates.
+  \item \textbf{Compilation.} The document is compiled with Tectonic~\cite{tectonic}, a self-contained XeTeX engine that saves having to install all of TeX Live, with \texttt{pdflatex} as a backup. Before compiling, a sanitiser fixes common problems such as duplicate labels and stray punctuation after display equations.
+\end{enumerate}
+
+\section{The Hindi edition}
+\label{sec:hindi}
+The Hindi edition is generated from the rewritten English paragraphs rather than from the raw transcript, so both documents have the same structure. The property we want the translation to have can be stated precisely.
+
+\begin{definition}[Mathematical invariance]
+Let a document $D$ be a sequence of prose spans and mathematical spans $m_1,\dots,m_k$, the latter delimited by \verb|$|$\cdots$\verb|$|, \verb|$$|$\cdots$\verb|$$| or an \code{equation} environment. A translation $\mathcal{F}$ is \emph{mathematically invariant} if the mathematical spans of $\mathcal{F}(D)$ are exactly $m_1,\dots,m_k$, character for character and in the same order.
+\end{definition}
+
+When this property holds, every formula in the Hindi notes is exactly the formula in the English notes. Any mathematical mistake then has only one possible source, the English typesetting stage, and that is where it can be found and fixed.
+
+Each paragraph is translated by the same Qwen server using a system prompt that instructs the model to preserve LaTeX expressions and numerical content verbatim, while retaining English technical terms in parentheses where appropriate. Three illustrative input-output examples specify the expected Hindi writing style; paragraphs are translated at temperature 0.15. Subtitle lines are processed in numbered batches of twelve, with timestamps retained from the English cues. Numbered \code{equation} environments are inserted after translation, so equation labels are not part of the translation input. The Hindi LaTeX source uses \texttt{fontspec} with the Lohit Devanagari font and is compiled using the same XeTeX-based workflow. The current implementation relies on prompt-based preservation; explicit span-level verification is a potential extension to strengthen this property.
+
+\section{The headless agent}
+\label{sec:headless}
+The agent runs as a \texttt{systemd} service (\code{speech2latex-headless.service}) that starts at boot and restarts itself if it fails. After a lecture has been exported, it can also shut the board down cleanly. On start-up it binds to the USB sound card, restores the microphone gain through ALSA, and checks that both model servers are responding, launching them if they are not. It then calibrates the VAD~\eqref{eq:vad} and announces that it is ready.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[st/.style={draw=navy,fill=boxfill,thick,rounded corners=6pt,minimum width=26mm,minimum height=10mm,font=\small\bfseries},
+                    lbl/.style={font=\scriptsize,align=center}]
+  \node[st] (sb) {STANDBY};
+  \node[st,right=24mm of sb] (cd) {COUNTDOWN};
+  \node[st,right=24mm of cd] (rec) {RECORDING};
+  \node[st,below=11mm of cd,minimum width=60mm,align=center] (pr) {PROCESSING\\[-1pt]{\scriptsize\mdseries save audio $\to$ structure notes $\to$ Hindi $\to$ compile $\to$ USB}};
+  \draw[arr] (sb) -- node[above,lbl]{``Hey Jetson,\\start recording''} (cd);
+  \draw[arr] (cd) -- node[above,lbl]{5-s spoken\\countdown} (rec);
+  \draw[arr] (rec) |- node[pos=0.25,right,lbl]{``Hey Jetson,\\stop recording''} (pr);
+  \draw[arr] (pr) -| node[pos=0.75,left,lbl]{export done\\(or power-off)} (sb);
+  \node[lbl,below=1.5mm of pr] {status question (``Hey Jetson, what is the status?'') $\to$ spoken progress and time remaining};
+\end{tikzpicture}
+\caption{States of the headless agent (pressing Enter on a keyboard is an alternative trigger).}
+\label{fig:fsm}
+\end{figure}
+
+\paragraph{Voice control} The agent moves between four states (Figure~\ref{fig:fsm}). Whisper itself recognises the wake and stop phrases, so no separate keyword-spotting model is needed. In STANDBY, short utterances are transcribed with a prompt made up of command phrases and compared against a list of accepted variants such as ``jetson start lecture''. In RECORDING, every finished utterance is checked for a stop phrase before it is put on the typesetting queue. A lecturer might easily say ``stop'' in passing, so the bare word counts only in utterances of three words or fewer.
+
+\paragraph{Spoken feedback} Fixed messages are stored as pre-rendered WAV files, so they play with no delay. They include ``Ok, starting recording in 5\ldots\ 4\ldots\ 3\ldots\ 2\ldots\ 1\ldots\ Recording started'', ``Recording stopped. Processing lecture, please wait'', and a warning when no USB drive is plugged in. Messages that vary, such as progress updates, are synthesised on the CPU with Piper~\cite{piper}, a small ONNX-based neural TTS engine.
+
+\paragraph{Export} All the outputs are packed into a ZIP file together with a SHA-256 manifest (a SHA-256 checksum manifest) and copied to the designated USB storage device. Each copy is size-checked, and \code{sync} flushes the FAT32 buffers before the drive is removed.
+
+% =============================================================================
+%  CHAPTER 5
+% =============================================================================
+\chapter{Experimental Results and Discussion}
+\label{chap:results}
+
+\section{Setup and metrics}
+Every measurement in this chapter was taken on the Jetson Orin Nano Developer Kit in 15\,W mode, with the models and code on an NVMe SSD. The evaluation has three parts. The first measures \emph{conversion accuracy} on text, by feeding ground-truth spoken transcripts straight into each engine so that ASR errors play no part in the comparison. The second measures \emph{pipeline throughput} by replaying full-length recorded lectures through the ASR and SLM servers using the lecture-benchmarking procedure. The third is \emph{live use} with a microphone.
+
+For accuracy we use the the following evaluation metrics:
+\begin{itemize}
+  \item \textbf{Strict-EM}: the prediction must match the reference LaTeX exactly.
+  \item \textbf{Norm-EM}: exact match after a normalisation step that strips styling commands (for example \texttt{\textbackslash displaystyle} and \texttt{\textbackslash mathrm}), makes spacing and multiplication symbols uniform, and removes unnecessary braces around single tokens.
+  \item \textbf{BLEU-4} computed over LaTeX tokens, and \textbf{CER}/\textbf{TER}, which are the Levenshtein distance between prediction and reference divided by the reference length, counted over characters and over LaTeX tokens respectively.
+\end{itemize}
+Throughput is given as the real-time factor $\RTF = t_{\text{processing}}/t_{\text{audio}}$, where values below 1 mean faster than real time. We also report its reciprocal, the speed-up.
+
+\section{Spoken-math conversion accuracy}
+\label{sec:res-accuracy}
+Table~\ref{tab:accuracy} compares the two phases. On the 107-sample MathSpeech test split, both engines saw exactly the same inputs. The second pair of columns comes from the supplementary engineering evaluation set, where the comparison is less clean. The Phase-1 run covered all 1{,}101 samples but the Phase-2 run used only a 50-sample subset, so these numbers should be taken as indicative.
+
+\begin{table}[ht]
+\centering\small
+\caption{Spoken-math to LaTeX conversion on the MathSpeech test split ($n=107$). Phase 1 uses a regex router and fine-tuned T5-Small; Phase 2 uses Qwen2.5-1.5B-Instruct (Q4\_K\_M) with a few-shot prompt and output guards. Latency is measured per utterance.}
+\label{tab:accuracy}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Metric} & \textbf{Phase 1} & \textbf{Phase 2} \\
+\midrule
+Norm-EM (\%) $\uparrow$ & 8.41 & \textbf{40.19} \\
+Strict-EM (\%) $\uparrow$ & 0.93 & \textbf{4.67} \\
+BLEU-4 $\uparrow$ & 27.06 & \textbf{47.79} \\
+CER (\%) $\downarrow$ & 72.74 & \textbf{47.01} \\
+TER (\%) $\downarrow$ & 61.15 & \textbf{30.75} \\
+Mean latency (ms) $\downarrow$ & 787.4 & \textbf{519.8} \\
+P95 latency (ms) $\downarrow$ & 2125.1 & \textbf{969.2} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering\small
+\caption{Supplementary results on the engineering evaluation set. The two phases use different sample counts and the values are not directly comparable.}
+\label{tab:manifest-accuracy}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Metric} & \textbf{Phase 1 ($n=1{,}101$)} & \textbf{Phase 2 ($n=50$)} \\
+\midrule
+Norm-EM (\%) $\uparrow$ & 6.81 & 48.00 \\
+Strict-EM (\%) $\uparrow$ & 0.91 & 28.00 \\
+BLEU-4 $\uparrow$ & 25.64 & 60.29 \\
+CER (\%) $\downarrow$ & 74.43 & 29.62 \\
+TER (\%) $\downarrow$ & 61.37 & 27.08 \\
+Mean latency (ms) $\downarrow$ & 738.9 & 566.2 \\
+P95 latency (ms) $\downarrow$ & 1946.0 & 1023.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On MathSpeech, the language model raised normalised exact match almost fivefold and halved the token error rate. It was also \emph{faster} on average, mostly because it removed the long-tail cases in which the router sent many fragments to T5 one after another. Individual samples show where the gain came from. ``$y$ prime is equal to minus $2xy$ divided by $x$ squared'' came out as \verb|$y' = -\frac{2xy}{x^2}$|, whereas Phase~1 had produced a fraction with the English words run together inside it. ``$A$ inverse is one over determinant of $A$ times the adjoint matrix'' became \verb|$A^{-1} = \frac{1}{\det(A)} \cdot \text{adj}(A)$|, and the only difference from the reference is \verb|\det| in place of \verb|\text{det}|.
+
+Norm-EM and Strict-EM are far apart on MathSpeech (40\% against 5\%). That gap says more about how the references are written than about either system, since many MathSpeech references contain \verb|\displaystyle| or \verb|\mathinner| wrappers that nobody would ever say out loud. The remaining discrepancies are categorised in Section~\ref{sec:err}.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar,width=0.9\textwidth,height=52mm,bar width=9pt,ymin=0,ymax=88,
+  symbolic x coords={Norm-EM,Strict-EM,BLEU-4,CER,TER},xtick=data,
+  ylabel={Score / \%},legend style={at={(0.5,1.04)},anchor=south,legend columns=2,font=\footnotesize,draw=none,/tikz/every even column/.append style={column sep=8pt}},
+  nodes near coords,nodes near coords style={font=\tiny},
+  tick label style={font=\footnotesize},label style={font=\footnotesize},
+  enlarge x limits=0.13,axis x line*=bottom,axis y line*=left,ymajorgrids,grid style={draw=gray!20}]
+  \addplot[fill=rulegray!70,draw=rulegray!40!black] coordinates {(Norm-EM,8.41) (Strict-EM,0.93) (BLEU-4,27.06) (CER,72.74) (TER,61.15)};
+  \addplot[fill=navy!80,draw=navy] coordinates {(Norm-EM,40.19) (Strict-EM,4.67) (BLEU-4,47.79) (CER,47.01) (TER,30.75)};
+  \legend{Phase 1 (router + T5-Small),Phase 2 (Qwen2.5-1.5B Q4\_K\_M)}
+\end{axis}
+\end{tikzpicture}
+\caption{MathSpeech test split ($n=107$). Higher is better for the first three metrics and lower is better for CER and TER.}
+\label{fig:accuracy}
+\end{figure}
+
+\section{Throughput on full-length lectures}
+\label{sec:res-throughput}
+We replayed three complete recorded lectures through the pipeline: 32 minutes on the $z$-transform, 60 minutes on modelling synchronous machines, and 65 minutes of an introductory electrical-engineering course. The audio was cut into chunks of 2--10\,s at pauses. Each chunk was transcribed by \texttt{whisper-server} and then sent through the SLM stage, math-cue gate included. Table~\ref{tab:lectures} summarises the logs, and Figure~\ref{fig:rtf} breaks the overall RTF down into its ASR and SLM parts. The two stages ran one after the other, and between them they account for all but about a second of each run's wall-clock time.
+
+\begin{table}[ht]
+\centering\small
+\caption{Long-form lecture benchmarks (from recorded benchmark logs). ``Math chunks'' are chunks whose output contains at least one LaTeX span. ``Syntax'' is the share of extracted formulas with balanced delimiters.}
+\label{tab:lectures}
+\begin{tabular}{@{}l rrr@{}}
+\toprule
+& \textbf{$z$-transform} & \textbf{Sync.\ machines} & \textbf{EE intro} \\
+\midrule
+Audio duration (min) & 32.4 & 59.6 & 65.1 \\
+Chunks processed & 560 & 977 & 894 \\
+Wall-clock time (min) & 11.0 & 16.0 & 14.6 \\
+Overall RTF (speed-up) & 0.340 (2.95$\times$) & 0.269 (3.71$\times$) & 0.224 (4.47$\times$) \\
+ASR-only RTF (speed-up) & 0.179 (5.6$\times$) & 0.187 (5.3$\times$) & 0.143 (7.0$\times$) \\
+ASR latency, median / P95 (ms) & 489 / 965 & 541 / 1035 & 546 / 1180 \\
+SLM invocations (of all chunks) & 203 (36\%) & 223 (23\%) & 27 (3\%) \\
+SLM latency per call, median (ms) & 824 & 976 & 13{,}847 \\
+Math chunks / formulas extracted & 162 / 243 & 63 / 80 & 0 / 0 \\
+Syntax-valid formulas (\%) & 99.6 & 100.0 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[xbar stacked,width=0.82\textwidth,height=38mm,bar width=10pt,xmin=0,xmax=0.4,
+  symbolic y coords={ee,sm,zt},ytick=data,yticklabels={EE intro (65 min),Sync.\ machines (60 min),$z$-transform (32 min)},
+  xlabel={Real-time factor (processing time / audio time)},
+  scaled x ticks=false,xticklabel style={/pgf/number format/fixed,/pgf/number format/precision=2},xtick={0,0.05,...,0.4},
+  legend style={at={(0.98,0.04)},anchor=south east,font=\footnotesize,draw=none,fill=white,fill opacity=0.8,text opacity=1},
+  tick label style={font=\footnotesize},label style={font=\footnotesize},
+  xmajorgrids,grid style={draw=gray!20},axis y line*=left,axis x line*=bottom,enlarge y limits=0.3]
+  \addplot[fill=navy!80,draw=navy] coordinates {(0.143,ee) (0.187,sm) (0.179,zt)};
+  \addplot[fill=accB!80,draw=accB!60!black] coordinates {(0.081,ee) (0.082,sm) (0.161,zt)};
+  \legend{Whisper ASR,SLM typesetting}
+\end{axis}
+\end{tikzpicture}
+\caption{Where processing time goes on full-length lectures. The SLM share grows with how much mathematics a lecture contains ($z$-transform), and also with how often the model runs to its token limit (EE intro; see text).}
+\label{fig:rtf}
+\end{figure}
+
+For the throughput half of RQ1 these numbers are encouraging, since the full pipeline stays well under real time even on hour-long recordings. They also show that how much the SLM costs depends on what the lecture is about. In the $z$-transform lecture, which is heavy on mathematics, 36\% of chunks reached the model and the SLM stage took nearly as long as ASR. The introductory lecture exhibits a different processing profile. Only 27 chunks got past the gate, yet 22 of them took about 14\,s each. This pattern is consistent with extended generation reaching the configured token limit before the output-validation stage rejected the results. The output-validation stage prevented these generated results from being incorporated into the notes. Because validation occurs after generation, these cases still contribute to total processing time.
+
+\section{Live microphone session}
+\label{sec:res-live}
+For a 10-minute live session, we played a lecture on poles of transfer functions and on discrete-time down- and up-sampling into the USB microphone. It produced 132 utterances, and the SLM changed 54 of them. Table~\ref{tab:live} shows a mix of good and bad examples.
+
+\begin{table}[ht]
+\centering\small
+\caption{Selected utterances from the live session (Whisper transcript $\to$ SLM output).}
+\label{tab:live}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X c@{}}
+\toprule
+\textbf{Whisper transcript} & \textbf{Typeset output} & \\
+\midrule
+``So, we do d of s equals zero and whatever the values of s that we get\ldots'' & So, we solve $d(s)=0$ and whatever the values of $s$ that we get\ldots & \textcolor{accC}{\checkmark} \\
+``y1 of n is equal to x of 3n.'' & $y_1[n] = x[3n]$ & \textcolor{accC}{\checkmark} \\
+``\ldots the poles of the transfer function h of s by finding the roots of the denominator'' & \ldots the poles of the transfer function $H(s)$ by finding the roots of the denominator. & \textcolor{accC}{\checkmark} \\
+``This is equal to x of n by 2.'' (up-sampling, $x[n/2]$) & This is equal to $\frac{x[n]}{2}$. & \textcolor{accB}{$\times$} \\
+``n equal to zero plus minus two plus minus four and so on.'' & $n = 0 - 2 - 4 + \ldots$ & \textcolor{accB}{$\times$} \\
+``Y of 1 will be x of 2.'' (after writing $y[n]$ earlier) & $y(1)$ will be $x(2)$. & \textcolor{accB}{$\sim$} \\
+``These equations are ultimately the poles of the transfer function H of s.'' & These equations are ultimately the roots of the denominator of $H(s)$. & \textcolor{accB}{$\sim$} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Classroom case study: continuous-time LTI systems}
+\label{sec:case}
+We also ran the system end to end on a 31.4-minute classroom lecture by Prof.\ Hota on the initial and final value theorems for continuous-time LTI systems. It makes a good test, because its main results are short limit expressions that are easy to say and just as easy to get wrong:
+\begin{equation}
+  x(0^{+}) = \lim_{s\to\infty} sX(s), \qquad \lim_{t\to\infty} x(t) = \lim_{s\to0} sX(s).
+\end{equation}
+In the worked example the input is $x(t)=e^{-3t}u(t)$, so that $X(s)=\frac{1}{s+3}$ for $\mathrm{Re}(s)>-3$, and the output is $y(t)=(e^{-t}-e^{-2t})u(t)$. This gives
+\begin{equation}
+  Y(s) = \frac{1}{s+1}-\frac{1}{s+2} = \frac{1}{(s+1)(s+2)}, \qquad
+  H(s) = \frac{Y(s)}{X(s)} = \frac{s+3}{(s+1)(s+2)}.
+\end{equation}
+The poles of $H(s)$ lie at $-1$ and $-2$. Because $Y(s)$ is the transform of a right-sided signal, the ROC of the system is $\mathrm{Re}(s)>-1$. The ROC includes the $j\omega$-axis, which makes the system causal and BIBO stable. Applying the theorems gives $x(0^{+}) = \lim_{s\to\infty} \frac{s}{s+3} = 1$ and $y(\infty) = \lim_{s\to0} \frac{s}{(s+1)(s+2)} = 0$, and both values match the time-domain expressions.
+
+The session record lists a 7-page English PDF and a 7-page Hindi PDF with the same section structure, 35 numbered display equations and 170 bilingual subtitle cues. At 16\,kHz, the 1{,}885.7\,s of audio took up 57.6\,MB. The audio, documents and logs from this session are stored on the device and are not in the public repository. Unlike the results in Sections~\ref{sec:res-accuracy}--\ref{sec:res-live}, we could not check these numbers against raw logs, so they should be read as a qualitative demonstration and not as measurements.
+
+% =============================================================================
+%  CHAPTER 6
+% =============================================================================
+\section{What the results show}
+\label{chap:discussion}
+The results demonstrate that the proposed framework meets the throughput objective under the evaluated conditions. On a 15\,W board, the full pipeline handles hour-long lectures three to four times faster than real time, and Whisper alone runs five to seven times faster. The evaluated workflow operates without a network connection on the target device. On RQ2, the language model beats the rule-based pipeline on every metric and is not slower on average. The results also identify opportunities for further improvement in conversion accuracy and worst-case inference latency. As for RQ3, the voice-controlled workflow works and has been used on full lectures. A systematic measurement of wake-phrase false-accept and false-reject rates remains a useful direction for further evaluation.
+
+\section{Error analysis}
+\label{sec:err}
+Going through Table~\ref{tab:live} and the benchmark logs, most of the errors fall into four groups.
+
+\paragraph{Mathematical misreadings} In a discussion of up-sampling, ``$x$ of $n$ by 2'' means $x[n/2]$, but the model wrote $\frac{x[n]}{2}$. In the same way, ``plus minus two'' turned into ``$-2$''. Taken on their own, both readings are reasonable. Getting them right requires knowing the topic, and a 1.5B model that sees one sentence at a time does not have that context.
+
+\paragraph{Notation drift} The lecturer's $y[n]$ showed up as $y(1)$ only two sentences later. Utterances are typeset independently, with at most the previous output as context, so nothing keeps the notation consistent over the whole lecture. The post-processor does contain a notation-harmonisation pass (a notation-harmonisation routine) written for exactly this purpose, but the current pipeline never calls it.
+
+\paragraph{Paraphrase} The model sometimes reworded a sentence despite the verbatim rule, and once the meaning changed, with ``poles'' becoming ``roots of the denominator of $H(s)$''. The guards catch length explosions and repetition loops, but small shifts in meaning get through.
+
+\paragraph{Over-eager math mode} A few of the ``formulas'' extracted from the $z$-transform lecture were just words put into math mode, such as \verb|$Laplace$|. The 99.6\% syntax figure in Table~\ref{tab:lectures} only checks that delimiters are balanced. It says nothing about whether a formula is correct and should not be read as an accuracy number.
+
+\section{Scope of Evaluation}
+\label{sec:limits}
+\begin{itemize}
+  \item \textbf{Conversion evaluation.} The mathematical conversion results are based on benchmark transcripts. A larger evaluation using reference LaTeX aligned with complete lecture recordings would provide a more comprehensive end-to-end assessment.
+  \item \textbf{Mathematical preservation in translation.} The Hindi-generation stage uses prompt constraints to preserve mathematical expressions and numerical content. Explicit span-level verification and evaluation by Hindi-language users are suitable extensions.
+  \item \textbf{Document generation and consistency.} Further work can strengthen lecture-wide notation consistency and assess the fidelity of automatically generated explanatory prose against the original lecture.
+  \item \textbf{Deployment evaluation.} Additional measurements across classroom environments, including systematic resource monitoring and voice-command reliability, would provide a broader characterisation of deployment performance. The accuracy and headless deployment configurations should be distinguished when interpreting the reported results.
+\end{itemize}
+
+% =============================================================================
+%  CHAPTER 7
+% =============================================================================
+\chapter{Conclusion and Future Scope}
+\label{chap:conclusion}
+
+This project presents an offline framework for converting spoken lectures into typeset study notes in English and Hindi on a 15\,W NVIDIA Jetson Orin Nano. The work demonstrates three principal outcomes. The first is that ASR is no longer the bottleneck. With \texttt{whisper.cpp} and a carefully chosen decoding prompt, Whisper \texttt{small.en} transcribes lectures five to seven times faster than real time on this board. The second is that a 4-bit, 1.5B-parameter language model does far better than a rule-based router with a small translator. Normalised exact match on MathSpeech went from 8\% to 40\%, and the approach improved the handling of context-dependent mathematical expressions. The third is that a small model needs lightweight validation mechanisms around it to stay reliable. In this system they are a gate that keeps plain prose away from the model, guards that discard implausible outputs, and an architecture in which no slow stage can hold up audio capture.
+
+\section{Future scope}
+\label{sec:future}
+Several avenues for further development can extend the capabilities and evaluation of the proposed framework. The pipeline should become faster and its outputs checkable, the lecture content could be used to generate practice problems, more of what happens in the room could be captured, and the system needs a proper evaluation in real classrooms.
+
+\subsection{A faster and verifiable pipeline}
+\paragraph{Cutting SLM latency} None of the changes below requires training a new model. With prompt caching enabled in \texttt{llama-server}, the system prompt and few-shot examples would be processed once per session rather than on every call. Speculative decoding~\cite{leviathan2023speculative} uses a small draft model to propose tokens that the main model then checks in a single pass. The output distribution does not change, and the original paper reports a 2--3$\times$ speed-up without retraining. Qwen2.5-0.5B shares its tokeniser with the 1.5B model, which makes it a suitable candidate draft model. Generation should also be stopped as soon as a guard threshold is crossed. In the 65-minute lecture of Table~\ref{tab:lectures}, 22 runaway calls took 301 of the 315\,s spent in the SLM, and all corresponding outputs were rejected by the validation stage. Lastly, a JetPack update turns the board into the ``Orin Nano Super'', raising memory bandwidth from 68 to 102\,GB/s, AI throughput from 40 to 67 sparse TOPS and the CPU clock to 1.7\,GHz, with power configurable up to 25\,W~\cite{nvidia2024super}. Token generation is bandwidth-bound, so the SLM should benefit directly. How big the gain is, and whether the extra power is acceptable for a classroom device, still has to be measured.
+
+\paragraph{Enforcing invariance and consistency} Before translation, every math span should be replaced with a placeholder, restored afterwards, and compared against the original. A paragraph that loses or duplicates a span would then be translated again or left in English. With this check in place, Definition~4.1 becomes a property the system actually verifies. It would also make it safe to switch to a dedicated translator such as IndicTrans2, which covers all 22 scheduled Indian languages~\cite{gala2023indictrans2} but was never meant to pass LaTeX through untouched. Separately, wiring in the notation pass that already exists and keeping a symbol table for each lecture (for example, $x[n]$ for discrete sequences) should deal with the notation drift and some of the misreadings described in Section~\ref{sec:err}.
+
+\subsection{From notes to practice: generating problems from the lecture}
+Notes help students revise, and practice problems show them whether they have really understood. Writing good problems takes instructors a lot of time. Kurdi et al.\ reviewed 93 studies on automatic question generation for education and identify control over difficulty and cognitive level as one of the main benefits of automating it~\cite{kurdi2020aqg}. The appliance is in a good position to do this, since after each lecture it already has the lecture's equations, definitions and worked examples in machine-readable form. The proposed module (Figure~\ref{fig:practice}) works in four steps:
+\begin{enumerate}
+  \item \textbf{Seeds.} Every numbered equation, definition and worked example becomes a seed, tagged with its section and timestamp. Problems are generated only from seeds, which keeps them within what was actually taught.
+  \item \textbf{Graded drafts.} For each seed, the SLM drafts problems at three levels: recalling a definition, applying a formula to new values, and combining two results from the lecture. The solution to each problem is written as a short SymPy program instead of prose.
+  \item \textbf{Verification.} The program is run on the device with SymPy~\cite{meurer2017sympy}. A problem is discarded if the program fails, if the answer is not unique or not finite, or if it does not agree with the draft. Numerical problems are turned into templates with resampled parameters, so a single verified structure can produce many variants. This is the ``isomorphic problem'' approach, which Kim et al.\ used at scale with an error rate 17.8\% lower than that of problems written by experts~\cite{kim2025blueprints}.
+  \item \textbf{Output.} A problem sheet with hints and worked solutions is added to both editions of the notes, and each problem links back to the lecture timestamp it came from.
+\end{enumerate}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[node distance=4mm and 4mm,
+    every node/.append style={font=\scriptsize},
+    blk/.append style={text width=22mm,font=\scriptsize,minimum height=8mm},
+    outb/.append style={text width=22mm,font=\scriptsize,minimum height=8mm}]
+  \node[blk] (n) {Typeset notes\\(equations, examples)};
+  \node[blk,right=of n] (s) {Seed extraction\\+ timestamps};
+  \node[blk,right=of s] (d) {SLM drafts problem + SymPy solution};
+  \node[blk,right=of d] (v) {Execute in SymPy, check answer};
+  \node[outb,right=8mm of v] (o) {Problem sheet\\+ solutions\\(EN/HI)};
+  \node[dev,below=4mm of v,text width=22mm,minimum height=6mm,font=\scriptsize] (r) {Discard or redraft};
+  \draw[arr] (n) -- (s); \draw[arr] (s) -- (d); \draw[arr] (d) -- (v);
+  \draw[arr] (v) -- node[above]{pass} (o);
+  \draw[arr] (v) -- node[right]{fail} (r);
+  \draw[arr,dashed] (r) -| (d);
+\end{tikzpicture}
+\caption{Proposed practice-problem generator: every problem comes from the lecture's own content and is kept only if its solution checks out symbolically.}
+\label{fig:practice}
+\end{figure}
+
+The module could be judged on the fraction of drafts that pass verification, on instructor ratings of correctness, relevance and difficulty, and on how students perform compared with textbook exercises. Symbolic verification can assess mathematical consistency, while instructor review remains important for evaluating pedagogical relevance before release. The same indexed notes could also support an \emph{ask-the-lecture} search. A student's question would be answered only from retrieved passages of the course notes, along the lines of retrieval-augmented generation~\cite{lewis2020rag}, and every answer would point to a lecture and a timestamp, all without a network.
+
+\subsection{Capturing more of the lecture}
+\begingroup\emergencystretch=2em
+\begin{itemize}
+  \item \textbf{Course-aware recognition.} The decoding prompt could be built separately for each course from a keyword list taken from the syllabus or the slides. CB-Whisper showed that spotting keywords in Whisper's own encoder features and feeding them into the prompt improves recall of rare terms with no retraining~\cite{li2024cbwhisper}.
+  \item \textbf{Board capture.} With a camera and a handwritten-expression recogniser such as BTTR~\cite{zhao2021bttr}, board content could be aligned with the transcript. Where speech and board content differ, the written expression could provide an additional reference for resolving ambiguous spoken notation.
+  \item \textbf{Speakers and languages.} Diarisation with pyannote.audio~\cite{bredin2023pyannote} could separate students' questions from the lecture itself, provided its GPU cost on the Jetson is acceptable. For lectures that switch between Hindi and English, the IndicWhisper models from the Vistaar project are candidates for further evaluation. They were trained on 10.7\,k hours of speech in 12 Indian languages and came out best on 39 of 59 benchmarks~\cite{bhogale2023vistaar}.
+\end{itemize}
+\endgroup
+
+\subsection{Rigorous evaluation and classroom deployment}
+String metrics treat equivalent forms such as \verb|\det| and \verb|\text{det}| as different. Character Detection Matching gets around this by rendering both the prediction and the reference and matching them character by character, and it agrees with human judgement better than BLEU or edit distance~\cite{wang2025cdm}. It should be reported next to Norm-EM. Beyond metrics, the system needs a set of lectures with reference LaTeX transcripts, \texttt{tegrastats} logs of memory, temperature and power for every run, and false-accept and false-reject rates for the wake phrases. The final step would be a semester-long pilot across several courses, measuring how much time instructors spend on editing, how students use the notes and problem sheets, and how useful Hindi-medium students find the bilingual edition.
+
+
+% =============================================================================
+%  REFERENCES
+% =============================================================================
+\begingroup
+\renewcommand{\bibname}{References}
+\setlength{\parskip}{0pt}
+\footnotesize\setstretch{1.0}
+\begin{thebibliography}{99}
+\setlength{\itemsep}{0.6pt}
+\addcontentsline{toc}{chapter}{References}
+
+\bibitem{radford2023whisper}
+A.~Radford \emph{et al.}, ``Robust speech recognition via large-scale weak supervision,'' in \emph{Proc. 40th Int. Conf. Machine Learning (ICML)}, PMLR vol.~202, pp.~28492--28518, 2023.
+
+\bibitem{hyeon2025mathspeech}
+S.~Hyeon \emph{et al.}, ``MathSpeech: Leveraging small LMs for accurate conversion in mathematical speech-to-formula,'' in \emph{Proc. AAAI Conf. Artificial Intelligence}, vol.~39, no.~23, 2025.
+
+\bibitem{korzh2025s2l}
+D.~Korzh \emph{et al.}, ``Speech-to-LaTeX: New models and datasets for converting spoken equations and sentences,'' \emph{arXiv preprint} arXiv:2508.03542, 2025.
+
+\bibitem{vaswani2017attention}
+A.~Vaswani \emph{et al.}, ``Attention is all you need,'' in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, vol.~30, 2017.
+
+\bibitem{whispercpp}
+G.~Gerganov \emph{et al.}, ``whisper.cpp: Port of OpenAI's Whisper model in C/C++,'' software, \url{https://github.com/ggml-org/whisper.cpp}.
+
+\bibitem{qwen2025report}
+Qwen Team (A.~Yang \emph{et al.}), ``Qwen2.5 technical report,'' \emph{arXiv preprint} arXiv:2412.15115, 2024.
+
+\bibitem{dettmers2022llmint8}
+T.~Dettmers \emph{et al.}, ``LLM.int8(): 8-bit matrix multiplication for transformers at scale,'' in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, vol.~35, pp.~30318--30332, 2022.
+
+\bibitem{llamacpp}
+G.~Gerganov \emph{et al.}, ``llama.cpp: LLM inference in C/C++,'' software, \url{https://github.com/ggml-org/llama.cpp}.
+
+\bibitem{dabre2022indicbart}
+R.~Dabre \emph{et al.}, ``IndicBART: A pre-trained model for Indic natural language generation,'' in \emph{Findings of the Association for Computational Linguistics: ACL 2022}, pp.~1849--1863, 2022.
+
+\bibitem{nllb2022}
+NLLB Team, M.~R. Costa-juss{\`a} \emph{et al.}, ``No language left behind: Scaling human-centered machine translation,'' \emph{arXiv preprint} arXiv:2207.04672, 2022.
+
+\bibitem{nvidia2023orinnano}
+NVIDIA Corporation, ``Develop AI-powered robots, smart vision systems, and more with NVIDIA Jetson Orin Nano Developer Kit,'' NVIDIA Technical Blog, 2023.
+
+\bibitem{raffel2020t5}
+C.~Raffel \emph{et al.}, ``Exploring the limits of transfer learning with a unified text-to-text transformer,'' \emph{Journal of Machine Learning Research}, vol.~21, no.~140, pp.~1--67, 2020.
+
+\bibitem{tectonic}
+P.~K.~G. Williams \emph{et al.}, ``Tectonic: A modernized, complete, self-contained TeX/LaTeX engine,'' software, \url{https://tectonic-typesetting.github.io/}.
+
+\bibitem{piper}
+M.~Hansen \emph{et al.}, ``Piper: A fast, local neural text to speech system,'' software, \url{https://github.com/rhasspy/piper}.
+
+\bibitem{leviathan2023speculative}
+Y.~Leviathan, M.~Kalman, and Y.~Matias, ``Fast inference from transformers via speculative decoding,'' in \emph{Proc. 40th Int. Conf. Machine Learning (ICML)}, PMLR vol.~202, pp.~19274--19286, 2023.
+
+\bibitem{nvidia2024super}
+NVIDIA Corporation, ``NVIDIA Jetson Orin Nano Super Developer Kit,'' product page, 2024, \url{https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/nano-super-developer-kit/}
+
+\bibitem{gala2023indictrans2}
+J.~Gala \emph{et al.}, ``IndicTrans2: Towards high-quality and accessible machine translation models for all 22 scheduled Indian languages,'' \emph{Transactions on Machine Learning Research}, 2023.
+
+\bibitem{kurdi2020aqg}
+G.~Kurdi \emph{et al.}, ``A systematic review of automatic question generation for educational purposes,'' \emph{International Journal of Artificial Intelligence in Education}, vol.~30, pp.~121--204, 2020.
+
+\bibitem{meurer2017sympy}
+A.~Meurer \emph{et al.}, ``SymPy: Symbolic computing in Python,'' \emph{PeerJ Computer Science}, vol.~3, e103, 2017, doi:~10.7717/peerj-cs.103.
+
+\bibitem{kim2025blueprints}
+J.-H. Kim, J.~Nam, and G.~Jo, ``Computational blueprints: Generating isomorphic mathematics problems with large language models,'' in \emph{Proc. Conf. Empirical Methods in Natural Language Processing (EMNLP): Industry Track}, 2025.
+
+\bibitem{lewis2020rag}
+P.~Lewis \emph{et al.}, ``Retrieval-augmented generation for knowledge-intensive NLP tasks,'' in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, vol.~33, 2020.
+
+\bibitem{li2024cbwhisper}
+Y.~Li \emph{et al.}, ``CB-Whisper: Contextual biasing Whisper using open-vocabulary keyword-spotting,'' in \emph{Proc. LREC-COLING 2024}, pp.~2941--2946, 2024.
+
+\bibitem{zhao2021bttr}
+W.~Zhao \emph{et al.}, ``Handwritten mathematical expression recognition with bidirectionally trained transformer,'' in \emph{Proc. Int. Conf. Document Analysis and Recognition (ICDAR)}, 2021.
+
+\bibitem{bredin2023pyannote}
+H.~Bredin, ``pyannote.audio 2.1 speaker diarization pipeline: Principle, benchmark, and recipe,'' in \emph{Proc. Interspeech}, pp.~1983--1987, 2023.
+
+\bibitem{bhogale2023vistaar}
+K.~S. Bhogale \emph{et al.}, ``Vistaar: Diverse benchmarks and training sets for Indian language ASR,'' in \emph{Proc. Interspeech}, 2023.
+
+\bibitem{wang2025cdm}
+B.~Wang \emph{et al.}, ``Image over text: Transforming formula recognition evaluation with character detection matching,'' in \emph{Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition (CVPR)}, 2025.
+
+\bibitem{nep2020}
+Ministry of Human Resource Development, Government of India, ``National Education Policy 2020,'' 2020.
+
+\end{thebibliography}
+\endgroup
+
+\end{document}
