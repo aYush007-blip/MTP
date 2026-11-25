@@ -313,6 +313,46 @@ class TestNotationHarmonisation(unittest.TestCase):
             )
         )
 
+    def test_live_symbol_registry_domain_lock_and_topic_shift(self):
+        slm = QwenMathTranslator(backend="server", server_url="http://127.0.0.1:19999", enable_symbol_lock=True)
+        # 1. Establish discrete sequence y[n], x[n] and transform H(s)
+        slm.symbol_registry.observe(
+            "For discrete-time sequences y1 of n equals x of 3n and transfer function H of s.",
+            "$y_1[n] = x[3n]$ and transfer function $H(s)$.",
+        )
+        slm.symbol_registry.observe(
+            "Now compute y of n from x of n.",
+            "Now compute $y[n]$ from $x[n]$.",
+        )
+        snap = slm.symbol_registry_snapshot()
+        self.assertEqual(snap["signal_domains"].get("x"), "discrete")
+        self.assertEqual(snap["signal_domains"].get("y"), "discrete")
+        self.assertEqual(snap["transforms"].get("H"), "s")
+
+        # 2. Verify KV cache prefix (system + few-shot) stays unchanged when hint is added
+        msgs_plain = QwenMathTranslator(backend="server", server_url="http://127.0.0.1:19999", enable_symbol_lock=False)._build_messages("Y of 1 equals x of 2")
+        msgs_hinted = slm._build_messages("Y of 1 equals x of 2")
+        self.assertEqual(msgs_plain[:-1], msgs_hinted[:-1])
+        self.assertIn("[Active lecture notation:", msgs_hinted[-1]["content"])
+
+        # 3. Domain lock repairs paren & sentence-start case drift (y(1)/Y(1)->y[1], X(2)->x[2], H[s]->H(s)), leaving x(t) untouched
+        repaired = slm._clean_response("$Y(1)$ will be $X(2)$ with $H[s]$ and continuous $x(t)$.", raw_text="Y of 1 will be x of 2")
+        self.assertIn("$y[1]$", repaired)
+        self.assertIn("$x[2]$", repaired)
+        self.assertIn("$H(s)$", repaired)
+        self.assertIn("$x(t)$", repaired)
+
+        # 4. Explicit continuous-time transition clears conflicting discrete lock and reset clears all state
+        slm.symbol_registry.observe(
+            "Moving to continuous-time systems with Laplace transform, input x of t.",
+            "Moving to continuous-time systems with Laplace transform, input $x(t)$.",
+        )
+        self.assertEqual(slm.symbol_registry_snapshot()["signal_domains"].get("x"), "continuous")
+
+        slm.reset_symbol_registry()
+        self.assertEqual(slm.symbol_registry_snapshot()["recent_symbols"], [])
+        self.assertEqual(slm.symbol_registry_snapshot()["signal_domains"], {})
+
 
 class TestHindiMathPreservation(unittest.TestCase):
     def test_mask_and_restore_all_math_constructs(self):

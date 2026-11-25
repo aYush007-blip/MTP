@@ -89,6 +89,213 @@ LLAMA_CLI_BIN = "/mnt/thesis/llama.cpp/build/bin/llama-cli"
 LLAMA_SERVER_URL = "http://127.0.0.1:8080"
 
 
+class LectureSymbolRegistry:
+    """
+    Lightweight, lecture-scoped symbol and domain registry.
+    Tracks active continuous/discrete signal notations (e.g., x(t) vs x[n]) and
+    transform domains (e.g., X(s), H(s), X(z)) across utterances, provides a
+    compact KV-cache-safe hint appended after static few-shots, and applies
+    conservative post-SLM domain consistency locking inside $...$ spans.
+    """
+
+    _SKIP_SYMBOLS = {
+        "f", "g", "sin", "cos", "tan", "cot", "sec", "csc",
+        "sinh", "cosh", "tanh", "exp", "log", "ln", "det",
+        "lim", "adj", "max", "min", "sup", "inf", "arg", "Re", "Im",
+    }
+    _DISCRETE_ARG_RE = re.compile(
+        r"^(?:[nkm]|-?\d+|[+-]?\d*[nkm](?:\s*[-+*/]\s*(?:\d+|[nkm]))?)$"
+    )
+    _CONTINUOUS_ARG_RE = re.compile(
+        r"^(?:t|\\tau|-t|0\^?\+?|[+-]?\d*\.?\d*t(?:\s*[-+]\s*(?:\d+|\\tau|[a-zA-Z]_?\d*))?)$"
+    )
+    _MATH_SPAN_RE = re.compile(r"(?<!\\)\$[^$\n]+?(?<!\\)\$")
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self._signal_domains: dict[str, str] = {}   # symbol -> "discrete" | "continuous"
+        self._symbol_counts: dict[str, int] = {}
+        self._recent_symbols: list[str] = []         # ordered examples e.g. ["x[n]", "H(s)"]
+        self._transforms: dict[str, str] = {}        # e.g. {"H": "s", "X": "s"}
+        self.continuous_score: float = 0.0
+        self.discrete_score: float = 0.0
+        self.lock_repairs_count: int = 0
+        self.last_repairs: list[tuple[str, str]] = []
+
+    def _record_recent(self, notation: str) -> None:
+        if notation in self._recent_symbols:
+            self._recent_symbols.remove(notation)
+        self._recent_symbols.append(notation)
+        if len(self._recent_symbols) > 12:
+            self._recent_symbols = self._recent_symbols[-12:]
+
+    def observe(self, spoken_text: str, typeset_latex: str) -> None:
+        """Update symbol and domain state from an accepted typeset utterance."""
+        low = spoken_text.lower()
+        explicit_disc = any(
+            k in low for k in (
+                "discrete-time", "discrete time", "z-transform", "z transform",
+                "sequence", "up-sampling", "upsampling", "down-sampling", "downsampling",
+            )
+        )
+        explicit_cont = any(
+            k in low for k in (
+                "continuous-time", "continuous time", "laplace transform",
+                "differential equation", "fourier transform",
+            )
+        )
+
+        # Smooth domain adaptation if lecturer explicitly transitions between domains
+        if explicit_disc and not explicit_cont and self.continuous_score > self.discrete_score:
+            self.continuous_score *= 0.4
+            for sym, dom in list(self._signal_domains.items()):
+                if dom == "continuous":
+                    del self._signal_domains[sym]
+                    self._symbol_counts.pop(sym, None)
+        elif explicit_cont and not explicit_disc and self.discrete_score > self.continuous_score:
+            self.discrete_score *= 0.4
+            for sym, dom in list(self._signal_domains.items()):
+                if dom == "discrete":
+                    del self._signal_domains[sym]
+                    self._symbol_counts.pop(sym, None)
+
+        if explicit_disc:
+            self.discrete_score += 1.0
+        if explicit_cont:
+            self.continuous_score += 1.0
+
+        for span_m in self._MATH_SPAN_RE.finditer(typeset_latex or ""):
+            span = span_m.group(0)[1:-1]
+
+            # 1. Discrete signal notation: x[n], y_1[n], h[k]
+            for m in re.finditer(r"\b([a-zA-Z](?:_[a-zA-Z0-9]+)?)\s*\[\s*([^\[\]\n]{1,18})\s*\]", span):
+                sym, arg = m.group(1), m.group(2).strip()
+                if sym in self._SKIP_SYMBOLS or sym.isupper():
+                    continue
+                if self._DISCRETE_ARG_RE.match(arg):
+                    self._signal_domains[sym] = "discrete"
+                    self._symbol_counts[sym] = self._symbol_counts.get(sym, 0) + 1
+                    self.discrete_score += 1.0
+                    self._record_recent(f"{sym}[{arg}]")
+
+            # 2. Continuous signal notation: x(t), y(t), x(\tau)
+            for m in re.finditer(r"\b([a-zA-Z](?:_[a-zA-Z0-9]+)?)\s*\(\s*([^()\n]{1,18})\s*\)", span):
+                sym, arg = m.group(1), m.group(2).strip()
+                if sym in self._SKIP_SYMBOLS:
+                    continue
+                if sym.isupper() and re.match(r"^(?:s|z|j\s*\\omega|\\omega)$", arg):
+                    self._transforms[sym] = arg
+                    self._record_recent(f"{sym}({arg})")
+                elif not sym.isupper() and self._CONTINUOUS_ARG_RE.match(arg):
+                    self._signal_domains[sym] = "continuous"
+                    self._symbol_counts[sym] = self._symbol_counts.get(sym, 0) + 1
+                    self.continuous_score += 1.0
+                    self._record_recent(f"{sym}({arg})")
+
+    def format_hint(self, spoken_text: str) -> str:
+        """
+        Return a compact (~20-35 token) active notation hint for the final user turn,
+        leaving SYSTEM_PROMPT and FEW_SHOT_MESSAGES untouched for KV cache reuse.
+        """
+        if not self._recent_symbols:
+            return ""
+
+        low_words = set(re.findall(r"[a-zA-Z]+", spoken_text.lower()))
+        prioritized: list[str] = []
+        others: list[str] = []
+        for entry in reversed(self._recent_symbols):
+            base = re.split(r"[\[(]", entry, 1)[0].split("_", 1)[0].lower()
+            if base in low_words:
+                prioritized.append(entry)
+            else:
+                others.append(entry)
+
+        selected = (prioritized + others)[:4]
+        if not selected:
+            return ""
+
+        domain_note = ""
+        if self.discrete_score > self.continuous_score + 0.5:
+            domain_note = "discrete sequences [n]; "
+        elif self.continuous_score > self.discrete_score + 0.5:
+            domain_note = "continuous signals (t); "
+
+        return f"[Active lecture notation: {domain_note}{', '.join(selected)}]"
+
+    def apply_domain_lock(self, typeset_text: str, raw_text: str = "") -> str:
+        """
+        Conservatively repair cross-utterance bracket drift inside $...$ spans
+        (e.g. y(1) -> y[1] when y is established as a discrete sequence y[n], or
+        H[s] -> H(s) when H(s) is an active s/z-domain transform).
+        Never alters t/tau continuous arguments or explicitly requested notations.
+        """
+        self.last_repairs = []
+        if not typeset_text or "$" not in typeset_text:
+            return typeset_text
+
+        low_raw = (raw_text or "").lower()
+        allow_disc_repair = "continuous" not in low_raw and "parenthes" not in low_raw
+
+        def _rewrite_span(match: re.Match) -> str:
+            inner = match.group(0)[1:-1]
+            updated = inner
+
+            # 1. Discrete signal variable accidentally emitted with (...) instead of [...]
+            if allow_disc_repair:
+                def _fix_disc(m: re.Match) -> str:
+                    sym, arg = m.group(1), m.group(2).strip()
+                    if sym in self._SKIP_SYMBOLS:
+                        return m.group(0)
+                    # Never rewrite t or tau continuous expressions
+                    if self._CONTINUOUS_ARG_RE.match(arg):
+                        return m.group(0)
+                    target_sym = None
+                    if self._signal_domains.get(sym) == "discrete":
+                        target_sym = sym
+                    elif (
+                        len(sym) == 1
+                        and sym.isupper()
+                        and sym not in self._transforms
+                        and self._signal_domains.get(sym.lower()) == "discrete"
+                        and self.discrete_score > self.continuous_score
+                    ):
+                        target_sym = sym.lower()
+
+                    if target_sym is not None and self._DISCRETE_ARG_RE.match(arg):
+                        repl = f"{target_sym}[{arg}]"
+                        self.last_repairs.append((m.group(0), repl))
+                        self.lock_repairs_count += 1
+                        return repl
+                    return m.group(0)
+
+                updated = re.sub(
+                    r"\b([a-zA-Z](?:_[a-zA-Z0-9]+)?)\s*\(\s*([^()\n]{1,18})\s*\)",
+                    _fix_disc,
+                    updated,
+                )
+
+            # 2. Transform symbol accidentally emitted with [...] instead of (...)
+            def _fix_tf(m: re.Match) -> str:
+                sym, arg = m.group(1), m.group(2).strip()
+                if sym in self._transforms and re.match(r"^(?:s|z|j\s*\\omega|\\omega)$", arg):
+                    repl = f"{sym}({arg})"
+                    self.last_repairs.append((m.group(0), repl))
+                    self.lock_repairs_count += 1
+                    return repl
+                return m.group(0)
+
+            updated = re.sub(
+                r"\b([XYZHG])\s*\[\s*([^\[\]\n]{1,16})\s*\]",
+                _fix_tf,
+                updated,
+            )
+            return f"${updated}$"
+
+        return self._MATH_SPAN_RE.sub(_rewrite_span, typeset_text)
+
+
 class QwenMathTranslator:
     """Unified Small Language Model translator for mathematical speech."""
 
@@ -102,14 +309,17 @@ class QwenMathTranslator:
         server_url: str = LLAMA_SERVER_URL,
         enable_cache_prompt: bool = True,
         enable_early_abort: bool = True,
+        enable_symbol_lock: bool = True,
     ):
         self.device = device
         self.server_url = server_url
         self.backend = backend
         self.enable_cache_prompt = enable_cache_prompt
         self.enable_early_abort = enable_early_abort
+        self.enable_symbol_lock = enable_symbol_lock
         self.last_abort_reason: Optional[str] = None
         self.last_stream_stats: dict = {}
+        self.symbol_registry = LectureSymbolRegistry()
         self.model_path = None
         self.tokenizer = None
         self.model = None
@@ -149,6 +359,29 @@ class QwenMathTranslator:
         elif self.backend == "llama_cli":
             if not Path(LLAMA_CLI_BIN).exists():
                 print(f"[SLM Warning] llama-cli binary not yet at {LLAMA_CLI_BIN}. Will attempt when built.")
+
+    def reset_symbol_registry(self) -> None:
+        """Reset per-lecture notation/domain state at lecture boundaries."""
+        self.symbol_registry.reset()
+
+    def symbol_registry_snapshot(self) -> dict:
+        """Return a serializable snapshot of active lecture notation bindings."""
+        return {
+            "signal_domains": dict(self.symbol_registry._signal_domains),
+            "transforms": dict(self.symbol_registry._transforms),
+            "recent_symbols": list(self.symbol_registry._recent_symbols),
+            "continuous_score": round(self.symbol_registry.continuous_score, 2),
+            "discrete_score": round(self.symbol_registry.discrete_score, 2),
+            "lock_repairs_count": self.symbol_registry.lock_repairs_count,
+            "last_repairs": list(self.symbol_registry.last_repairs),
+        }
+
+    def _finalize_cleaned_output(self, spoken_text: str, raw_output: str, context_text: str = "") -> str:
+        """Clean model output and record valid symbol bindings without double-counting."""
+        cleaned = self._clean_response(raw_output, raw_text=spoken_text, context_text=context_text)
+        if self.enable_symbol_lock and self.last_abort_reason is None:
+            self.symbol_registry.observe(spoken_text, cleaned)
+        return cleaned
 
     def _is_server_alive(self) -> bool:
         try:
@@ -206,7 +439,11 @@ class QwenMathTranslator:
             messages.append({"role": "user", "content": "Spoken transcript:\n[Preceding lecture context]"})
             messages.append({"role": "assistant", "content": ctx_str})
 
-        messages.append({"role": "user", "content": f"Spoken transcript:\n{spoken_text.strip()}"})
+        hint = self.symbol_registry.format_hint(spoken_text) if self.enable_symbol_lock else ""
+        if hint:
+            messages.append({"role": "user", "content": f"{hint}\nSpoken transcript:\n{spoken_text.strip()}"})
+        else:
+            messages.append({"role": "user", "content": f"Spoken transcript:\n{spoken_text.strip()}"})
         return messages
 
     def _build_chatml_prompt(self, spoken_text: str, context: str = "", history: Optional[list] = None) -> str:
@@ -329,6 +566,9 @@ class QwenMathTranslator:
         if raw_text and r"s(t)" in s and "s of t" not in raw_text.lower() and "s(t)" not in raw_text.lower():
             s = s.replace(r"s(t)", "such that")
 
+        if self.enable_symbol_lock:
+            s = self.symbol_registry.apply_domain_lock(s, raw_text=raw_text)
+
         return s
 
     def _consume_server_response(
@@ -355,7 +595,7 @@ class QwenMathTranslator:
                 "cache_prompt": self.enable_cache_prompt,
                 "elapsed_ms": round((time.monotonic() - t_start) * 1000.0, 2),
             }
-            return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+            return self._finalize_cleaned_output(spoken_text, content, context_text=ctx_str)
 
         chunks = []
         raw_lines_seen = 0
@@ -377,7 +617,7 @@ class QwenMathTranslator:
                     "cache_prompt": self.enable_cache_prompt,
                     "elapsed_ms": round((time.monotonic() - t_start) * 1000.0, 2),
                 }
-                return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+                return self._finalize_cleaned_output(spoken_text, content, context_text=ctx_str)
 
             if not line.startswith("data:"):
                 continue
@@ -427,7 +667,7 @@ class QwenMathTranslator:
             "cache_prompt": self.enable_cache_prompt,
             "elapsed_ms": round((time.monotonic() - t_start) * 1000.0, 2),
         }
-        return self._clean_response(content, raw_text=spoken_text, context_text=ctx_str)
+        return self._finalize_cleaned_output(spoken_text, content, context_text=ctx_str)
 
     def _execute_server_request(
         self,
@@ -517,7 +757,7 @@ class QwenMathTranslator:
         if "<|im_end|>" in output:
             output = output.split("<|im_end|>", 1)[0]
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
-        return self._clean_response(output, raw_text=spoken_text, context_text=ctx_str)
+        return self._finalize_cleaned_output(spoken_text, output, context_text=ctx_str)
 
     def translate_transformers(self, spoken_text: str, context: str = "", history: Optional[list] = None, max_new_tokens: int = 128) -> str:
         """Execute translation via HuggingFace PyTorch pipeline."""
@@ -540,7 +780,7 @@ class QwenMathTranslator:
         response_tokens = outputs[0][input_len:]
         response = self.tokenizer.decode(response_tokens, skip_special_tokens=True).strip()
         ctx_str = context if context else (" ".join(str(l) for _, l in history) if history else "")
-        return self._clean_response(response, raw_text=spoken_text, context_text=ctx_str)
+        return self._finalize_cleaned_output(spoken_text, response, context_text=ctx_str)
 
     def _has_math_cues(self, text: str) -> bool:
         """Check if spoken sentence contains mathematical terms, variables, or symbols."""

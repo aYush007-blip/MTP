@@ -625,6 +625,8 @@ class HeadlessVoiceAgent:
         Background worker that translates live spoken utterances to LaTeX math concurrently
         while the lecturer is speaking, guaranteeing zero post-lecture processing delay.
         """
+        prev_spoken = ""
+        prev_latex = ""
         while self._capture_running:
             try:
                 item = self.live_typeset_queue.get(timeout=0.2)
@@ -635,12 +637,24 @@ class HeadlessVoiceAgent:
                 self.live_typeset_queue.task_done()
                 break
 
+            with self._lecture_chunks_lock:
+                if not self.live_lecture_chunks:
+                    prev_spoken = ""
+                    prev_latex = ""
+
             t_start, t_end, spoken = item
             try:
-                latex = self.slm.translate(spoken) if self.slm else spoken
+                if self.slm:
+                    hist = [(prev_spoken, prev_latex)] if prev_spoken else None
+                    latex = self.slm.translate(spoken, context=prev_latex, history=hist)
+                else:
+                    latex = spoken
             except Exception as e:
                 print(f"[SLM Translation Error]: {e}", flush=True)
                 latex = spoken
+
+            prev_spoken = spoken
+            prev_latex = latex
 
             chunk_obj = TranscriptChunk(
                 timestamp_start=t_start,
@@ -761,8 +775,18 @@ class HeadlessVoiceAgent:
                 aggregated_units.append((curr_start, curr_end, " ".join(curr_words)))
 
             chunks = []
+            if self.slm and hasattr(self.slm, "reset_symbol_registry"):
+                self.slm.reset_symbol_registry()
+            prev_spoken = ""
+            prev_latex = ""
             for t_start, t_end, full_spoken in aggregated_units:
-                latex = self.slm.translate(full_spoken) if self.slm else full_spoken
+                if self.slm:
+                    hist = [(prev_spoken, prev_latex)] if prev_spoken else None
+                    latex = self.slm.translate(full_spoken, context=prev_latex, history=hist)
+                else:
+                    latex = full_spoken
+                prev_spoken = full_spoken
+                prev_latex = latex
                 chunks.append(TranscriptChunk(t_start, t_end, full_spoken, latex))
                 print(f"[{t_start:.1f}s - {t_end:.1f}s]: {full_spoken}", flush=True)
                 if latex != full_spoken:
@@ -884,6 +908,8 @@ class HeadlessVoiceAgent:
                                         break
                                 self.hpf.reset()
                                 vad.reset()
+                                if self.slm and hasattr(self.slm, "reset_symbol_registry"):
+                                    self.slm.reset_symbol_registry()
                                 lecture_start_time = time.monotonic()
                                 self.state = AgentState.RECORDING
                                 print("[Agent] Recording started! Capturing live lecture...", flush=True)
@@ -979,6 +1005,8 @@ class HeadlessVoiceAgent:
                                             break
                                     self.hpf.reset()
                                     vad.reset()
+                                    if self.slm and hasattr(self.slm, "reset_symbol_registry"):
+                                        self.slm.reset_symbol_registry()
 
                                     lecture_start_time = time.monotonic()
                                     self.state = AgentState.RECORDING
