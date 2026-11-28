@@ -30,6 +30,23 @@ MATH_SPAN_PATTERN = re.compile(
 
 PLACEHOLDER_PATTERN = re.compile(r"\[\[MATH_(\d+)\]\]")
 DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+_HINDI_SMALL_WORDS = {
+    "0": ("शून्य",),
+    "1": ("एक", "प्रथम", "पहला", "पहले", "पहली"),
+    "2": ("दो", "द्वितीय", "दूसरा", "दूसरे", "दूसरी"),
+    "3": ("तीन", "तृतीय", "तीसरा", "तीसरे", "तीसरी"),
+    "4": ("चार", "चौथा", "चौथे", "चौथी"),
+    "5": ("पाँच", "पांच", "पाँचवाँ"),
+    "6": ("छह", "छः"),
+    "7": ("सात",),
+    "8": ("आठ",),
+    "9": ("नौ",),
+}
+
+
+def _is_significant_number(num_str: str) -> bool:
+    """Multi-digit integers, decimals, and signed constants are checked strictly by multiset."""
+    return len(num_str) >= 2 or "." in num_str or num_str.startswith("-")
 
 
 def mask_math_spans(text: str) -> Tuple[str, List[str]]:
@@ -88,10 +105,31 @@ def restore_and_verify_math_spans(
     if dst_dollar_cnt != src_dollar_cnt:
         return False, "", f"stray_math_delimiter: src={src_dollar_cnt}, dst={dst_dollar_cnt}"
 
-    # Verify numerical content outside math spans was neither lost nor altered
+    # Verify numerical content outside math spans:
+    # - Significant constants (multi-digit, decimal, signed) must match by exact multiset
+    # - Invented extra digits in output are rejected
+    # - Single-digit counts (0-9) in prose may appear as ASCII digits or standard Hindi number words
     src_nums = extract_outside_numbers(source_masked)
     dst_nums = extract_outside_numbers(translated_masked)
-    if Counter(src_nums) != Counter(dst_nums):
+
+    src_sig = [n for n in src_nums if _is_significant_number(n)]
+    dst_sig = [n for n in dst_nums if _is_significant_number(n)]
+    if Counter(src_sig) != Counter(dst_sig):
+        return False, "", f"numeric_mismatch: expected={src_nums}, got={dst_nums}"
+
+    src_small = {n for n in src_nums if not _is_significant_number(n)}
+    dst_small = {n for n in dst_nums if not _is_significant_number(n)}
+    if not dst_small.issubset(src_small):
+        return False, "", f"numeric_mismatch: expected={src_nums}, got={dst_nums}"
+
+    missing_small = []
+    for d in src_small:
+        if d in dst_small:
+            continue
+        if any(w in stripped_valid for w in _HINDI_SMALL_WORDS.get(d, ())):
+            continue
+        missing_small.append(d)
+    if missing_small:
         return False, "", f"numeric_mismatch: expected={src_nums}, got={dst_nums}"
 
     # Restore original math spans verbatim
@@ -111,6 +149,30 @@ HINDI_SYSTEM_PROMPT = (
     "3. Translate the surrounding English prose into natural Hindi. Keep standard English technical terms in parentheses for pedagogical clarity.\n"
     "4. Output ONLY the translated Hindi text. Do NOT add meta commentary, explanations, or quotes."
 )
+
+HINDI_PLAIN_SYSTEM_PROMPT = (
+    "You are a professional STEM Hindi translator. Translate the English lecture text into "
+    "natural, fluent Hindi (Devanagari script) for Indian college students.\n"
+    "CRITICAL RULES:\n"
+    "1. Preserve all numbers in ASCII digits (0, 1, 2, ...).\n"
+    "2. Keep standard English technical terms in parentheses when helpful.\n"
+    "3. Output ONLY the translated Hindi sentence(s). Do NOT invent formulas, brackets, or commentary."
+)
+
+HINDI_PLAIN_FEW_SHOTS = [
+    {
+        "role": "system",
+        "content": HINDI_PLAIN_SYSTEM_PROMPT,
+    },
+    {
+        "role": "user",
+        "content": "Let us consider the stability of linear time-invariant systems in the frequency domain.",
+    },
+    {
+        "role": "assistant",
+        "content": "आइए आवृत्ति क्षेत्र (frequency domain) में रैखिक समय-अपरिवर्ती प्रणालियों (linear time-invariant systems) की स्थिरता (stability) पर विचार करें।",
+    },
+]
 
 HINDI_FEW_SHOTS = [
     {
@@ -132,14 +194,6 @@ HINDI_FEW_SHOTS = [
     {
         "role": "assistant",
         "content": "एक बिंदु [[MATH_0]] को न्यूनतम (minimum) कहा जाता है यदि सभी [[MATH_2]] के लिए [[MATH_1]] हो।"
-    },
-    {
-        "role": "user",
-        "content": "At 50 Hz frequency, the efficiency is 0.85 across 3 phases."
-    },
-    {
-        "role": "assistant",
-        "content": "50 Hz आवृत्ति (frequency) पर, 3 कलाओं (phases) में दक्षता (efficiency) 0.85 है।"
     }
 ]
 
@@ -188,13 +242,22 @@ class HindiLectureTranslator:
         except Exception:
             return False
 
-    def _request_completion(self, prompt: str, max_tokens: int, temperature: float = 0.15) -> str:
+    def _request_completion(
+        self,
+        prompt: str,
+        max_tokens: int,
+        temperature: float = 0.0,
+        allow_blank_lines: bool = False,
+    ) -> str:
+        stop_tokens = ["<|im_end|>", "<|endoftext|>", "<|im_start|>"]
+        if not allow_blank_lines:
+            stop_tokens.append("\n\n")
         payload = {
             "prompt": prompt,
             "temperature": temperature,
             "repeat_penalty": 1.15,
             "n_predict": max_tokens,
-            "stop": ["<|im_end|>", "<|endoftext|>"],
+            "stop": stop_tokens,
             "cache_prompt": True,
         }
         req = urllib.request.Request(
@@ -216,9 +279,10 @@ class HindiLectureTranslator:
         ).strip()
         return re.sub(r'(.{15,}?)(?:\s+\1){2,}', r'\1', clean_res)
 
-    def _build_translation_prompt(self, masked_in: str, strict_retry: bool = False) -> str:
+    def _build_translation_prompt(self, masked_in: str, strict_retry: bool = False, has_math: bool = True) -> str:
+        shots = HINDI_FEW_SHOTS if has_math else HINDI_PLAIN_FEW_SHOTS
         prompt = ""
-        for m in HINDI_FEW_SHOTS:
+        for m in shots:
             prompt += f"<|im_start|>{m['role']}\n{m['content']}<|im_end|>\n"
         user_msg = masked_in
         if strict_retry:
@@ -229,37 +293,28 @@ class HindiLectureTranslator:
                     "and keep all numbers unchanged.]\n" + masked_in
                 )
             else:
-                user_msg = "[CRITICAL: Keep all numbers unchanged in ASCII digits.]\n" + masked_in
+                user_msg = "[CRITICAL: Translate into Hindi only. Do NOT output [[MATH_0]] or invent numbers.]\n" + masked_in
         prompt += f"<|im_start|>user\n{user_msg}<|im_end|>\n<|im_start|>assistant\n"
         return prompt
 
-    def translate_text(self, text: str, max_tokens: int = 512) -> str:
-        """
-        Translates an English technical paragraph into Hindi using placeholder masking
-        and span-level verification. Retries once on validation failure and falls back
-        to the original English paragraph rather than emitting corrupted mathematics.
-        """
-        clean_in = text.strip()
-        if not clean_in or len(clean_in) < 3:
-            return clean_in
-
+    def _translate_single_segment(self, clean_in: str, max_tokens: int = 384) -> str:
+        """Translate one masked-bounded segment (ideally <= 4 math spans) with retry and English fallback."""
         masked_in, spans = mask_math_spans(clean_in)
-        self.audit_stats["paragraphs_total"] += 1
         self.audit_stats["spans_protected_total"] += len(spans)
         prose_only = PLACEHOLDER_PATTERN.sub(" ", masked_in).strip()
         if not re.search(r"[a-zA-Z]", prose_only):
             self.audit_stats["paragraphs_unchanged_no_prose"] += 1
             return clean_in
 
-        token_budget = min(max_tokens, max(96, len(masked_in.split()) * 4 + 64))
+        token_budget = min(max_tokens, max(64, len(masked_in.split()) * 3 + 32))
 
         for attempt in range(2):
-            prompt = self._build_translation_prompt(masked_in, strict_retry=(attempt == 1))
+            prompt = self._build_translation_prompt(masked_in, strict_retry=(attempt == 1), has_math=bool(spans))
             try:
                 raw_translation = self._request_completion(
                     prompt,
                     max_tokens=token_budget,
-                    temperature=0.15 if attempt == 0 else 0.05,
+                    temperature=0.0 if attempt == 0 else 0.05,
                 )
                 if raw_translation:
                     cleaned = self._clean_translation_output(raw_translation)
@@ -300,6 +355,53 @@ class HindiLectureTranslator:
 
         self.audit_stats["english_fallbacks"] += 1
         return clean_in
+
+    def translate_text(self, text: str, max_tokens: int = 512) -> str:
+        """
+        Translates an English technical paragraph into Hindi using placeholder masking
+        and span-level verification. Dense paragraphs (>4 math spans or >55 words) are
+        split along safe sentence boundaries (without breaking math spans) so the 1.5B
+        edge model preserves placeholders reliably with minimal retries/fallbacks.
+        """
+        clean_in = text.strip()
+        if not clean_in or len(clean_in) < 3:
+            return clean_in
+
+        self.audit_stats["paragraphs_total"] += 1
+        masked_full, spans_full = mask_math_spans(clean_in)
+        if len(spans_full) > 4 or len(masked_full.split()) > 55:
+            sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", masked_full) if s.strip()]
+            if len(sentences) > 1:
+                groups: List[str] = []
+                cur_group: List[str] = []
+                cur_spans = 0
+                cur_words = 0
+                for sent in sentences:
+                    s_spans = len(PLACEHOLDER_PATTERN.findall(sent))
+                    s_words = len(sent.split())
+                    if cur_group and (cur_spans + s_spans > 4 or cur_words + s_words > 55):
+                        groups.append(" ".join(cur_group))
+                        cur_group = [sent]
+                        cur_spans = s_spans
+                        cur_words = s_words
+                    else:
+                        cur_group.append(sent)
+                        cur_spans += s_spans
+                        cur_words += s_words
+                if cur_group:
+                    groups.append(" ".join(cur_group))
+
+                if len(groups) > 1:
+                    restored_parts = []
+                    for grp_masked in groups:
+                        grp_raw = PLACEHOLDER_PATTERN.sub(
+                            lambda m: spans_full[int(m.group(1))],
+                            grp_masked,
+                        )
+                        restored_parts.append(self._translate_single_segment(grp_raw, max_tokens=max_tokens))
+                    return " ".join(restored_parts)
+
+        return self._translate_single_segment(clean_in, max_tokens=max_tokens)
 
     def translate_paragraphs(self, paragraphs: List[str]) -> List[str]:
         """Translates a list of cohesive English lecture paragraphs into Hindi."""
@@ -347,11 +449,13 @@ class HindiLectureTranslator:
             "<|im_start|>assistant\n"
         )
 
-        token_budget = min(1024, max(128, sum(len(l.split()) for l in masked_lines) * 4 + 64))
+        token_budget = min(768, max(96, sum(len(l.split()) for l in masked_lines) * 3 + 48))
 
         for attempt in range(2):
             try:
-                raw_out = self._request_completion(prompt, max_tokens=token_budget, temperature=0.15)
+                raw_out = self._request_completion(
+                    prompt, max_tokens=token_budget, temperature=0.0, allow_blank_lines=True
+                )
 
                 result_map = {}
                 for line in raw_out.split("\n"):
@@ -401,8 +505,8 @@ class HindiLectureTranslator:
             )
             payload = {
                 "prompt": prompt,
-                "temperature": 0.1,
-                "n_predict": 32,
+                "temperature": 0.0,
+                "n_predict": 64,
                 "stop": ["<|im_end|>", "\n"],
                 "cache_prompt": True
             }
@@ -413,7 +517,7 @@ class HindiLectureTranslator:
             )
             with urllib.request.urlopen(req, timeout=15.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                ans = data.get("content", "").strip()
+                ans = data.get("content", "").replace("\ufffd", "").strip()
                 if ans and len(ans) > 2:
                     return re.sub(r'^(?:शीर्षक|Title):\s*', '', ans, flags=re.IGNORECASE).strip()
         except Exception:

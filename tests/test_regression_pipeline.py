@@ -499,13 +499,14 @@ class TestNoteGenerationPDFAndExport(unittest.TestCase):
                      hi_translator,
                      "translate_subtitles_batch",
                      side_effect=lambda batch: [f"हिंदी: {b}" for b in batch],
-                 ):
+                 ) as mock_subs:
                 hi_tex, hi_md, hi_title, hi_chunks, hi_paras = builder.build_hindi_book(title, chunks)
 
+            mock_subs.assert_not_called()
             self.assertIn(r"\setmainfont{Lohit Devanagari}", hi_tex)
             self.assertIn("$x(t)$", hi_tex)
             self.assertIn(r"\begin{equation}", hi_tex)
-            self.assertEqual(len(hi_chunks), len(chunks))
+            self.assertEqual(hi_chunks, [])
 
             hi_tex_path = tmp_dir / "smoke_test_hindi.tex"
             hi_tex_path.write_text(hi_tex, encoding="utf-8")
@@ -713,6 +714,117 @@ class TestNoteGenerationPDFAndExport(unittest.TestCase):
                 self.assertIn("lec_invariance_audit.json", zf.namelist())
                 loaded = json.loads(zf.read("lec_invariance_audit.json").decode("utf-8"))
                 self.assertEqual(loaded["artifact_hashes_sha256"]["lec.pdf"], compute_sha256(eng_pdf))
+
+    def test_equation_promotion_guards_and_tikz_safety(self):
+        from lecture_to_book import EquationFormatter, TikZDiagramGenerator
+        from postprocess_lecture_ai import AcademicPDFRenderer
+
+        fmt = EquationFormatter()
+        # Should NOT split short inline range/bound assignments mid-sentence
+        self.assertFalse(fmt.should_promote_to_display("k = 1", prev_text="for "))
+        self.assertFalse(fmt.should_promote_to_display(r"m = -\infty", prev_text="from "))
+        self.assertFalse(fmt.should_promote_to_display("k > 0", prev_text="where "))
+        # Full standalone equation SHOULD promote cleanly
+        self.assertTrue(
+            fmt.should_promote_to_display(
+                r"E_{\text{MS}}(n) = \sum_{m=-\infty}^{\infty} S_n^2(m)",
+                prev_text="defined as:",
+            )
+        )
+
+        # Incompatible TikZ diagrams with custom undefined macros (e.g. \nann) must be filtered
+        fake_index = [
+            {
+                "id": "bad_nann",
+                "title": "Sample Size",
+                "keywords": ["mean", "sample", "size", "equation", "variance"],
+                "tikz_code": r"\begin{tikzpicture}\node{$\nann{z}{z}$};\end{tikzpicture}",
+            }
+        ]
+        with patch.object(TikZDiagramGenerator, "load_index", return_value=fake_index):
+            blocks = TikZDiagramGenerator.match_diagrams_from_index(
+                "The mean sample size equation variance term method.", min_score=3, max_diagrams=2
+            )
+            self.assertEqual(blocks, [])
+
+        # Tectonic auto-heal strips a failing figure block instead of failing completely
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            broken_tex = tdir / "broken_fig.tex"
+            broken_tex.write_text(
+                r"""\documentclass{article}
+\usepackage{amsmath}
+\usepackage{tikz}
+\begin{document}
+Hello $E = mc^2$.
+\begin{figure}[htbp]\centering\begin{tikzpicture}\node{\nann{z}{z}};\end{tikzpicture}\end{figure}
+\end{document}""",
+                encoding="utf-8",
+            )
+            healed_pdf = AcademicPDFRenderer.compile_with_tectonic(broken_tex, tdir)
+            self.assertIsNotNone(healed_pdf)
+            self.assertTrue(healed_pdf.is_file())
+            self.assertNotIn(r"\nann", broken_tex.read_text(encoding="utf-8"))
+
+        # Hindi plain prose prompt does not include [[MATH_0]] or 0.85 examples
+        tr = HindiLectureTranslator(server_url="http://127.0.0.1:19999")
+        plain_prompt = tr._build_translation_prompt("This is a plain sentence.", has_math=False)
+        self.assertNotIn("[[MATH_0]]", plain_prompt)
+        self.assertNotIn("0.85", plain_prompt)
+
+        # Single-digit spoken counts accept Hindi number words without false retries, while invented/altered numbers still fail
+        ok_word, _, _ = restore_and_verify_math_spans("Methods 1, 2, and 3.", "विधियाँ एक, दो, और तीन।", [])
+        self.assertTrue(ok_word)
+        bad_inv, _, _ = restore_and_verify_math_spans("Both values vanish.", "दोनों मान 0 और 1 हैं।", [])
+        self.assertFalse(bad_inv)
+
+    def test_english_pdf_sanitizer_and_line_quarantine(self):
+        from lecture_to_book import escape_title_for_tex, sanitize_latex_source
+        from postprocess_lecture_ai import AcademicPDFRenderer
+
+        # 1. Title escaping prevents header crashes on underscores/percents/hashes/ampersands
+        escaped_title = escape_title_for_tex("Q4_K_M 50% BLEU #1 & More $x$")
+        self.assertEqual(escaped_title, r"Q4\_K\_M 50\% BLEU \#1 \& More x")
+
+        # 2. Math sanitizer balances braces, strips unmatched \left/\right, expands \R/\argmax, escapes %
+        raw_tex = r"Let $x \in \R$ with $\left(a + b$ and $\frac{1}{2$ and $\argmax_x f(x)$ and $50%$."
+        cleaned = sanitize_latex_source(raw_tex)
+        self.assertIn(r"\mathbb{R}", cleaned)
+        self.assertIn(r"\operatorname{arg\,max}", cleaned)
+        self.assertIn(r"\frac{1}{2}", cleaned)
+        self.assertIn(r"50\%", cleaned)
+        self.assertNotIn(r"\left", cleaned)
+
+        # 3. End-to-end Tectonic compile with broken figure + unrepairable equation quarantine
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            hostile_tex = tdir / "hostile_english.tex"
+            hostile_tex.write_text(
+                r"""\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\begin{document}
+\section{Valid Theory}
+Healthy equation stays intact: $X(s) = \frac{1}{s+3}$ and $x \in \R$.
+\begin{equation}
+  \label{eq:bad}
+  y(t) = \completelyUndefinedCustomMacro{t}
+\end{equation}
+\begin{figure}[htbp]\centering\begin{tikzpicture}\node{\nann{z}{z}};\end{tikzpicture}\end{figure}
+\begin{equation}
+  \label{eq:good}
+  H(s) = \frac{Y(s)}{X(s)}
+\end{equation}
+\end{document}""",
+                encoding="utf-8",
+            )
+            pdf_out = AcademicPDFRenderer.compile_with_tectonic(hostile_tex, tdir)
+            self.assertIsNotNone(pdf_out)
+            self.assertTrue(pdf_out.is_file())
+            self.assertGreater(pdf_out.stat().st_size, 5000)
+            final_tex = hostile_tex.read_text(encoding="utf-8")
+            self.assertIn(r"H(s) = \frac{Y(s)}{X(s)}", final_tex)
+            self.assertNotIn(r"\completelyUndefinedCustomMacro", final_tex)
 
 
 if __name__ == "__main__":

@@ -117,34 +117,133 @@ def escape_latex_text(paragraph: str) -> str:
     return balance_math_delimiters(out)
 
 
-def sanitize_latex_source(tex: str) -> str:
+def _repair_math_span_body(eq: str) -> str:
     """
-    Comprehensive sanitizer for LaTeX monograph source before compilation:
-    1. Fixes unspaced backslash macro run-ons (e.g. \\inftyf(x) -> \\infty f(x), \\lambdax -> \\lambda x).
-    2. Strips unrequested \\begin{cases} / \\end{cases} hallucinations or balances them.
-    3. Converts \\textasciicircum{} back to ^ inside math mode.
-    4. Normalizes equation labels and removes duplicate labels.
-    5. Balances math environments and unspaced brackets.
+    Normalize and repair a single math expression body (without outer $ or equation tags)
+    so unbalanced braces, unmatched \\left/\\right, dangling scripts, and undefined macros
+    cannot abort XeTeX/Tectonic compilation.
     """
-    if not tex:
+    if not eq:
         return ""
-
-    # 1. Macro run-ons: e.g. \inftyf -> \infty f, \lambdax -> \lambda x, \omegat -> \omega t
+    s = eq.strip()
     greek_and_macros = (
         "infty|lambda|omega|delta|alpha|beta|gamma|theta|sigma|rho|epsilon|"
         "tau|psi|phi|chi|zeta|eta|xi|nabla|partial|approx"
     )
-    tex = re.sub(rf'\\({greek_and_macros})([a-zA-Z])', r'\\\1 \2', tex)
+    s = re.sub(rf'\\({greek_and_macros})([a-zA-Z])', r'\\\1 \2', s)
+    s = s.replace(r'\textasciicircum{}', '^').replace(r'\textasciicircum', '^')
 
-    # 2. Fix \textasciicircum{} inside math mode ($...$ or \begin{equation}...\end{equation})
-    def _fix_math_circum(m):
-        content = m.group(0)
-        return content.replace(r'\textasciicircum{}', '^').replace(r'\textasciicircum', '^')
+    # Escape raw % or # inside math mode so TeX does not comment out the closing $
+    s = re.sub(r'(?<!\\)([#%])', r'\\\1', s)
 
-    tex = re.sub(r'\$[^\$]+\$', _fix_math_circum, tex)
-    tex = re.sub(r'\\begin\{equation\}.*?\\end\{equation\}', _fix_math_circum, tex, flags=re.DOTALL)
+    # Expand common SLM shorthand macros missing from bare article+amssymb
+    for pat, repl in (
+        (r'\\mathbbm\{([^}]+)\}', r'\\mathbf{\1}'),
+        (r'\\R(?![a-zA-Z])', r'\\mathbb{R}'),
+        (r'\\C(?![a-zA-Z])', r'\\mathbb{C}'),
+        (r'\\N(?![a-zA-Z])', r'\\mathbb{N}'),
+        (r'\\Z(?![a-zA-Z])', r'\\mathbb{Z}'),
+        (r'\\argmax(?![a-zA-Z])', r'\\operatorname{arg\\,max}'),
+        (r'\\argmin(?![a-zA-Z])', r'\\operatorname{arg\\,min}'),
+        (r'\\sinc(?![a-zA-Z])', r'\\operatorname{sinc}'),
+    ):
+        s = re.sub(pat, repl, s)
 
-    # 3. Fix double or triple dollar signs outside display blocks
+    # Fix unmatched \left / \right delimiters (Missing \right. kills Tectonic)
+    left_cnt = len(re.findall(r'\\left(?![a-zA-Z])', s))
+    right_cnt = len(re.findall(r'\\right(?![a-zA-Z])', s))
+    if left_cnt != right_cnt:
+        s = re.sub(r'\\(?:left|right)\s*\.', '', s)
+        s = re.sub(r'\\(?:left|right)\s*', '', s)
+
+    # Balance inner math environments
+    for env in ("cases", "matrix", "pmatrix", "bmatrix", "vmatrix", "aligned"):
+        beg = s.count(rf"\begin{{{env}}}")
+        end = s.count(rf"\end{{{env}}}")
+        if beg > end:
+            s += rf"\end{{{env}}}" * (beg - end)
+        elif end > beg:
+            for _ in range(end - beg):
+                idx = s.rfind(rf"\end{{{env}}}")
+                if idx != -1:
+                    s = s[:idx] + s[idx + len(rf"\end{{{env}}}"):]
+
+    # Balance unescaped { and } braces
+    out_chars: List[str] = []
+    depth = 0
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        if ch == "\\" and i + 1 < len(s):
+            out_chars.append(s[i:i + 2])
+            i += 2
+            continue
+        if ch == "{":
+            depth += 1
+            out_chars.append(ch)
+        elif ch == "}":
+            if depth > 0:
+                depth -= 1
+                out_chars.append(ch)
+            # drop orphan } when depth == 0
+        else:
+            out_chars.append(ch)
+        i += 1
+    if depth > 0:
+        out_chars.append("}" * depth)
+    s = "".join(out_chars).strip()
+
+    # Strip trailing dangling subscript/superscript operator (e.g. "x_" or "x^")
+    s = re.sub(r'(?<!\\)[_^]\s*$', '', s).strip()
+    return s
+
+
+def escape_title_for_tex(title: str) -> str:
+    """Safely escape document title for LaTeX headers and \\begin{center}."""
+    s = (title or "Lecture Notes").replace("$", "").replace("\ufffd", "").strip()
+    s = s.replace("{", "").replace("}", "")
+    s = re.sub(r'(?<!\\)([&%#_])', r'\\\1', s)
+    return s
+
+
+def sanitize_latex_source(tex: str) -> str:
+    """
+    Comprehensive sanitizer for LaTeX monograph source before compilation:
+    1. Repairs macro run-ons, unbalanced braces, unmatched \\left/\\right,
+       and unescaped %/# inside math spans ($...$ and \\begin{equation}...\\end{equation}).
+    2. Balances/repairs inner math environments.
+    3. Converts \\textasciicircum{} back to ^ inside math mode.
+    4. Normalizes equation labels and removes duplicate labels.
+    5. Strips stray broken Unicode characters (U+FFFD / RTL ranges).
+    """
+    if not tex:
+        return ""
+
+    # 1 & 2 & 3. Repair inline math $...$ spans and display equation environments
+    tex = re.sub(
+        r'(?<!\\)\$[^$\n]+?(?<!\\)\$',
+        lambda m: f"${_repair_math_span_body(m.group(0)[1:-1])}$" if _repair_math_span_body(m.group(0)[1:-1]) else "",
+        tex,
+    )
+
+    def _fix_eq_env(m):
+        lbl_m = re.search(r'\\label\{[^}]+\}', m.group(1))
+        lbl = lbl_m.group(0) if lbl_m else ""
+        body = re.sub(r'\\label\{[^}]+\}', '', m.group(1)).strip()
+        repaired = _repair_math_span_body(body)
+        if not repaired:
+            return ""
+        lbl_line = f"  {lbl}\n" if lbl else ""
+        return f"\\begin{{equation}}\n{lbl_line}  {repaired}\n\\end{{equation}}"
+
+    tex = re.sub(
+        r'\\begin\{equation\}(.*?)\\end\{equation\}',
+        _fix_eq_env,
+        tex,
+        flags=re.DOTALL,
+    )
+
+    # 3. Fix triple+ dollar signs outside display blocks
     tex = re.sub(r'\${3,}', '$$', tex)
 
     # 4. Remove dangling punctuation after \end{equation}
@@ -162,7 +261,7 @@ def sanitize_latex_source(tex: str) -> str:
         return m.group(0)
     tex = re.sub(r'\\label\{([^}]+)\}', _dedup_label, tex)
 
-    # 6. Clean Unicode replacement char \uFFFD and Arabic/Urdu characters \u0600-\u06FF that break Devanagari fonts
+    # 6. Clean Unicode replacement char \uFFFD and Arabic/Urdu characters \u0600-\u06FF that break fonts
     tex = re.sub(r'[\u0600-\u06FF\uFFFD]', '', tex)
 
     # 7. Normalize multiple blank lines
@@ -193,15 +292,30 @@ class TikZDiagramGenerator:
                 cls._index_cache = []
         return cls._index_cache or []
 
+    _GENERIC_DIAGRAM_STOPWORDS = {
+        "mean", "term", "terms", "method", "methods", "equation", "equations",
+        "sample", "size", "self", "square", "circle", "polygon", "point", "points",
+        "line", "lines", "step", "steps", "value", "values", "number", "numbers",
+        "function", "functions", "system", "systems", "matrix", "vector", "space",
+        "time", "signal", "signals", "graph", "plot", "diagram", "chart", "model",
+        "equal", "constant", "order", "first", "second", "third", "where", "there",
+    }
+    _UNSUPPORTED_TIKZ_RE = re.compile(
+        r"(?:\\nann\b|\\tkz|\\circuitikz|\\chemfig|\\pgfplot|\\addplot\b|\\begin\{axis\}|\\includegraphics\b)"
+    )
+
     @classmethod
-    def match_diagrams_from_index(cls, text: str, min_score: int = 4, max_diagrams: int = 1) -> List[str]:
+    def match_diagrams_from_index(cls, text: str, min_score: int = 5, max_diagrams: int = 1) -> List[str]:
         index = cls.load_index()
         if not index or not text:
             return []
-        tokens = set(w.lower() for w in re.findall(r'[a-zA-Z]{3,}', text))
+        tokens = set(w.lower() for w in re.findall(r'[a-zA-Z]{3,}', text)) - cls._GENERIC_DIAGRAM_STOPWORDS
         scored = []
         for d in index:
-            kw = set(d.get("keywords", []))
+            code = d.get("tikz_code", "").strip()
+            if not code or cls._UNSUPPORTED_TIKZ_RE.search(code):
+                continue
+            kw = set(str(k).lower() for k in d.get("keywords", [])) - cls._GENERIC_DIAGRAM_STOPWORDS
             overlap = len(tokens & kw)
             if overlap >= min_score:
                 scored.append((overlap, d))
@@ -209,14 +323,13 @@ class TikZDiagramGenerator:
         blocks = []
         for _, d in scored[:max_diagrams]:
             code = d.get("tikz_code", "").strip()
-            if not code:
-                continue
             if r"\begin{figure}" not in code:
+                cap = str(d.get("title", "Scientific Schematic")).replace("_", r"\_").replace("&", r"\&")
                 fig = (
                     "\\begin{figure}[htbp]\n"
                     "\\centering\n"
                     f"{code}\n"
-                    f"\\caption{{{d.get('title', 'Scientific Schematic')}.}}\n"
+                    f"\\caption{{{cap}.}}\n"
                     f"\\label{{fig:{d.get('id', 'stem_diagram')}}}\n"
                     "\\end{figure}"
                 )
@@ -526,11 +639,11 @@ class TikZDiagramGenerator:
             elif t == "discrete_sequence_energy":
                 blocks.append(self.generate_discrete_sequence_tikz())
 
-        # Match diagrams from 515-diagram universal STEM index across physics, math, CS, engineering
+        # Match diagrams from STEM index conservatively (min_score=5 on non-generic domain keywords)
         w_count = len(full_text.split()) if full_text else 0
-        max_diag = 3 if w_count >= 1500 else (2 if w_count >= 500 else 1)
+        max_diag = 2 if w_count >= 1500 else 1
         if full_text:
-            matched = self.match_diagrams_from_index(full_text, min_score=3, max_diagrams=max_diag)
+            matched = self.match_diagrams_from_index(full_text, min_score=5, max_diagrams=max_diag)
             for m in matched:
                 if m not in blocks and len(blocks) < max_diag:
                     blocks.append(m)
@@ -620,32 +733,57 @@ class EquationFormatter:
         text = re.sub(r'\${3,}', '$$', text)
         return text
 
-    def should_promote_to_display(self, eq_body: str) -> bool:
-        """Determines if a math expression is a formula that should be on a separate display line."""
+    def should_promote_to_display(self, eq_body: str, prev_text: str = "") -> bool:
+        """Determines if a math expression is a full standalone formula suitable for display mode."""
         eq = eq_body.strip()
+        if not eq or len(eq) < 8:
+            return False
 
-        # 1. Any equation or relational operator (=, >, <, \le, \ge, \approx, \equiv)
+        # Reject simple inline index bounds or trivial variable assignments (e.g. k = 1, m = -\infty, k > 0)
+        if (
+            re.match(r'^[-a-zA-Z0-9_\\{}\s]{1,12}(?:=|<|>|\\le|\\ge|\\to)\s*[-a-zA-Z0-9_\\{}\+\s]{1,16}$', eq)
+            and not any(tok in eq for tok in (r'\frac', r'\int', r'\sum'))
+        ):
+            return False
+
+        # Reject bare summation/integral limits without an actual equation or substantive body
+        if any(op in eq for op in (r'\sum', r'\int')) and '=' not in eq:
+            stripped_op = re.sub(r'\\(?:sum|int|lim)(?:_\{[^}]*\}|\^\{[^}]*\})*', '', eq).strip()
+            if len(stripped_op) < 10:
+                return False
+
+        # Never yank short/inline clauses out from mid-sentence prepositions ("from $m=-\infty$ to", "where $k=1$")
+        has_full_equation = ('=' in eq and len(eq) >= 24)
+        if prev_text and not has_full_equation:
+            if re.search(
+                r'(?:,\s*|\b(?:from|to|for|of|with|where|when|if|both|and|or|by|at|in|between|as|that|into)\s*)$',
+                prev_text,
+                re.IGNORECASE,
+            ):
+                return False
+
+        # 1. Substantive equation or relational operator (=, >, <, \le, \ge, \approx, \equiv)
         if any(op in eq for op in ['=', '>', '<', r'\ge', r'\le', r'\approx', r'\equiv']):
-            if not re.match(r'^[a-zA-Z_]\s*=\s*\d+$', eq):
+            if not re.match(r'^[a-zA-Z_\\0-9{}\s]{1,8}\s*(?:=|>|<)\s*[-+\\a-zA-Z0-9_{}]{1,10}$', eq):
                 return True
 
-        # 2. Fractions, calculus, sums, integrals, ROC
-        if any(st in eq for st in [r'\frac', r'\sum', r'\int', r'\partial', r'\text{Re}', r'\text{Im}', r'\text{ROC}']):
+        # 2. Fractions, multi-term calculus, integrals, ROC
+        if any(st in eq for st in [r'\frac', r'\int', r'\partial', r'\text{Re}', r'\text{Im}', r'\text{ROC}']):
             return True
 
-        # 3. Limits: Only promote if accompanied by an evaluation expression (not naked \lim_{t \to \infty})
+        # 3. Complete summations with equations/bodies
+        if r'\sum' in eq and ('=' in eq or len(eq) >= 22):
+            return True
+
+        # 4. Limits: Only promote if accompanied by an evaluation expression (not naked \lim_{t \to \infty})
         if r'\lim' in eq:
             clean_lim = re.sub(r'\\lim_\{[^}]+\}', '', eq).strip()
-            if clean_lim and (any(c.isalpha() for c in clean_lim) or '=' in clean_lim):
+            if clean_lim and (any(c.isalpha() for c in clean_lim) or '=' in clean_lim) and '=' in eq:
                 return True
             return False
 
-        # 4. Compound signals: e.g. e^{-3t} u(t), (e^{-t} - e^{-2t}) u(t), t e^{-at} u(t), \cos(\omega_0 t) u(t)
+        # 5. Compound signals: e.g. e^{-3t} u(t), (e^{-t} - e^{-2t}) u(t)
         if re.search(r'(?:e\^\{|\bcos\(|\bsin\().*?u\(t\)', eq):
-            return True
-
-        # 5. Multi-term compound expressions (e.g. s X(s) H(s), s^2 + \omega_0^2)
-        if any(op in eq for op in [' - ', ' + ', r'\pm', r'\times']) and len(eq) >= 8:
             return True
 
         return False
@@ -695,7 +833,8 @@ class EquationFormatter:
                 if not eq_body:
                     continue
 
-                if self.should_promote_to_display(eq_body):
+                prev_ctx = "".join(new_tokens)
+                if self.should_promote_to_display(eq_body, prev_text=prev_ctx):
                     self.eq_counter += 1
                     cleaned_body = _clean_eq_body(eq_body)
                     new_tokens.append(f"\n\\begin{{equation}}\n  \\label{{eq:{self.eq_counter}}}\n  {cleaned_body}\n\\end{{equation}}\n")
@@ -1260,7 +1399,7 @@ class LectureToBookBuilder:
         if not clean_text:
             return "Classroom Exposition"
 
-        # 1. Try local Qwen2.5-1.5B on llama-server (fast timeout 3.0s)
+        # 1. Try local Qwen2.5-1.5B on llama-server (timeout 10s for CPU headroom)
         try:
             req = urllib.request.Request(
                 "http://127.0.0.1:8080/completion",
@@ -1275,11 +1414,12 @@ class LectureToBookBuilder:
                     ),
                     "temperature": 0.1,
                     "n_predict": 30,
+                    "cache_prompt": True,
                     "stop": ["<|im_end|>", "\n"]
                 }).encode("utf-8"),
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=3.0) as resp:
+            with urllib.request.urlopen(req, timeout=10.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 content = data.get("content", "").strip().strip('"').strip("'")
                 content = re.sub(r'^(?:Title|Topic|Lecture(?:\s+Notes)?(?:\s*on|\s*:)?)\s*', '', content, flags=re.IGNORECASE).strip()
@@ -1291,6 +1431,9 @@ class LectureToBookBuilder:
         # 2. Comprehensive Multi-Domain STEM Classifier
         lower = clean_text.lower()
         domain_rules = [
+            # Speech & Statistical Signal Modeling
+            (r'\b(?:autocorrelation|linear prediction|prediction error|mean squared error|lpc|yule[- ]walker)\b',
+             "Linear Prediction, Autocorrelation & Mean Squared Error Analysis"),
             # Mathematical Optimization & Convex Analysis
             (r'\b(?:convex optimization|convex set|convex function|hyperplane|local extrema|global extrema|local minimum|global minimum|epigraph|duality)\b',
              "Convex Optimization: Sets, Functions & Optimality Criteria"),
@@ -1335,7 +1478,12 @@ class LectureToBookBuilder:
         stopwords = {"the", "a", "an", "and", "or", "in", "on", "at", "to", "for", "of", "with", "by", "from",
                      "is", "are", "was", "were", "be", "been", "have", "has", "had", "this", "that", "these", "those",
                      "it", "its", "we", "you", "they", "i", "so", "as", "if", "then", "also", "just", "now", "what",
-                     "how", "why", "which", "will", "can", "could", "would", "should", "some", "all", "our", "about"}
+                     "how", "why", "which", "will", "can", "could", "would", "should", "some", "all", "our", "about",
+                     "where", "there", "here", "when", "while", "said", "okay", "yeah", "well", "like", "thing", "things",
+                     "something", "anything", "nothing", "term", "terms", "method", "methods", "equation", "equations",
+                     "step", "steps", "part", "parts", "case", "cases", "value", "values", "zero", "one", "two", "three",
+                     "four", "say", "know", "write", "written", "call", "called", "equal", "equals", "plus", "minus",
+                     "times", "infinity", "going", "look", "looks", "take", "give", "make", "both", "same", "more", "very"}
         keywords = [t for t in tokens if len(t) > 3 and t not in stopwords and not t.isdigit()]
         if keywords:
             from collections import Counter
@@ -1411,7 +1559,8 @@ class LectureToBookBuilder:
         if not date_str:
             date_str = time.strftime("%B %d, %Y")
 
-        paragraphs = self.harmonize_paragraphs(self.assemble_paragraphs(chunks))
+        # Use fast deterministic notation harmonisation here (<5 ms) so CPU SLM is not called redundantly per paragraph
+        paragraphs = self.harmonize_paragraphs(self.assemble_paragraphs(chunks), use_slm=False)
         full_text = " ".join(paragraphs)
 
         # Infer intelligent title based on transcript content
@@ -1425,8 +1574,8 @@ class LectureToBookBuilder:
         # Sanitize text and inline math first, then promote major formulas to numbered display equations
         processed_paragraphs = [self.eq_formatter.promote_to_display_equations(escape_latex_text(p)) for p in paragraphs]
 
-        # Escape ampersands and strip math delimiters for clean document header
-        clean_title_tex = clean_title.replace("$", "").replace("&", r"\&").strip()
+        # Escape &, %, #, _ and strip delimiters for clean document header
+        clean_title_tex = escape_title_for_tex(clean_title)
 
         # Build structured monograph with formal sections, theorems, definitions, and contextual TikZ diagrams
         body_tex_parts = self.sectionizer.structure_monograph(processed_paragraphs, tikz_blocks, full_text)
@@ -1522,11 +1671,13 @@ class LectureToBookBuilder:
         clean_title: str,
         chunks: List[TranscriptChunk],
         author: str = "",
-        date_str: Optional[str] = None
+        date_str: Optional[str] = None,
+        translate_subtitles: bool = False,
     ) -> Tuple[str, str, str, List[TranscriptChunk], List[str]]:
         """
-        Builds the bilingual Hindi typeset monograph (.md and .tex) and translated subtitle chunks.
-        Preserves 100% of mathematical equations while translating pedagogical explanations into Hindi.
+        Builds the bilingual Hindi typeset monograph (.md and .tex) and optional subtitle chunks.
+        Preserves mathematical equations while translating explanations into Hindi.
+        Subtitle translation (.srt/.vtt) is skipped by default to save CPU inference time.
         Returns: (hindi_tex, hindi_md, hindi_title, hindi_chunks, hindi_paragraphs)
         """
         from hindi_translator import HindiLectureTranslator
@@ -1539,30 +1690,33 @@ class LectureToBookBuilder:
         # 1. Translate title
         hindi_title = translator.translate_title(clean_title)
 
-        # 2. Assemble cohesive paragraphs, harmonize notation, and translate them
-        english_paragraphs = self.harmonize_paragraphs(self.assemble_paragraphs(chunks))
+        # 2. Assemble cohesive paragraphs, run fast deterministic notation harmonisation, and translate
+        english_paragraphs = self.harmonize_paragraphs(self.assemble_paragraphs(chunks), use_slm=False)
         hindi_paragraphs = translator.translate_paragraphs(english_paragraphs)
 
-        # 3. Translate subtitle chunks for .srt and .vtt (in high-throughput batches)
-        print(f"[HindiTranslator] Translating {len(chunks)} subtitle segments into Hindi in parallel batches...")
-        raw_texts = [(c.latex_text or c.spoken_text or "").strip() for c in chunks]
-
-        batch_size = 12
-        translated_texts = []
-        for b_idx in range(0, len(raw_texts), batch_size):
-            batch = raw_texts[b_idx:b_idx + batch_size]
-            t_batch = translator.translate_subtitles_batch(batch)
-            translated_texts.extend(t_batch)
-            print(f"[HindiTranslator] Subtitles: {min(len(translated_texts), len(chunks))}/{len(chunks)} translated")
-
+        # 3. Optional Hindi subtitle translation (.srt/.vtt); skipped by default for low latency
         hindi_chunks = []
-        for c, hi_text in zip(chunks, translated_texts):
-            hindi_chunks.append(TranscriptChunk(
-                timestamp_start=c.timestamp_start,
-                timestamp_end=c.timestamp_end,
-                spoken_text=hi_text,
-                latex_text=hi_text
-            ))
+        if translate_subtitles and chunks:
+            print(f"[HindiTranslator] Translating {len(chunks)} subtitle segments into Hindi in batches...")
+            raw_texts = [(c.latex_text or c.spoken_text or "").strip() for c in chunks]
+
+            batch_size = 9
+            translated_texts = []
+            for b_idx in range(0, len(raw_texts), batch_size):
+                batch = raw_texts[b_idx:b_idx + batch_size]
+                t_batch = translator.translate_subtitles_batch(batch)
+                translated_texts.extend(t_batch)
+                print(f"[HindiTranslator] Subtitles: {min(len(translated_texts), len(chunks))}/{len(chunks)} translated")
+
+            for c, hi_text in zip(chunks, translated_texts):
+                hindi_chunks.append(TranscriptChunk(
+                    timestamp_start=c.timestamp_start,
+                    timestamp_end=c.timestamp_end,
+                    spoken_text=hi_text,
+                    latex_text=hi_text
+                ))
+        else:
+            print("[HindiTranslator] Skipping Hindi .srt/.vtt subtitle translation (monograph-only mode).", flush=True)
 
         # 4. Build Hindi Markdown
         md_parts = [
@@ -1584,7 +1738,7 @@ class LectureToBookBuilder:
         hindi_md = "\n".join(md_parts)
 
         # 5. Build publication-grade XeTeX LaTeX source with display equations, formal sections, and TikZ
-        clean_title_tex = hindi_title.replace("$", "").replace("&", r"\&").strip()
+        clean_title_tex = escape_title_for_tex(hindi_title)
 
         # Detect diagram triggers from full English text for precise STEM diagram index matching
         full_english_text = " ".join([(c.spoken_text or c.latex_text or "") for c in chunks])

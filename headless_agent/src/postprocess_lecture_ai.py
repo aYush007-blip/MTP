@@ -285,9 +285,88 @@ class AcademicPDFRenderer:
     """
     TECTONIC_BIN = Path("/mnt/thesis/bin/tectonic")
 
+    @staticmethod
+    def _extract_tectonic_error_line(stderr_text: str) -> Optional[int]:
+        """Parse the 1-based line number from Tectonic/XeTeX stderr output."""
+        for pat in (r'error:\s*[^:\n]+:(\d+):', r'(?m)^l\.(\d+)\b'):
+            m = re.search(pat, stderr_text or "")
+            if m:
+                try:
+                    return int(m.group(1))
+                except ValueError:
+                    pass
+        return None
+
+    @staticmethod
+    def _quarantine_tex_error_line(tex_content: str, err_line: int) -> str:
+        """
+        Surgically neutralize the enclosing figure block, equation block, or single
+        faulty line at err_line so one bad SLM LaTeX token never crashes the entire PDF.
+        """
+        lines = tex_content.splitlines()
+        idx = err_line - 1
+        if idx < 0 or idx >= len(lines):
+            return tex_content
+
+        # Never alter preamble or document boundaries
+        protected_prefixes = (r"\documentclass", r"\usepackage", r"\begin{document}", r"\end{document}", r"\section")
+        if lines[idx].strip().startswith(protected_prefixes):
+            return tex_content
+
+        # 1. If error falls inside a \begin{figure}...\end{figure}, strip only that figure
+        fig_start = None
+        for i in range(idx, -1, -1):
+            if r"\begin{figure}" in lines[i]:
+                fig_start = i
+                break
+            if r"\end{figure}" in lines[i] and i < idx:
+                break
+        if fig_start is not None:
+            fig_end = None
+            for j in range(idx, len(lines)):
+                if r"\end{figure}" in lines[j]:
+                    fig_end = j
+                    break
+            if fig_end is not None:
+                del lines[fig_start:fig_end + 1]
+                return "\n".join(lines)
+
+        # 2. If error falls inside an enclosing \begin{equation}...\end{equation}, convert to safe escaped plain text
+        def _sanitize_plain(raw: str) -> str:
+            txt = re.sub(r'\\label\{[^}]+\}', '', raw)
+            txt = txt.replace("$", "").replace("\\", " ")
+            txt = txt.replace("{", "(").replace("}", ")")
+            txt = re.sub(r'([&%#_~^])', r'\\\1', txt)
+            return re.sub(r'\s+', ' ', txt).strip()
+
+        eq_start = None
+        for i in range(idx, -1, -1):
+            if r"\begin{equation}" in lines[i]:
+                eq_start = i
+                break
+            if r"\end{equation}" in lines[i] and i < idx:
+                break
+        if eq_start is not None:
+            eq_end = None
+            for j in range(idx, len(lines)):
+                if r"\end{equation}" in lines[j]:
+                    eq_end = j
+                    break
+            if eq_end is not None:
+                body = " ".join(lines[eq_start + 1:eq_end])
+                safe_txt = _sanitize_plain(body)
+                repl = [f"\\begin{{quote}}\\texttt{{{safe_txt}}}\\end{{quote}}"] if safe_txt else []
+                lines[eq_start:eq_end + 1] = repl
+                return "\n".join(lines)
+
+        # 3. Otherwise neutralize only the single offending line
+        safe_line = _sanitize_plain(lines[idx])
+        lines[idx] = safe_line if safe_line else ""
+        return "\n".join(lines)
+
     @classmethod
     def compile_with_tectonic(cls, tex_path: Path, output_dir: Path) -> Optional[Path]:
-        """Compile using offline cached Tectonic binary with pre-compilation source sanitization and auto-healing."""
+        """Compile using offline cached Tectonic binary with pre-compilation source sanitization and surgical line quarantine."""
         tectonic_bin = cls.TECTONIC_BIN if cls.TECTONIC_BIN.is_file() else shutil.which("tectonic")
         if not tectonic_bin:
             return None
@@ -319,22 +398,41 @@ class AcademicPDFRenderer:
                 print(f"[PDF Compiler] Tectonic successfully compiled: {pdf_candidate} ({pdf_candidate.stat().st_size} bytes)")
                 return pdf_candidate
 
-            # 2. Auto-healing retry pass if Tectonic reported a syntax error
+            # 2. Auto-healing retry pass: sanitize + strip figure blocks if undefined TikZ/pgf macro broke pass 1
             print(f"[PDF Compiler] First Tectonic pass encountered error: {res.stderr[:200]}")
             if tex_path.is_file():
                 content = tex_path.read_text(encoding="utf-8")
-                # Fix unspaced backslashes after common math functions: e.g. \int_{...}^\inftyf(x) -> \int_{...}^\infty f(x)
-                content = re.sub(r'\\([a-zA-Z]+)([a-zA-Z]{2,})', lambda m: f"\\{m.group(1)} {m.group(2)}" if m.group(1) in ["infty", "lambda", "omega", "theta", "alpha", "beta"] else m.group(0), content)
-                # Remove unclosed begin{cases} or broken control sequence
-                content = re.sub(r'\\begin\{cases\}\.?\s*$', '', content)
-                tex_path.write_text(content, encoding="utf-8")
+                err_text = (res.stderr or "") + (res.stdout or "")
+                if (
+                    "Undefined control sequence" in err_text
+                    or "Environment" in err_text
+                    or "pgf Error" in err_text
+                ) and r"\begin{figure}" in content:
+                    print("[PDF Compiler] Stripping incompatible figure block before Tectonic retry...")
+                    content = re.sub(r'\\begin\{figure\}[\s\S]*?\\end\{figure\}', '', content)
+                    tex_path.write_text(content, encoding="utf-8")
+                    res = _run_tectonic()
+                    if pdf_candidate.is_file() and pdf_candidate.stat().st_size > 1000:
+                        print(f"[PDF Compiler] Auto-healing succeeded! Tectonic compiled: {pdf_candidate}")
+                        return pdf_candidate
 
-                retry_res = _run_tectonic()
-                if pdf_candidate.is_file() and pdf_candidate.stat().st_size > 1000:
-                    print(f"[PDF Compiler] Auto-healing succeeded! Tectonic compiled: {pdf_candidate}")
-                    return pdf_candidate
-                else:
-                    print(f"[PDF Compiler] Tectonic compilation failed: {retry_res.stderr[:300]}")
+                # 3. Surgical line-level quarantine loop (up to 4 retries) so one bad equation never dumps the PDF to ReportLab
+                for q_step in range(4):
+                    err_line = cls._extract_tectonic_error_line((res.stderr or "") + "\n" + (res.stdout or ""))
+                    if err_line is None:
+                        break
+                    healed = cls._quarantine_tex_error_line(content, err_line)
+                    if healed == content:
+                        break
+                    print(f"[PDF Compiler] Quarantining faulty LaTeX at line {err_line} (retry {q_step + 1}/4)...")
+                    content = healed
+                    tex_path.write_text(content, encoding="utf-8")
+                    res = _run_tectonic()
+                    if pdf_candidate.is_file() and pdf_candidate.stat().st_size > 1000:
+                        print(f"[PDF Compiler] Surgical quarantine succeeded! Tectonic compiled: {pdf_candidate}")
+                        return pdf_candidate
+
+                print(f"[PDF Compiler] Tectonic compilation failed: {res.stderr[:300]}")
         except Exception as e:
             print(f"[PDF Compiler] Tectonic execution error: {e}")
         return None

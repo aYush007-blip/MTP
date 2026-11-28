@@ -294,11 +294,21 @@ def trigger_system_shutdown(delay_sec: float = 2.0):
     except Exception:
         pass
 
-    # 3. Sudoers passwordless shutdown fallback
-    try:
-        subprocess.run(["sudo", "-n", "shutdown", "-h", "now"], check=False)
-    except Exception:
-        pass
+    # 3. Sudoers passwordless shutdown fallbacks
+    for cmd in (["sudo", "-n", "systemctl", "poweroff"], ["sudo", "-n", "shutdown", "-h", "now"]):
+        try:
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+            if res.returncode == 0:
+                return
+            print(f"[Agent] {' '.join(cmd)} returned code {res.returncode}: {res.stderr.strip()}", flush=True)
+        except Exception as e:
+            print(f"[Agent] {' '.join(cmd)} exception: {e}", flush=True)
+
+    print(
+        "[Agent Shutdown Error] Power-off not permitted for current user. "
+        "Grant passwordless shutdown via /etc/sudoers.d/ (NOPASSWD: /sbin/shutdown, /usr/bin/systemctl poweroff).",
+        flush=True,
+    )
 
 
 class EdgeBackpressureScheduler:
@@ -1429,14 +1439,13 @@ class HeadlessVoiceAgent:
         vtt_file = temp_dir / f"{session_name}.vtt"
         vtt_file.write_text(vtt_content, encoding="utf-8")
 
-        # 4. Build Bilingual Hindi Monograph & Subtitles
+        # 4. Build Bilingual Hindi Monograph (subtitle .srt/.vtt translation skipped to save CPU latency)
         self.status_tracker.set_stage(ProcessingStage.TRANSLATING_HINDI, additional_est=15.0)
-        print(f"[Agent] Generating bilingual Hindi monograph and subtitles for Indian students...")
+        print(f"[Agent] Generating bilingual Hindi monograph for Indian students...")
         try:
             hindi_tex, hindi_md, hindi_title, hindi_chunks, hindi_paras = self.book_builder.build_hindi_book(
-                clean_title, active_chunks
+                clean_title, active_chunks, translate_subtitles=False
             )
-            hindi_srt, hindi_vtt = generate_subtitles(hindi_chunks)
 
             hi_tex_file = temp_dir / f"{session_name}_hindi.tex"
             hi_tex_file.write_text(hindi_tex, encoding="utf-8")
@@ -1444,11 +1453,15 @@ class HeadlessVoiceAgent:
             hi_md_file = temp_dir / f"{session_name}_hindi.md"
             hi_md_file.write_text(hindi_md, encoding="utf-8")
 
-            hi_srt_file = temp_dir / f"{session_name}_hindi.srt"
-            hi_srt_file.write_text(hindi_srt, encoding="utf-8")
-
-            hi_vtt_file = temp_dir / f"{session_name}_hindi.vtt"
-            hi_vtt_file.write_text(hindi_vtt, encoding="utf-8")
+            if hindi_chunks:
+                hindi_srt, hindi_vtt = generate_subtitles(hindi_chunks)
+                hi_srt_file = temp_dir / f"{session_name}_hindi.srt"
+                hi_srt_file.write_text(hindi_srt, encoding="utf-8")
+                hi_vtt_file = temp_dir / f"{session_name}_hindi.vtt"
+                hi_vtt_file.write_text(hindi_vtt, encoding="utf-8")
+            else:
+                hi_srt_file = None
+                hi_vtt_file = None
 
             hi_pdf_file = temp_dir / f"{session_name}_hindi.pdf"
             compiled_hi = self.post_processor.compile_hindi_pdf(
